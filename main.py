@@ -276,12 +276,16 @@ def admin_set_game_status(game_id: int, status: str, auth=Depends(admin_required
 @app.delete("/api/admin/games/all")
 def admin_delete_all_games(auth=Depends(admin_required)):
     write_json(GAMES_FILE, [])
+    write_json(RESULTS_FILE, {})
     return {"ok": True}
 
 @app.delete("/api/admin/games/{game_id}")
 def admin_delete_game(game_id: int, auth=Depends(admin_required)):
     games = [g for g in get_games() if str(g["id"]) != str(game_id)]
     write_json(GAMES_FILE, games)
+    results = get_results()
+    results.pop(str(game_id), None)
+    write_json(RESULTS_FILE, results)
     return {"ok": True}
 
 # ── 외부 API에서 경기 가져오기 (worldcup26.ir — 무료·키 불필요) ──
