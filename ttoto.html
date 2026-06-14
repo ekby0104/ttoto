@@ -247,10 +247,12 @@ function toast(msg, err=false) {
   el.textContent = msg; el.className='toast show'+(err?' err':'');
   clearTimeout(el._t); el._t=setTimeout(()=>el.classList.remove('show'),2800);
 }
-function switchTab(name) {
+async function switchTab(name) {
   document.querySelectorAll('.tab').forEach((t,i)=>t.classList.toggle('active',['bet','status','result'][i]===name));
   document.querySelectorAll('.panel').forEach(p=>p.classList.remove('active'));
   document.getElementById('panel-'+name).classList.add('active');
+  await loadAll();
+  if (name==='bet')    renderBets();
   if (name==='status') renderStatus();
   if (name==='result') renderResult();
 }
