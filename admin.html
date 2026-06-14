@@ -1,0 +1,747 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>🔧 토토 관리자</title>
+<style>
+@import url('https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@400;600;700&family=Share+Tech+Mono&display=swap');
+:root{
+  --bg:#f4f4f4;--card:#fff;--border:#e0e0e0;--text:#111;--muted:#888;
+  --green:#1db954;--green-dim:#14833a;--green-bg:#edfaf3;
+  --gold:#c47f00;--gold-bg:#fff8e1;
+  --red:#e03333;--red-bg:#fdecea;
+  --blue:#2563eb;--blue-bg:#eff6ff;
+  --mono:'Share Tech Mono',monospace;--body:'Noto Sans KR',sans-serif;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+body{background:var(--bg);color:var(--text);font-family:var(--body);min-height:100vh}
+
+/* ── 헤더 ── */
+header{
+  background:#111;color:#fff;
+  padding:12px 16px;
+  display:flex;align-items:center;justify-content:space-between;gap:8px;
+  flex-wrap:wrap;
+}
+.h-logo{font-size:17px;font-weight:700}
+.h-logo span{color:#1db954}
+.h-token-status{
+  display:flex;align-items:center;gap:8px;
+  font-size:12px;font-family:var(--mono);
+}
+.token-dot{width:8px;height:8px;border-radius:50%;flex-shrink:0}
+.token-dot.locked{background:#e03333}
+.token-dot.open{background:#f5c518}
+.token-dot.set{background:#1db954}
+
+/* ── 탭 ── */
+main{max-width:960px;margin:0 auto;padding:16px 12px 60px}
+.tabs{display:flex;gap:2px;margin-bottom:16px;border-bottom:2px solid var(--border);padding-bottom:0;overflow-x:auto;-webkit-overflow-scrolling:touch}
+.tabs::-webkit-scrollbar{display:none}
+.atab{padding:10px 14px;font-size:12px;font-weight:700;color:var(--muted);cursor:pointer;
+  border-bottom:3px solid transparent;background:none;
+  border-left:none;border-right:none;border-top:none;
+  font-family:var(--body);white-space:nowrap;transition:all .2s;margin-bottom:-2px}
+.atab:hover{color:var(--text)}.atab.active{color:var(--green);border-bottom-color:var(--green)}
+.apanel{display:none}.apanel.active{display:block}
+
+/* ── 카드 ── */
+.acard{background:var(--card);border:1px solid var(--border);border-radius:12px;padding:16px 14px;margin-bottom:14px}
+.acard-title{font-size:15px;font-weight:700;margin-bottom:16px;display:flex;align-items:center;gap:8px}
+.acard-title .icon{font-size:18px}
+.acard-desc{font-size:13px;color:var(--muted);margin-bottom:16px;line-height:1.7}
+
+/* ── 폼 ── */
+.form-row{display:flex;gap:10px;align-items:flex-end;flex-wrap:wrap;margin-bottom:12px}
+.form-group{display:flex;flex-direction:column;gap:4px;flex:1;min-width:0}
+.form-label{font-size:11px;color:var(--muted);font-family:var(--mono)}
+.form-input{
+  border:1px solid var(--border);border-radius:8px;
+  padding:10px 12px;font-size:14px;color:var(--text);
+  font-family:var(--body);outline:none;transition:border-color .2s;width:100%;
+}
+.form-input:focus{border-color:var(--green)}
+.form-hint{font-size:11px;color:var(--muted);margin-top:4px;font-family:var(--mono)}
+
+/* ── 버튼 ── */
+.btn{border:none;border-radius:8px;padding:9px 16px;font-size:13px;font-weight:700;cursor:pointer;font-family:var(--body);transition:all .15s}
+.btn-primary{background:var(--green);color:#fff}.btn-primary:hover{background:var(--green-dim)}
+.btn-danger{background:var(--red);color:#fff}.btn-danger:hover{background:#b52828}
+.btn-ghost{background:transparent;color:var(--muted);border:1px solid var(--border)}.btn-ghost:hover{border-color:#aaa;color:var(--text)}
+.btn-gold{background:var(--gold-bg);color:var(--gold);border:1px solid #f0c040}.btn-gold:hover{background:#fff3cd}
+.btn-sm{padding:5px 12px;font-size:12px}
+
+/* ── 토큰 박스 ── */
+.token-box{
+  background:#f8f8f8;border:1px solid var(--border);border-radius:10px;
+  padding:16px;margin-bottom:14px;
+}
+.token-box .current-label{font-size:11px;color:var(--muted);font-family:var(--mono);margin-bottom:6px}
+.token-box .current-val{
+  font-family:var(--mono);font-size:14px;font-weight:700;
+  padding:8px 12px;background:#fff;border:1px solid var(--border);
+  border-radius:6px;letter-spacing:2px;color:#333;
+}
+.token-box .current-val.empty{color:#bbb;font-style:italic;letter-spacing:0}
+.token-warning{
+  background:#fff8e1;border:1px solid #ffe082;border-radius:8px;
+  padding:12px 14px;font-size:13px;color:#7a5c00;margin-bottom:14px;
+  display:flex;align-items:flex-start;gap:8px;
+}
+
+/* ── 테이블 ── */
+.atable{width:100%;border-collapse:collapse;font-size:13px}
+.atable th{text-align:left;padding:10px 12px;font-size:11px;color:var(--muted);font-family:var(--mono);border-bottom:2px solid var(--border);white-space:nowrap}
+.atable td{padding:10px 12px;border-bottom:1px solid var(--border);vertical-align:middle}
+.atable tr:last-child td{border-bottom:none}
+.atable tr:hover td{background:#fafafa}
+.badge{display:inline-flex;align-items:center;gap:4px;padding:3px 10px;border-radius:20px;font-size:11px;font-weight:700}
+.badge-green{background:var(--green-bg);color:var(--green-dim)}
+.badge-gold{background:var(--gold-bg);color:var(--gold)}
+.badge-red{background:var(--red-bg);color:var(--red)}
+.badge-gray{background:#f0f0f0;color:var(--muted)}
+
+/* ── 경기 결과 ── */
+.result-row{display:flex;align-items:flex-start;gap:8px;padding:12px 0;border-bottom:1px solid var(--border);flex-wrap:wrap}
+.result-row:last-child{border-bottom:none}
+.result-teams{flex:1;min-width:0;font-weight:700;font-size:14px}
+.result-teams small{display:block;font-size:11px;color:var(--muted);font-weight:400;margin-top:2px}
+.result-score-input{width:48px;height:40px;border:1px solid var(--border);border-radius:6px;text-align:center;font-size:18px;font-weight:700;font-family:var(--mono);outline:none}
+.result-score-input:focus{border-color:var(--green)}
+.result-current{font-family:var(--mono);font-size:16px;color:var(--green);font-weight:700;min-width:60px;text-align:center}
+
+/* ── 구분선 ── */
+.divider{height:1px;background:var(--border);margin:20px 0}
+
+/* ── toast ── */
+.toast{position:fixed;bottom:24px;left:50%;transform:translateX(-50%) translateY(16px);background:#111;color:#fff;padding:11px 22px;border-radius:30px;font-weight:700;font-size:13px;opacity:0;transition:all .28s;pointer-events:none;z-index:999;white-space:nowrap}
+.toast.show{opacity:1;transform:translateX(-50%) translateY(0)}.toast.err{background:var(--red)}
+
+/* ── 반응형 그리드 ── */
+.g-2col{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:10px}
+.team-box{background:#f8f8f8;border-radius:8px;padding:12px}
+.team-box-title{font-size:11px;font-weight:700;color:var(--muted);margin-bottom:8px;font-family:var(--mono)}
+
+@media(max-width:480px){
+  header{padding:10px 12px}
+  .h-logo{font-size:15px}
+  #token-input{width:140px;font-size:12px}
+  main{padding:12px 10px 60px}
+  .acard{padding:14px 12px}
+  .acard-title{font-size:14px}
+  .atab{padding:9px 10px;font-size:11px}
+  .form-input{font-size:13px;padding:9px 10px}
+  .btn{padding:9px 14px;font-size:13px}
+  /* 수기 등록: 2열 → 1열 */
+  .g-2col{grid-template-columns:1fr}
+  /* 홈·원정 팀박스: 세로 쌓기 */
+  .g-2col > div[style*="background:#f8f8f8"]{width:100%}
+  /* 테이블 폰트 */
+  .atable{font-size:12px}
+  .atable th,.atable td{padding:8px 8px}
+  /* result-row 버튼 줄바꿈 */
+  .result-row > div:last-child{flex-wrap:wrap}
+  .result-score-input{width:42px;height:36px;font-size:16px}
+  /* 배당 테이블 td 축소 */
+  .badge{padding:2px 7px;font-size:10px}
+}
+</style>
+</head>
+<body>
+<header>
+  <div class="h-logo">🔧 토토 <span>관리자</span></div>
+  <div class="h-token-status">
+    <div class="token-dot" id="token-dot"></div>
+    <span id="token-status-text"></span>
+  </div>
+</header>
+
+<main>
+  <nav class="tabs">
+    <button class="atab active" onclick="switchATab('settings')">⚙️ 설정</button>
+    <button class="atab" onclick="switchATab('games')">📅 게임 관리</button>
+    <button class="atab" onclick="switchATab('payments')">💛 입금 확인</button>
+    <button class="atab" onclick="switchATab('results')">📋 경기 결과</button>
+    <button class="atab" onclick="switchATab('payouts')">🏆 배당 처리</button>
+  </nav>
+
+  <!-- ① 설정 -->
+  <div id="apanel-settings" class="apanel active">
+
+    <!-- 카카오페이 & 베팅금액 -->
+    <div class="acard">
+      <div class="acard-title"><span class="icon">💳</span> 카카오페이 & 베팅 금액</div>
+      <div style="display:flex;flex-direction:column;gap:10px">
+        <div class="form-group">
+          <label class="form-label">페이지 타이틀</label>
+          <input class="form-input" id="cfg-title" type="text" placeholder="사무실 토토">
+        </div>
+        <div class="form-group">
+          <label class="form-label">카카오페이 송금 링크</label>
+          <input class="form-input" id="cfg-link" type="url" placeholder="https://qr.kakaopay.com/...">
+        </div>
+        <div class="form-group">
+          <label class="form-label">경기당 베팅 금액 (원)</label>
+          <input class="form-input" id="cfg-amount" type="number" min="0" placeholder="3000">
+        </div>
+        <button class="btn btn-primary" onclick="saveConfig()">저장</button>
+      </div>
+    </div>
+
+    <!-- 관리자 토큰 -->
+    <div class="acard">
+      <div class="acard-title"><span class="icon">🔑</span> 관리자 토큰 설정</div>
+      <p class="acard-desc">
+        토큰을 설정하면 이후 관리자 페이지 접근 및 API 호출 시 토큰 인증이 필요합니다.<br>
+        토큰을 비워두면 누구나 관리자 페이지에 접근할 수 있습니다.
+      </p>
+
+      <!-- 현재 토큰 상태 -->
+      <div class="token-box">
+        <div class="current-label">현재 토큰 상태</div>
+        <div class="current-val" id="current-token-display">확인 중...</div>
+      </div>
+
+      <div class="token-warning" id="token-warning" style="display:none">
+        <span>⚠️</span>
+        <span>토큰이 설정돼 있습니다. 변경하려면 현재 토큰을 먼저 입력하세요.</span>
+      </div>
+
+      <div id="current-token-row" style="display:none;margin-bottom:12px">
+        <div class="form-group">
+          <label class="form-label">현재 토큰</label>
+          <input class="form-input" id="current-token-input" type="password" placeholder="현재 토큰 입력">
+        </div>
+      </div>
+
+      <div style="display:flex;flex-direction:column;gap:8px">
+        <div class="form-group">
+          <label class="form-label">새 토큰</label>
+          <input class="form-input" id="new-token-input" type="text" placeholder="새 토큰 입력 (비우면 토큰 해제)">
+          <span class="form-hint">영문·숫자·특수문자 자유롭게 입력</span>
+        </div>
+        <button class="btn btn-primary" onclick="saveToken()">토큰 변경</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ② 게임 관리 -->
+  <div id="apanel-games" class="apanel">
+
+    <!-- 외부 API 불러오기 -->
+    <div class="acard">
+      <div class="acard-title"><span class="icon">🌐</span> 외부 API로 경기 불러오기</div>
+      <p class="acard-desc">
+        <strong>worldcup26.ir</strong> — 무료·API 키 불필요·실시간 업데이트<br>
+        2026 FIFA 월드컵 전 104경기 일정과 결과를 자동으로 가져옵니다.<br>
+        이미 등록된 경기는 건너뛰고 새 경기만 추가됩니다.
+      </p>
+      <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap">
+        <button class="btn btn-primary" onclick="importGames()" id="import-btn">
+          📥 worldcup26.ir 에서 불러오기
+        </button>
+        <span id="import-result" style="font-size:13px;color:var(--muted);font-family:var(--mono)"></span>
+      </div>
+    </div>
+
+    <!-- 수기 등록 -->
+    <div class="acard">
+      <div class="acard-title"><span class="icon">✏️</span> 수기 경기 등록</div>
+      <div class="g-2col">
+        <div class="form-group">
+          <label class="form-label">날짜 (예: 2026.06.15)</label>
+          <input class="form-input" id="g-date" placeholder="2026.06.15">
+        </div>
+        <div class="form-group">
+          <label class="form-label">시간 (예: 21:00)</label>
+          <input class="form-input" id="g-time" placeholder="21:00">
+        </div>
+      </div>
+      <div class="g-2col" style="margin-bottom:10px">
+        <div class="team-box">
+          <div class="team-box-title">홈팀</div>
+          <div class="form-group" style="margin-bottom:6px">
+            <label class="form-label">팀명</label>
+            <input class="form-input" id="g-hname" placeholder="대한민국">
+          </div>
+          <div class="g-2col" style="margin-bottom:0">
+            <div class="form-group">
+              <label class="form-label">약자</label>
+              <input class="form-input" id="g-hshort" placeholder="KOR">
+            </div>
+            <div class="form-group">
+              <label class="form-label">국기 이모지</label>
+              <input class="form-input" id="g-hflag" placeholder="🇰🇷">
+            </div>
+          </div>
+        </div>
+        <div class="team-box">
+          <div class="team-box-title">원정팀</div>
+          <div class="form-group" style="margin-bottom:6px">
+            <label class="form-label">팀명</label>
+            <input class="form-input" id="g-aname" placeholder="브라질">
+          </div>
+          <div class="g-2col" style="margin-bottom:0">
+            <div class="form-group">
+              <label class="form-label">약자</label>
+              <input class="form-input" id="g-ashort" placeholder="BRA">
+            </div>
+            <div class="form-group">
+              <label class="form-label">국기 이모지</label>
+              <input class="form-input" id="g-aflag" placeholder="🇧🇷">
+            </div>
+          </div>
+        </div>
+      </div>
+      <button class="btn btn-primary" onclick="addGame()" style="width:100%;margin-top:4px">+ 경기 등록</button>
+    </div>
+
+    <!-- 등록된 경기 목록 -->
+    <div class="acard">
+      <div class="acard-title"><span class="icon">📋</span> 등록된 경기 목록</div>
+      <div style="overflow-x:auto;-webkit-overflow-scrolling:touch">
+        <table class="atable">
+          <thead>
+            <tr><th>#</th><th>홈</th><th>원정</th><th>날짜/시간</th><th>상태</th><th>관리</th></tr>
+          </thead>
+          <tbody id="games-body"></tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <!-- ③ 입금 확인 -->
+  <div id="apanel-payments" class="apanel">
+    <div class="acard">
+      <div class="acard-title"><span class="icon">💛</span> 입금 확인 내역</div>
+      <div style="display:flex;gap:8px;margin-bottom:14px;flex-wrap:wrap">
+        <select class="form-input" id="pay-filter-game" onchange="renderPayments()" style="max-width:220px">
+          <option value="">전체 경기</option>
+        </select>
+        <button class="btn btn-ghost btn-sm" onclick="loadAll()">새로고침</button>
+      </div>
+      <div style="overflow-x:auto;-webkit-overflow-scrolling:touch">
+        <table class="atable">
+          <thead><tr><th>이름</th><th>경기</th><th>예측</th><th>금액</th><th>입금</th><th>처리</th></tr></thead>
+          <tbody id="payments-body"></tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <!-- ④ 경기 결과 -->
+  <div id="apanel-results" class="apanel">
+    <div class="acard">
+      <div class="acard-title"><span class="icon">📋</span> 경기 결과 등록</div>
+      <div id="result-rows"></div>
+    </div>
+  </div>
+
+  <!-- ⑤ 배당 처리 -->
+  <div id="apanel-payouts" class="apanel">
+    <div class="acard">
+      <div class="acard-title"><span class="icon">🏆</span> 배당 처리</div>
+      <div style="display:flex;gap:8px;margin-bottom:14px;flex-wrap:wrap">
+        <select class="form-input" id="payout-filter-game" onchange="renderPayouts()" style="max-width:220px">
+          <option value="">전체 경기</option>
+        </select>
+        <button class="btn btn-ghost btn-sm" onclick="loadAll()">새로고침</button>
+      </div>
+      <div style="overflow-x:auto;-webkit-overflow-scrolling:touch">
+        <table class="atable">
+          <thead><tr><th>이름</th><th>경기</th><th>예측</th><th>당첨</th><th>배당금</th><th>배당완료</th><th>처리</th></tr></thead>
+          <tbody id="payouts-body"></tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+</main>
+
+<div class="toast" id="toast"></div>
+
+<script>
+const API = '/api';
+const MATCHES = [
+  {id:1,group:'A조',home:{name:'대한민국',short:'KOR',flag:'🇰🇷'},away:{name:'브라질',short:'BRA',flag:'🇧🇷'},date:'2026.06.15'},
+  {id:2,group:'A조',home:{name:'독일',short:'GER',flag:'🇩🇪'},away:{name:'아르헨티나',short:'ARG',flag:'🇦🇷'},date:'2026.06.15'},
+  {id:3,group:'B조',home:{name:'잉글랜드',short:'ENG',flag:'🏴󠁧󠁢󠁥󠁮󠁧󠁿'},away:{name:'프랑스',short:'FRA',flag:'🇫🇷'},date:'2026.06.16'},
+  {id:4,group:'B조',home:{name:'스페인',short:'ESP',flag:'🇪🇸'},away:{name:'포르투갈',short:'POR',flag:'🇵🇹'},date:'2026.06.17'},
+  {id:5,group:'C조',home:{name:'일본',short:'JPN',flag:'🇯🇵'},away:{name:'모로코',short:'MAR',flag:'🇲🇦'},date:'2026.06.18'},
+];
+
+// 세션 토큰 (설정돼 있을 경우 입력받아 저장)
+let sessionToken = sessionStorage.getItem('admin_token') || '';
+let hasServerToken = false;
+let allBets = [];
+let allResults = {};
+let config = {};
+let allGames = [];
+
+function matchLabel(id) {
+  const m = MATCHES.find(x => x.id === id);
+  return m ? `${m.home.flag}${m.home.short} vs ${m.away.short}${m.away.flag}` : '?';
+}
+function toast(msg, err=false) {
+  const el = document.getElementById('toast');
+  el.textContent = msg; el.className = 'toast show' + (err?' err':'');
+  clearTimeout(el._t); el._t = setTimeout(() => el.classList.remove('show'), 2800);
+}
+function switchATab(name) {
+  document.querySelectorAll('.atab').forEach((t,i) =>
+    t.classList.toggle('active', ['settings','games','payments','results','payouts'][i] === name));
+  document.querySelectorAll('.apanel').forEach(p => p.classList.remove('active'));
+  document.getElementById('apanel-' + name).classList.add('active');
+}
+
+// ── API ──────────────────────────────────────────────────
+async function apiFetch(path, opts={}) {
+  try {
+    const headers = {'Content-Type':'application/json'};
+    if (sessionToken) headers['X-Admin-Token'] = sessionToken;
+    const r = await fetch(API + path, {headers, ...opts});
+    if (r.status === 401) {
+      // 토큰 필요 — 프롬프트로 입력 요청
+      const t = prompt('🔑 관리자 토큰을 입력하세요:');
+      if (!t) return null;
+      sessionToken = t;
+      sessionStorage.setItem('admin_token', t);
+      return apiFetch(path, opts); // 재시도
+    }
+    if (!r.ok) throw new Error(await r.text());
+    return await r.json();
+  } catch(e) { return null; }
+}
+
+// ── 초기화 ──────────────────────────────────────────────
+async function init() {
+  // 게임 필터 옵션
+  ['pay-filter-game','payout-filter-game'].forEach(id => {
+    const sel = document.getElementById(id);
+    MATCHES.forEach(m => {
+      const opt = document.createElement('option');
+      opt.value = m.id;
+      opt.textContent = `${m.home.short} vs ${m.away.short}`;
+      sel.appendChild(opt);
+    });
+  });
+
+  // 토큰 상태 확인
+  const status = await fetch(API + '/auth/status').then(r=>r.json()).catch(()=>({has_token:false}));
+  hasServerToken = status.has_token;
+  refreshTokenUI();
+
+  await loadAll();
+}
+
+function refreshTokenUI() {
+  const dot  = document.getElementById('token-dot');
+  const text = document.getElementById('token-status-text');
+  const warn = document.getElementById('token-warning');
+  const row  = document.getElementById('current-token-row');
+  const disp = document.getElementById('current-token-display');
+
+  if (!hasServerToken) {
+    dot.className  = 'token-dot open';
+    text.textContent = '토큰 미설정 — 누구나 접근 가능';
+    disp.textContent = '미설정 (오픈 상태)';
+    disp.className   = 'current-val empty';
+    warn.style.display = 'none';
+    row.style.display  = 'none';
+  } else {
+    dot.className  = 'token-dot set';
+    text.textContent = '토큰 설정됨 — 인증 필요';
+    disp.textContent = '●●●●●●●● (설정됨)';
+    disp.className   = 'current-val';
+    warn.style.display = 'flex';
+    row.style.display  = 'flex';
+  }
+}
+
+async function loadAll() {
+  const [bets, results, cfg, games] = await Promise.all([
+    apiFetch('/admin/bets'),
+    apiFetch('/results'),
+    apiFetch('/admin/config'),
+    apiFetch('/games'),
+  ]);
+  if (bets)    allBets    = bets;
+  if (results) allResults = results;
+  if (cfg)     { config = cfg; renderSettings(); }
+  if (games)   { allGames = games; }
+  renderGames();
+  renderPayments();
+  renderResults();
+  renderPayouts();
+}
+
+// ── ① 설정 ──────────────────────────────────────────────
+function renderSettings() {
+  document.getElementById('cfg-title').value  = config.site_title || '';
+  document.getElementById('cfg-link').value   = config.kp_link    || '';
+  document.getElementById('cfg-amount').value = config.bet_amount || '';
+}
+async function saveConfig() {
+  const title = document.getElementById('cfg-title').value.trim();
+  const link  = document.getElementById('cfg-link').value.trim();
+  const amt   = parseInt(document.getElementById('cfg-amount').value) || 0;
+  if (link && !link.startsWith('http')) { toast('❌ 올바른 URL을 입력해주세요', true); return }
+  const body = {kp_link: link, bet_amount: amt};
+  if (title) body.site_title = title;
+  const res = await apiFetch('/admin/config', {method:'PATCH', body:JSON.stringify(body)});
+  if (!res) { toast('❌ 저장 실패', true); return }
+  config = res;
+  toast('✅ 설정이 저장됐습니다');
+}
+
+async function saveToken() {
+  const newToken     = document.getElementById('new-token-input').value.trim();
+  const currentInput = document.getElementById('current-token-input').value.trim();
+
+  const body = {new_token: newToken, current_token: hasServerToken ? currentInput : ''};
+  try {
+    const r = await fetch(API + '/admin/auth/token', {
+      method: 'POST',
+      headers: {'Content-Type':'application/json'},
+      body: JSON.stringify(body),
+    });
+    if (r.status === 401) { toast('❌ 현재 토큰이 올바르지 않습니다', true); return }
+    if (!r.ok) { toast('❌ 서버 오류', true); return }
+  } catch(e) { toast('❌ 서버에 연결할 수 없습니다', true); return }
+
+  // 세션 토큰 업데이트
+  sessionToken = newToken;
+  sessionStorage.setItem('admin_token', newToken);
+  hasServerToken = !!newToken;
+  document.getElementById('new-token-input').value = '';
+  document.getElementById('current-token-input').value = '';
+  refreshTokenUI();
+  toast(newToken ? '🔑 토큰이 설정됐습니다' : '🔓 토큰이 해제됐습니다');
+}
+
+// ── ② 입금 확인 ──────────────────────────────────────────
+function renderPayments() {
+  const gFilter = document.getElementById('pay-filter-game').value;
+  const bets    = gFilter ? allBets.filter(b => b.game_id === parseInt(gFilter)) : allBets;
+  const tbody   = document.getElementById('payments-body');
+  if (!bets.length) {
+    tbody.innerHTML = '<tr><td colspan="6" style="text-align:center;color:#aaa;padding:20px">베팅 내역이 없습니다</td></tr>';
+    return;
+  }
+  tbody.innerHTML = bets.map(b => `
+    <tr>
+      <td><strong>${b.name}</strong></td>
+      <td style="font-size:12px">${matchLabel(b.game_id)}</td>
+      <td><span style="font-family:var(--mono);font-weight:700">${b.h}-${b.a}</span></td>
+      <td style="font-family:var(--mono)">${Number(b.amount||0).toLocaleString()}원</td>
+      <td><span class="badge ${b.paid?'badge-green':'badge-gray'}">${b.paid?'✅ 입금':'⏳ 대기'}</span></td>
+      <td style="display:flex;gap:4px;flex-wrap:wrap">
+        <button class="btn btn-sm ${b.paid?'btn-ghost':'btn-gold'}" onclick="togglePayment(${b.id},${!b.paid})">
+          ${b.paid?'취소':'입금 확인'}
+        </button>
+        <button class="btn btn-sm btn-danger" onclick="deleteBet(${b.id})">삭제</button>
+      </td>
+    </tr>`).join('');
+}
+async function togglePayment(id, paid) {
+  const res = await apiFetch(`/admin/bets/${id}/payment`, {method:'PATCH', body:JSON.stringify({paid})});
+  if (!res) { toast('❌ 처리 실패', true); return }
+  const i = allBets.findIndex(b => b.id === id);
+  if (i > -1) allBets[i] = res;
+  renderPayments(); renderPayouts();
+  toast(paid ? '✅ 입금 확인 완료' : '입금 확인 취소됨');
+}
+async function deleteBet(id) {
+  if (!confirm('정말 삭제하시겠습니까?')) return;
+  await apiFetch(`/admin/bets/${id}`, {method:'DELETE'});
+  allBets = allBets.filter(b => b.id !== id);
+  renderPayments(); renderPayouts();
+  toast('삭제됐습니다');
+}
+
+// ── ③ 경기 결과 ──────────────────────────────────────────
+function renderResults() {
+  document.getElementById('result-rows').innerHTML = MATCHES.map(m => {
+    const res = allResults[String(m.id)];
+    return `<div class="result-row">
+      <div class="result-teams">
+        ${m.home.flag} ${m.home.name} vs ${m.away.name} ${m.away.flag}
+        <small>${m.date} · ${m.group}</small>
+      </div>
+      <div style="display:flex;align-items:center;gap:8px;flex-shrink:0;flex-wrap:wrap">
+        ${res
+          ? `<span class="result-current">${res.h} : ${res.a}</span>
+             <button class="btn btn-sm btn-ghost" onclick="deleteResult(${m.id})">삭제</button>`
+          : `<input class="result-score-input" id="rh-${m.id}" type="number" min="0" max="20" placeholder="0">
+             <span style="font-weight:700;color:#aaa">:</span>
+             <input class="result-score-input" id="ra-${m.id}" type="number" min="0" max="20" placeholder="0">
+             <button class="btn btn-sm btn-primary" onclick="saveResult(${m.id})">등록</button>`}
+      </div>
+    </div>`;
+  }).join('');
+}
+async function saveResult(id) {
+  const h = parseInt(document.getElementById('rh-'+id).value);
+  const a = parseInt(document.getElementById('ra-'+id).value);
+  if (isNaN(h)||isNaN(a)) { toast('❌ 점수를 입력해주세요', true); return }
+  const res = await apiFetch(`/admin/results/${id}`, {method:'PUT', body:JSON.stringify({h,a})});
+  if (!res) { toast('❌ 저장 실패', true); return }
+  allResults[String(id)] = res;
+  renderResults(); renderPayouts();
+  toast(`✅ 경기 결과 등록 완료`);
+}
+async function deleteResult(id) {
+  await apiFetch(`/admin/results/${id}`, {method:'DELETE'});
+  delete allResults[String(id)];
+  renderResults(); renderPayouts();
+  toast('결과가 삭제됐습니다');
+}
+
+// ── ④ 배당 처리 ──────────────────────────────────────────
+function renderPayouts() {
+  const gFilter = document.getElementById('payout-filter-game').value;
+  const matches = gFilter ? MATCHES.filter(m => m.id === parseInt(gFilter)) : MATCHES;
+  const rows = [];
+  matches.forEach(m => {
+    const res      = allResults[String(m.id)];
+    const mb       = allBets.filter(b => b.game_id === m.id);
+    if (!mb.length) return;
+    const totalPot = mb.reduce((s,b) => s+(b.amount||0), 0);
+    const exactW   = res ? mb.filter(b => b.h===res.h && b.a===res.a) : [];
+    const resultW  = res ? mb.filter(b =>
+      Math.sign(b.h-b.a)===Math.sign(res.h-res.a) && !(b.h===res.h&&b.a===res.a)) : [];
+    const winners  = exactW.length ? exactW : resultW;
+    const loserPot = totalPot - winners.reduce((s,b) => s+(b.amount||0), 0);
+    const prize    = winners.length ? Math.floor(loserPot/winners.length) : 0;
+    const winIds   = new Set(winners.map(w => w.id));
+    mb.forEach(b => {
+      const isW = winIds.has(b.id);
+      const ret = isW ? (b.amount||0)+prize : 0;
+      rows.push(`<tr>
+        <td><strong>${b.name}</strong></td>
+        <td style="font-size:12px">${matchLabel(b.game_id)}</td>
+        <td style="font-family:var(--mono)">${b.h}-${b.a}</td>
+        <td><span class="badge ${isW?'badge-green':'badge-gray'}">${isW?'🏆 당첨':'낙첨'}</span></td>
+        <td style="font-family:var(--mono);font-weight:700;color:${isW?'#c47f00':'#aaa'}">
+          ${isW ? `+${Number(prize).toLocaleString()}원<br><span style="font-size:10px;color:#aaa">수령 ${Number(ret).toLocaleString()}원</span>` : '—'}
+        </td>
+        <td>${isW
+          ? `<span class="badge ${b.paid_out?'badge-green':'badge-gold'}">${b.paid_out?'✅ 완료':'⏳ 대기'}</span>`
+          : '<span class="badge badge-gray">해당없음</span>'}</td>
+        <td>${isW
+          ? `<button class="btn btn-sm ${b.paid_out?'btn-ghost':'btn-primary'}" onclick="togglePayout(${b.id},${!b.paid_out})">
+               ${b.paid_out?'취소':'배당 완료'}
+             </button>`
+          : '—'}</td>
+      </tr>`);
+    });
+  });
+  const tbody = document.getElementById('payouts-body');
+  tbody.innerHTML = rows.length
+    ? rows.join('')
+    : '<tr><td colspan="7" style="text-align:center;color:#aaa;padding:20px">베팅 내역이 없습니다</td></tr>';
+}
+async function togglePayout(id, paidOut) {
+  const res = await apiFetch(`/admin/bets/${id}/payout`, {method:'PATCH', body:JSON.stringify({paid_out:paidOut})});
+  if (!res) { toast('❌ 처리 실패', true); return }
+  const i = allBets.findIndex(b => b.id === id);
+  if (i > -1) allBets[i] = res;
+  renderPayouts();
+  toast(paidOut ? '✅ 배당 완료 처리됨' : '배당 완료 취소됨');
+}
+
+init();
+
+// ── 게임 관리 ─────────────────────────────────────────────
+function matchLabel(id) {
+  const m = allGames.find(x => x.id === id);
+  return m ? `${m.home.flag}${m.home.short} vs ${m.away.short}${m.away.flag}` : `경기#${id}`;
+}
+
+function renderGames() {
+  const tbody = document.getElementById('games-body');
+  if (!tbody) return;
+  if (!allGames.length) {
+    tbody.innerHTML = '<tr><td colspan="8" style="text-align:center;color:#aaa;padding:20px">등록된 경기가 없습니다</td></tr>';
+    return;
+  }
+  tbody.innerHTML = allGames.map(g => `
+    <tr>
+      <td style="font-family:var(--mono);color:#aaa">${g.id}</td>
+      <td><strong>${g.home.flag} ${g.home.name}</strong></td>
+      <td><strong>${g.away.flag} ${g.away.name}</strong></td>
+      <td style="font-family:var(--mono);font-size:12px">${g.date} ${g.time}</td>
+      <td>
+        <select class="form-input" style="padding:4px 8px;font-size:12px;width:90px"
+          onchange="setGameStatus(${g.id}, this.value)">
+          <option value="open"   ${g.status==='open'   ?'selected':''}>베팅 중</option>
+          <option value="closed" ${g.status==='closed' ?'selected':''}>마감</option>
+        </select>
+      </td>
+      <td>
+        <button class="btn btn-sm btn-danger" onclick="deleteGame(${g.id})">삭제</button>
+      </td>
+    </tr>`).join('');
+}
+
+async function addGame() {
+  const body = {
+    group:      '',
+    home_name:  document.getElementById('g-hname').value.trim(),
+    home_short: document.getElementById('g-hshort').value.trim(),
+    home_flag:  document.getElementById('g-hflag').value.trim(),
+    away_name:  document.getElementById('g-aname').value.trim(),
+    away_short: document.getElementById('g-ashort').value.trim(),
+    away_flag:  document.getElementById('g-aflag').value.trim(),
+    date:       document.getElementById('g-date').value.trim(),
+    time:       document.getElementById('g-time').value.trim(),
+    venue:      '',
+    status:     'open',
+  };
+  const required = ['home_name','home_short','away_name','away_short','date','time'];
+  if (required.some(k => !body[k])) { toast('❌ 필수 항목을 모두 입력해주세요', true); return }
+  const res = await apiFetch('/admin/games', {method:'POST', body:JSON.stringify(body)});
+  if (!res) { toast('❌ 등록 실패', true); return }
+  allGames.push(res);
+  renderGames();
+  // 입력 초기화
+  ['g-date','g-time','g-hname','g-hshort','g-hflag','g-aname','g-ashort','g-aflag']
+    .forEach(id => { const el=document.getElementById(id); if(el) el.value=''; });
+  toast(`✅ ${res.home.name} vs ${res.away.name} 경기 등록 완료`);
+}
+
+async function setGameStatus(id, status) {
+  const res = await apiFetch(`/admin/games/${id}/status?status=${status}`, {method:'PATCH'});
+  if (!res) { toast('❌ 상태 변경 실패', true); return }
+  const i = allGames.findIndex(g => g.id === id);
+  if (i > -1) allGames[i] = res;
+  toast(`상태 변경: ${status==='open'?'베팅 중':'마감'}`);
+}
+
+async function deleteGame(id) {
+  if (!confirm('경기를 삭제하면 관련 베팅 데이터도 영향받을 수 있습니다. 삭제하시겠습니까?')) return;
+  await apiFetch(`/admin/games/${id}`, {method:'DELETE'});
+  allGames = allGames.filter(g => g.id !== id);
+  renderGames();
+  toast('경기가 삭제됐습니다');
+}
+
+async function importGames() {
+  const btn = document.getElementById('import-btn');
+  const res_el = document.getElementById('import-result');
+  btn.disabled = true;
+  btn.textContent = '📥 불러오는 중...';
+  res_el.textContent = '';
+  const res = await apiFetch('/admin/games/import', {method:'POST'});
+  btn.disabled = false;
+  btn.textContent = '📥 worldcup26.ir 에서 불러오기';
+  if (!res) { toast('❌ 외부 API 연결 실패', true); return }
+  allGames = await apiFetch('/games') || allGames;
+  renderGames();
+  res_el.textContent = `완료: ${res.added}개 추가 (총 ${res.total}경기)`;
+  toast(`✅ ${res.added}개 경기가 추가됐습니다`);
+}
+
+</script>
+</body>
+</html>
