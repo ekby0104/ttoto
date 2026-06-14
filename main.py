@@ -230,7 +230,7 @@ def admin_add_game(body: GameIn, auth=Depends(admin_required)):
 def admin_update_game(game_id: int, body: GameIn, auth=Depends(admin_required)):
     games = get_games()
     for i, g in enumerate(games):
-        if g["id"] == game_id:
+        if str(g["id"]) == str(game_id):
             games[i] = {
                 "id":    game_id,
                 "group": body.group or g["group"],
@@ -253,7 +253,7 @@ def admin_update_game(game_id: int, body: GameIn, auth=Depends(admin_required)):
 def admin_set_game_status(game_id: int, status: str, auth=Depends(admin_required)):
     games = get_games()
     for g in games:
-        if g["id"] == game_id:
+        if str(g["id"]) == str(game_id):
             g["status"] = status
             write_json(GAMES_FILE, games)
             return g
@@ -261,7 +261,7 @@ def admin_set_game_status(game_id: int, status: str, auth=Depends(admin_required
 
 @app.delete("/api/admin/games/{game_id}")
 def admin_delete_game(game_id: int, auth=Depends(admin_required)):
-    games = [g for g in get_games() if g["id"] != game_id]
+    games = [g for g in get_games() if str(g["id"]) != str(game_id)]
     write_json(GAMES_FILE, games)
     return {"ok": True}
 

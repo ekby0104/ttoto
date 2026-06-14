@@ -197,13 +197,7 @@ main{max-width:820px;margin:0 auto;padding:16px 12px 40px}
 // ── 서버 설정 ──────────────────────────────────────────────
 const API = '/api';
 
-const MATCHES = [
-  {id:1,home:{name:'대한민국',short:'KOR',flag:'🇰🇷'},away:{name:'브라질',short:'BRA',flag:'🇧🇷'},date:'2026.06.15',time:'21:00',status:'open'},
-  {id:2,home:{name:'독일',short:'GER',flag:'🇩🇪'},away:{name:'아르헨티나',short:'ARG',flag:'🇦🇷'},date:'2026.06.15',time:'18:00',status:'open'},
-  {id:3,home:{name:'잉글랜드',short:'ENG',flag:'🏴󠁧󠁢󠁥󠁮󠁧󠁿'},away:{name:'프랑스',short:'FRA',flag:'🇫🇷'},date:'2026.06.16',time:'03:00',status:'open'},
-  {id:4,home:{name:'스페인',short:'ESP',flag:'🇪🇸'},away:{name:'포르투갈',short:'POR',flag:'🇵🇹'},date:'2026.06.17',time:'21:00',status:'open'},
-  {id:5,home:{name:'일본',short:'JPN',flag:'🇯🇵'},away:{name:'모로코',short:'MAR',flag:'🇲🇦'},date:'2026.06.18',time:'18:00',status:'open'},
-];
+let MATCHES = [];
 
 let config     = {bet_amount: 3000, kp_link: ''};
 let allBets    = [];
@@ -223,10 +217,11 @@ async function apiFetch(path, opts={}) {
 }
 
 async function loadAll() {
-  const [cfg, bets, results] = await Promise.all([
+  const [cfg, bets, results, games] = await Promise.all([
     apiFetch('/config'),
     apiFetch('/bets'),
     apiFetch('/results'),
+    apiFetch('/games'),
   ]);
   if (cfg) {
     config = cfg;
@@ -237,6 +232,7 @@ async function loadAll() {
   }
   if (bets)    allBets    = bets;
   if (results) allResults = results;
+  if (games)   MATCHES = games;
 }
 
 // ── 유틸 ──────────────────────────────────────────────────
