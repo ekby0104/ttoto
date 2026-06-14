@@ -361,6 +361,16 @@ async def admin_import_games(korea_only: bool = False, auth=Depends(admin_requir
         group_raw = str(m.get("group", "") or "")
         group_str = f"{group_raw}조" if group_raw and not group_raw.endswith("조") else group_raw
 
+        finished = str(m.get("finished", "")).upper() == "TRUE"
+        h_score = m.get("home_score")
+        a_score = m.get("away_score")
+        has_score = finished and h_score is not None and a_score is not None
+        try:
+            h_score_int = int(h_score)
+            a_score_int = int(a_score)
+        except (TypeError, ValueError):
+            has_score = False
+
         game = {
             "id":    ext_id,
             "group": group_str,
@@ -369,10 +379,16 @@ async def admin_import_games(korea_only: bool = False, auth=Depends(admin_requir
             "date":  date_str,
             "time":  time_str,
             "venue": str(m.get("stadium") or m.get("venue") or m.get("ground") or ""),
-            "status": "pending",
+            "status": "closed" if has_score else "pending",
         }
         existing.append(game)
         existing_ids.add(ext_id)
+
+        if has_score:
+            results = get_results()
+            results[ext_id] = {"h": h_score_int, "a": a_score_int}
+            write_json(RESULTS_FILE, results)
+
         added += 1
 
     write_json(GAMES_FILE, existing)
