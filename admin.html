@@ -590,6 +590,20 @@ function renderResults() {
     </div>`;
   }).join('');
 }
+function calcWinners(id, res) {
+  const mb = allBets.filter(b => String(b.game_id) === String(id));
+  return res ? mb.filter(b => b.h === res.h && b.a === res.a) : [];
+}
+function gameTotalPot(id) {
+  return allBets.filter(b => String(b.game_id) === String(id)).reduce((s,b) => s+(b.amount||0), 0);
+}
+async function updateCarryover(delta) {
+  const cur = config.carryover || 0;
+  const next = Math.max(0, cur + delta);
+  const cfg = await apiFetch('/admin/config', {method:'PATCH', body:JSON.stringify({carryover: next})});
+  if (cfg) config.carryover = cfg.carryover;
+}
+
 async function saveResult(id) {
   const h = parseInt(document.getElementById('rh-'+id).value);
   const a = parseInt(document.getElementById('ra-'+id).value);
@@ -600,10 +614,21 @@ async function saveResult(id) {
   await apiFetch(`/admin/games/${id}/status?status=closed`, {method:'PATCH'});
   const gi = allGames.findIndex(g => String(g.id) === String(id));
   if (gi > -1) allGames[gi].status = 'closed';
+  // 당첨자 없으면 판돈 이월 누적
+  if (calcWinners(id, res).length === 0) {
+    await updateCarryover(gameTotalPot(id));
+    toast(`✅ 결과 등록 완료 — 당첨자 없음, ${Number(gameTotalPot(id)).toLocaleString()}원 이월`);
+  } else {
+    toast(`✅ 경기 결과 등록 및 마감 처리 완료`);
+  }
   renderResults(); renderPayouts(); renderGames();
-  toast(`✅ 경기 결과 등록 및 마감 처리 완료`);
 }
 async function deleteResult(id) {
+  const res = allResults[String(id)];
+  // 당첨자 없었던 경기 결과 삭제 시 이월 금액 차감
+  if (res && calcWinners(id, res).length === 0) {
+    await updateCarryover(-gameTotalPot(id));
+  }
   await apiFetch(`/admin/results/${id}`, {method:'DELETE'});
   delete allResults[String(id)];
   await apiFetch(`/admin/games/${id}/status?status=open`, {method:'PATCH'});
@@ -625,7 +650,8 @@ function renderPayouts() {
     const totalPot = mb.reduce((s,b) => s+(b.amount||0), 0);
     const winners  = res ? mb.filter(b => b.h===res.h && b.a===res.a) : [];
     const loserPot = totalPot - winners.reduce((s,b) => s+(b.amount||0), 0);
-    const prize    = winners.length ? Math.floor(loserPot/winners.length) : 0;
+    const carryover = winners.length ? (config.carryover || 0) : 0;
+    const prize    = winners.length ? Math.floor((loserPot + carryover) / winners.length) : 0;
     const winIds   = new Set(winners.map(w => w.id));
     mb.forEach(b => {
       const isW = winIds.has(b.id);
@@ -659,6 +685,13 @@ async function togglePayout(id, paidOut) {
   if (!res) { toast('❌ 처리 실패', true); return }
   const i = allBets.findIndex(b => b.id === id);
   if (i > -1) allBets[i] = res;
+  // 해당 경기 당첨자 전원 배당 완료 시 carryover 리셋
+  const gameId = res.game_id;
+  const gameRes = allResults[String(gameId)];
+  const winners = calcWinners(gameId, gameRes);
+  if (winners.length && winners.every(w => (w.id === id ? paidOut : w.paid_out))) {
+    await updateCarryover(-(config.carryover || 0));
+  }
   renderPayouts();
   toast(paidOut ? '✅ 배당 완료 처리됨' : '배당 완료 취소됨');
 }

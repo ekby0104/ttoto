@@ -433,7 +433,8 @@ async function renderResult() {
       const winners=mb.filter(b=>b.h===res.h&&b.a===res.a);
       const label='정확 예측 당첨';
       const loserPot=totalPot-winners.reduce((s,b)=>s+(b.amount||0),0);
-      const prize=winners.length?Math.floor(loserPot/winners.length):0;
+      const carryover=winners.length?(config.carryover||0):0;
+      const prize=winners.length?Math.floor((loserPot+carryover)/winners.length):0;
       // 배당완료 여부: 당첨자 전원 paid_out=true면 완료
       const allPaidOut=winners.length>0&&winners.every(b=>b.paid_out);
       html+=`<div class="rc-body">

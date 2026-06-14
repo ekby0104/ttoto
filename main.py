@@ -39,7 +39,7 @@ def write_json(path, data):
         json.dump(data, f, ensure_ascii=False, indent=2)
 
 def get_bets():    return read_json(BETS_FILE,    [])
-def get_config():  return read_json(CONFIG_FILE,  {"bet_amount": 3000, "kp_link": "", "site_title": "토토"})
+def get_config():  return read_json(CONFIG_FILE,  {"bet_amount": 3000, "kp_link": "", "site_title": "토토", "carryover": 0})
 def get_results(): return read_json(RESULTS_FILE, {})
 def get_auth():    return read_json(AUTH_FILE,     {"token": ""})
 def get_games():   return read_json(GAMES_FILE,    [])
@@ -62,6 +62,7 @@ class ConfigUpdate(BaseModel):
     bet_amount:  Optional[int] = None
     kp_link:     Optional[str] = None
     site_title:  Optional[str] = None
+    carryover:   Optional[int] = None
 
 class ResultIn(BaseModel):
     h: int
@@ -98,7 +99,7 @@ class GameIn(BaseModel):
 @app.get("/api/config")
 def public_config():
     cfg = get_config()
-    return {"bet_amount": cfg.get("bet_amount", 3000), "kp_link": cfg.get("kp_link", ""), "site_title": cfg.get("site_title", "토토")}
+    return {"bet_amount": cfg.get("bet_amount", 3000), "kp_link": cfg.get("kp_link", ""), "site_title": cfg.get("site_title", "토토"), "carryover": cfg.get("carryover", 0)}
 
 @app.get("/api/games")
 def list_games():
@@ -154,6 +155,7 @@ def admin_update_config(body: ConfigUpdate, auth=Depends(admin_required)):
     if body.bet_amount  is not None: cfg["bet_amount"]  = body.bet_amount
     if body.kp_link     is not None: cfg["kp_link"]     = body.kp_link
     if body.site_title  is not None: cfg["site_title"]  = body.site_title
+    if body.carryover   is not None: cfg["carryover"]   = body.carryover
     write_json(CONFIG_FILE, cfg)
     return cfg
 
