@@ -307,7 +307,10 @@ main{max-width:960px;margin:0 auto;padding:16px 12px 60px}
 
     <!-- 등록된 경기 목록 -->
     <div class="acard">
-      <div class="acard-title"><span class="icon">📋</span> 등록된 경기 목록</div>
+      <div class="acard-title" style="display:flex;justify-content:space-between;align-items:center">
+        <span><span class="icon">📋</span> 등록된 경기 목록</span>
+        <button class="btn btn-sm btn-danger" onclick="deleteAllGames()">🗑 전체 삭제</button>
+      </div>
       <div style="overflow-x:auto;-webkit-overflow-scrolling:touch">
         <table class="atable">
           <thead>
@@ -725,6 +728,15 @@ async function setGameStatus(id, status) {
   const i = allGames.findIndex(g => g.id === id);
   if (i > -1) allGames[i] = res;
   toast(`상태 변경: ${status==='open'?'베팅 중':'마감'}`);
+}
+
+async function deleteAllGames() {
+  if (!confirm(`등록된 경기 ${allGames.length}개를 전부 삭제합니다. 관련 베팅 데이터에 영향을 줄 수 있습니다. 계속하시겠습니까?`)) return;
+  const res = await apiFetch('/admin/games/all', {method:'DELETE'});
+  if (!res) { toast('❌ 전체 삭제 실패', true); return }
+  allGames = [];
+  renderGames();
+  toast('✅ 경기 전체 삭제 완료');
 }
 
 async function deleteGame(id) {

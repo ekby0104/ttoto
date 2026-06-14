@@ -263,6 +263,11 @@ def admin_set_game_status(game_id: int, status: str, auth=Depends(admin_required
             return g
     raise HTTPException(404, "게임을 찾을 수 없습니다")
 
+@app.delete("/api/admin/games/all")
+def admin_delete_all_games(auth=Depends(admin_required)):
+    write_json(GAMES_FILE, [])
+    return {"ok": True}
+
 @app.delete("/api/admin/games/{game_id}")
 def admin_delete_game(game_id: int, auth=Depends(admin_required)):
     games = [g for g in get_games() if str(g["id"]) != str(game_id)]
