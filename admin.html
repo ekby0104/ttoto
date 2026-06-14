@@ -373,13 +373,6 @@ main{max-width:960px;margin:0 auto;padding:16px 12px 60px}
 
 <script>
 const API = '/api';
-const MATCHES = [
-  {id:1,group:'A조',home:{name:'대한민국',short:'KOR',flag:'🇰🇷'},away:{name:'브라질',short:'BRA',flag:'🇧🇷'},date:'2026.06.15'},
-  {id:2,group:'A조',home:{name:'독일',short:'GER',flag:'🇩🇪'},away:{name:'아르헨티나',short:'ARG',flag:'🇦🇷'},date:'2026.06.15'},
-  {id:3,group:'B조',home:{name:'잉글랜드',short:'ENG',flag:'🏴󠁧󠁢󠁥󠁮󠁧󠁿'},away:{name:'프랑스',short:'FRA',flag:'🇫🇷'},date:'2026.06.16'},
-  {id:4,group:'B조',home:{name:'스페인',short:'ESP',flag:'🇪🇸'},away:{name:'포르투갈',short:'POR',flag:'🇵🇹'},date:'2026.06.17'},
-  {id:5,group:'C조',home:{name:'일본',short:'JPN',flag:'🇯🇵'},away:{name:'모로코',short:'MAR',flag:'🇲🇦'},date:'2026.06.18'},
-];
 
 // 세션 토큰 (설정돼 있을 경우 입력받아 저장)
 let sessionToken = sessionStorage.getItem('admin_token') || '';
@@ -390,7 +383,7 @@ let config = {};
 let allGames = [];
 
 function matchLabel(id) {
-  const m = MATCHES.find(x => x.id === id);
+  const m = allGames.find(x => String(x.id) === String(id));
   return m ? `${m.home.flag}${m.home.short} vs ${m.away.short}${m.away.flag}` : '?';
 }
 function toast(msg, err=false) {
@@ -572,7 +565,7 @@ async function deleteBet(id) {
 
 // ── ③ 경기 결과 ──────────────────────────────────────────
 function renderResults() {
-  document.getElementById('result-rows').innerHTML = MATCHES.map(m => {
+  document.getElementById('result-rows').innerHTML = allGames.map(m => {
     const res = allResults[String(m.id)];
     return `<div class="result-row">
       <div class="result-teams">
@@ -611,11 +604,11 @@ async function deleteResult(id) {
 // ── ④ 배당 처리 ──────────────────────────────────────────
 function renderPayouts() {
   const gFilter = document.getElementById('payout-filter-game').value;
-  const matches = gFilter ? MATCHES.filter(m => m.id === parseInt(gFilter)) : MATCHES;
+  const matches = gFilter ? allGames.filter(m => String(m.id) === String(gFilter)) : allGames;
   const rows = [];
   matches.forEach(m => {
     const res      = allResults[String(m.id)];
-    const mb       = allBets.filter(b => b.game_id === m.id);
+    const mb       = allBets.filter(b => String(b.game_id) === String(m.id));
     if (!mb.length) return;
     const totalPot = mb.reduce((s,b) => s+(b.amount||0), 0);
     const exactW   = res ? mb.filter(b => b.h===res.h && b.a===res.a) : [];
@@ -664,11 +657,6 @@ async function togglePayout(id, paidOut) {
 init();
 
 // ── 게임 관리 ─────────────────────────────────────────────
-function matchLabel(id) {
-  const m = allGames.find(x => x.id === id);
-  return m ? `${m.home.flag}${m.home.short} vs ${m.away.short}${m.away.flag}` : `경기#${id}`;
-}
-
 function renderGames() {
   const tbody = document.getElementById('games-body');
   if (!tbody) return;
