@@ -107,7 +107,7 @@ def list_games():
 @app.post("/api/bets")
 def submit_bet(bet: BetIn):
     games = get_games()
-    if not any(g["id"] == bet.game_id for g in games):
+    if not any(str(g["id"]) == str(bet.game_id) for g in games):
         raise HTTPException(status_code=404, detail="게임을 찾을 수 없습니다")
     bets  = get_bets()
     entry = {

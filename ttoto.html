@@ -236,7 +236,7 @@ async function loadAll() {
 }
 
 // ── 유틸 ──────────────────────────────────────────────────
-function gameBets(id) { return allBets.filter(b => b.game_id === id) }
+function gameBets(id) { return allBets.filter(b => String(b.game_id) === String(id)) }
 function fmtAmt(n)    { return n ? Number(n).toLocaleString()+'원' : '—' }
 
 function toast(msg, err=false) {
@@ -292,7 +292,7 @@ function renderBets() {
         </div>
         ${!closed?`
         <div class="mc-foot">
-          <button class="btn-submit" onclick="submitBet(${m.id})">⚽ 베팅 제출</button>
+          <button class="btn-submit" onclick="submitBet('${m.id}')">⚽ 베팅 제출</button>
         </div>`:''}
       </div>`;
   });
@@ -304,7 +304,7 @@ async function submitBet(matchId) {
   const a=parseInt(document.getElementById('a-'+matchId).value);
   if(isNaN(h)||isNaN(a)||h<0||a<0){toast('❌ 점수를 입력해주세요',true);return}
   pendingBet={matchId,h,a};
-  const m=MATCHES.find(x=>x.id===matchId);
+  const m=MATCHES.find(x=>String(x.id)===String(matchId));
   document.getElementById('pay-match-info').innerHTML=`${m.home.flag} ${m.home.short} vs ${m.away.short} ${m.away.flag}`;
   document.getElementById('pay-score').textContent=`${h} : ${a}`;
   document.getElementById('pay-amount-disp').textContent=config.bet_amount?Number(config.bet_amount).toLocaleString():'0';
@@ -370,7 +370,7 @@ function renderStatus() {
     }
     html+=`
     <div class="sg-item ${isExp?'expanded':''}" id="sg-${m.id}">
-      <div class="sg-row" onclick="toggleExpand(${m.id})">
+      <div class="sg-row" onclick="toggleExpand('${m.id}')">
         <div class="sg-teams">${m.home.flag} ${m.home.short} vs ${m.away.short} ${m.away.flag}
           <small>${m.date}</small></div>
         <div class="sg-stats">
