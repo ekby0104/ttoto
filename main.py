@@ -267,7 +267,7 @@ def admin_delete_game(game_id: int, auth=Depends(admin_required)):
 
 # ── 외부 API에서 경기 가져오기 (worldcup26.ir — 무료·키 불필요) ──
 @app.post("/api/admin/games/import")
-async def admin_import_games(auth=Depends(admin_required)):
+async def admin_import_games(korea_only: bool = False, auth=Depends(admin_required)):
     """
     worldcup26.ir 에서 전체 경기 일정을 가져와 games.json 에 병합.
     이미 id 가 같은 경기가 있으면 건너뜀.
@@ -311,6 +311,11 @@ async def admin_import_games(auth=Depends(admin_required)):
         ext_id = str(m.get("id") or m.get("match_number") or m.get("matchNumber") or "")
         if not ext_id or ext_id in existing_ids:
             continue
+        if korea_only:
+            h = str(m.get("home_team_name_en", ""))
+            a = str(m.get("away_team_name_en", ""))
+            if "Korea" not in h and "Korea" not in a:
+                continue
 
         # worldcup26.ir 필드: home_team_name_en, away_team_name_en, local_date
         h_name = m.get("home_team_name_en") or ""

@@ -237,6 +237,14 @@ main{max-width:960px;margin:0 auto;padding:16px 12px 60px}
         2026 FIFA 월드컵 전 104경기 일정과 결과를 자동으로 가져옵니다.<br>
         이미 등록된 경기는 건너뛰고 새 경기만 추가됩니다.
       </p>
+      <div style="display:flex;align-items:center;gap:16px;flex-wrap:wrap;margin-bottom:10px">
+        <label style="display:flex;align-items:center;gap:6px;cursor:pointer;font-size:14px">
+          <input type="radio" name="import-filter" value="all" checked> 전체 (104경기)
+        </label>
+        <label style="display:flex;align-items:center;gap:6px;cursor:pointer;font-size:14px">
+          <input type="radio" name="import-filter" value="korea"> 🇰🇷 한국 경기만
+        </label>
+      </div>
       <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap">
         <button class="btn btn-primary" onclick="importGames()" id="import-btn">
           📥 worldcup26.ir 에서 불러오기
@@ -729,10 +737,11 @@ async function deleteGame(id) {
 async function importGames() {
   const btn = document.getElementById('import-btn');
   const res_el = document.getElementById('import-result');
+  const koreaOnly = document.querySelector('input[name="import-filter"]:checked')?.value === 'korea';
   btn.disabled = true;
   btn.textContent = '📥 불러오는 중...';
   res_el.textContent = '';
-  const res = await apiFetch('/admin/games/import', {method:'POST'});
+  const res = await apiFetch(`/admin/games/import?korea_only=${koreaOnly}`, {method:'POST'});
   btn.disabled = false;
   btn.textContent = '📥 worldcup26.ir 에서 불러오기';
   if (!res) { toast('❌ 외부 API 연결 실패', true); return }
