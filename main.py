@@ -39,7 +39,7 @@ def write_json(path, data):
         json.dump(data, f, ensure_ascii=False, indent=2)
 
 def get_bets():    return read_json(BETS_FILE,    [])
-def get_config():  return read_json(CONFIG_FILE,  {"bet_amount": 3000, "kp_link": "", "site_title": "사무실 토토"})
+def get_config():  return read_json(CONFIG_FILE,  {"bet_amount": 3000, "kp_link": "", "site_title": "토토"})
 def get_results(): return read_json(RESULTS_FILE, {})
 def get_auth():    return read_json(AUTH_FILE,     {"token": ""})
 def get_games():   return read_json(GAMES_FILE,    [])
@@ -89,7 +89,7 @@ class GameIn(BaseModel):
     date:      str                     # "2026.06.15"
     time:      str                     # "21:00"
     venue:     Optional[str] = ""
-    status:    Optional[str] = "open"  # open | closed
+    status:    Optional[str] = "pending"  # pending | open | closed
 
 # ══════════════════════════════════════════════════════════════
 # PUBLIC API
@@ -98,7 +98,7 @@ class GameIn(BaseModel):
 @app.get("/api/config")
 def public_config():
     cfg = get_config()
-    return {"bet_amount": cfg.get("bet_amount", 3000), "kp_link": cfg.get("kp_link", ""), "site_title": cfg.get("site_title", "사무실 토토")}
+    return {"bet_amount": cfg.get("bet_amount", 3000), "kp_link": cfg.get("kp_link", ""), "site_title": cfg.get("site_title", "토토")}
 
 @app.get("/api/games")
 def list_games():
@@ -209,7 +209,11 @@ def admin_delete_result(game_id: int, auth=Depends(admin_required)):
 @app.post("/api/admin/games")
 def admin_add_game(body: GameIn, auth=Depends(admin_required)):
     games  = get_games()
-    new_id = body.id if body.id else (max((g["id"] for g in games), default=0) + 1)
+    try:
+        max_id = max((int(g["id"]) for g in games), default=0)
+    except (ValueError, TypeError):
+        max_id = len(games)
+    new_id = body.id if body.id else (max_id + 1)
     if any(g["id"] == new_id for g in games):
         raise HTTPException(400, f"id={new_id} 는 이미 존재합니다")
     game = {
@@ -360,7 +364,7 @@ async def admin_import_games(korea_only: bool = False, auth=Depends(admin_requir
             "date":  date_str,
             "time":  time_str,
             "venue": str(m.get("stadium") or m.get("venue") or m.get("ground") or ""),
-            "status": "open",
+            "status": "pending",
         }
         existing.append(game)
         existing_ids.add(ext_id)
