@@ -302,6 +302,13 @@ main{max-width:960px;margin:0 auto;padding:16px 12px 60px}
           </div>
         </div>
       </div>
+      <div class="form-group" style="margin-top:8px">
+        <label class="form-label">베팅 방식</label>
+        <select class="form-input" id="g-bet-type">
+          <option value="exact">정확 예측 (스코어 정확히)</option>
+          <option value="wdl">승무패 (승/무/패 방향만)</option>
+        </select>
+      </div>
       <button class="btn btn-primary" onclick="addGame()" style="width:100%;margin-top:4px">+ 경기 등록</button>
     </div>
 
@@ -314,7 +321,7 @@ main{max-width:960px;margin:0 auto;padding:16px 12px 60px}
       <div style="overflow-x:auto;-webkit-overflow-scrolling:touch">
         <table class="atable">
           <thead>
-            <tr><th>#</th><th>홈</th><th>원정</th><th>날짜/시간</th><th>상태</th><th>관리</th></tr>
+            <tr><th>#</th><th>홈</th><th>원정</th><th>날짜/시간</th><th>베팅 방식</th><th>상태</th><th>관리</th></tr>
           </thead>
           <tbody id="games-body"></tbody>
         </table>
@@ -325,7 +332,10 @@ main{max-width:960px;margin:0 auto;padding:16px 12px 60px}
   <!-- ③ 입금 확인 -->
   <div id="apanel-payments" class="apanel">
     <div class="acard">
-      <div class="acard-title"><span class="icon">💛</span> 입금 확인 내역</div>
+      <div class="acard-title" style="display:flex;justify-content:space-between;align-items:center">
+        <span><span class="icon">💛</span> 입금 확인 내역</span>
+        <button class="btn btn-sm btn-danger" onclick="deleteAllBets()">🗑 전체 삭제</button>
+      </div>
       <div style="display:flex;gap:8px;margin-bottom:14px;flex-wrap:wrap">
         <select class="form-input" id="pay-filter-game" onchange="renderPayments()" style="max-width:220px">
           <option value="">전체 경기</option>
@@ -561,6 +571,15 @@ async function togglePayment(id, paid) {
   renderPayments(); renderPayouts();
   toast(paid ? '✅ 입금 확인 완료' : '입금 확인 취소됨');
 }
+async function deleteAllBets() {
+  if (!confirm(`베팅 내역 ${allBets.length}건을 전부 삭제합니다. 계속하시겠습니까?`)) return;
+  const res = await apiFetch('/admin/bets/all', {method:'DELETE'});
+  if (!res) { toast('❌ 전체 삭제 실패', true); return }
+  allBets = [];
+  renderPayments(); renderPayouts();
+  toast('✅ 베팅 내역 전체 삭제 완료');
+}
+
 async function deleteBet(id) {
   if (!confirm('정말 삭제하시겠습니까?')) return;
   await apiFetch(`/admin/bets/${id}`, {method:'DELETE'});
@@ -655,7 +674,10 @@ function renderPayouts() {
     const mb       = allBets.filter(b => String(b.game_id) === String(m.id));
     if (!mb.length) return;
     const totalPot = mb.reduce((s,b) => s+(b.amount||0), 0);
-    const winners  = res ? mb.filter(b => b.h===res.h && b.a===res.a) : [];
+    const betType  = m.bet_type || 'exact';
+    const winners  = res ? mb.filter(b => betType==='wdl'
+      ? Math.sign(b.h-b.a)===Math.sign(res.h-res.a)
+      : b.h===res.h && b.a===res.a) : [];
     const loserPot = totalPot - winners.reduce((s,b) => s+(b.amount||0), 0);
     const carryover = winners.length ? computeCarryover() : 0;
     const prize    = winners.length ? Math.floor((loserPot + carryover) / winners.length) : 0;
@@ -713,15 +735,22 @@ function renderGames() {
       <td><strong>${g.away.flag} ${g.away.name}</strong></td>
       <td style="font-family:var(--mono);font-size:12px">${g.date} ${g.time}</td>
       <td>
-        <select class="form-input" style="padding:4px 8px;font-size:12px;width:90px"
-          onchange="setGameStatus(${g.id}, this.value)">
+        <select class="form-input" style="padding:4px 8px;font-size:12px;width:80px"
+          onchange="setGameBetType('${g.id}', this.value)">
+          <option value="exact" ${(g.bet_type||'exact')==='exact'?'selected':''}>정확 예측</option>
+          <option value="wdl"   ${g.bet_type==='wdl'?'selected':''}>승무패</option>
+        </select>
+      </td>
+      <td>
+        <select class="form-input" style="padding:4px 8px;font-size:12px;width:80px"
+          onchange="setGameStatus('${g.id}', this.value)">
           <option value="pending" ${g.status==='pending'?'selected':''}>미등록</option>
           <option value="open"    ${g.status==='open'   ?'selected':''}>베팅 중</option>
           <option value="closed"  ${g.status==='closed' ?'selected':''}>마감</option>
         </select>
       </td>
       <td>
-        <button class="btn btn-sm btn-danger" onclick="deleteGame(${g.id})">삭제</button>
+        <button class="btn btn-sm btn-danger" onclick="deleteGame('${g.id}')">삭제</button>
       </td>
     </tr>`).join('');
 }
@@ -739,6 +768,7 @@ async function addGame() {
     time:       document.getElementById('g-time').value.trim(),
     venue:      '',
     status:     'pending',
+    bet_type:   document.getElementById('g-bet-type').value,
   };
   const required = ['home_name','home_short','away_name','away_short','date','time'];
   if (required.some(k => !body[k])) { toast('❌ 필수 항목을 모두 입력해주세요', true); return }
@@ -755,9 +785,24 @@ async function addGame() {
 async function setGameStatus(id, status) {
   const res = await apiFetch(`/admin/games/${id}/status?status=${status}`, {method:'PATCH'});
   if (!res) { toast('❌ 상태 변경 실패', true); return }
-  const i = allGames.findIndex(g => g.id === id);
+  const i = allGames.findIndex(g => String(g.id) === String(id));
   if (i > -1) allGames[i] = res;
-  toast(`상태 변경: ${status==='open'?'베팅 중':'마감'}`);
+  toast(`상태 변경: ${status==='open'?'베팅 중':status==='closed'?'마감':'미등록'}`);
+}
+
+async function setGameBetType(id, betType) {
+  const g = allGames.find(g => String(g.id) === String(id));
+  if (!g) return;
+  const body = {
+    home_name: g.home.name, home_short: g.home.short, home_flag: g.home.flag,
+    away_name: g.away.name, away_short: g.away.short, away_flag: g.away.flag,
+    date: g.date, time: g.time, venue: g.venue || '', status: g.status, bet_type: betType,
+  };
+  const res = await apiFetch(`/admin/games/${id}`, {method:'PATCH', body:JSON.stringify(body)});
+  if (!res) { toast('❌ 변경 실패', true); return }
+  const i = allGames.findIndex(g => String(g.id) === String(id));
+  if (i > -1) allGames[i] = res;
+  toast(`베팅 방식 변경: ${betType==='wdl'?'승무패':'정확 예측'}`);
 }
 
 async function deleteAllGames() {

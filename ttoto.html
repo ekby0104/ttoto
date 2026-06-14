@@ -406,6 +406,12 @@ function renderStatus() {
 }
 function toggleExpand(id){expandedId=(expandedId===id)?null:id;renderStatus()}
 
+function calcGameWinners(g, res, mb) {
+  if(!res) return [];
+  return g.bet_type==='wdl'
+    ? mb.filter(b=>Math.sign(b.h-b.a)===Math.sign(res.h-res.a))
+    : mb.filter(b=>b.h===res.h&&b.a===res.a);
+}
 function computeCarryover() {
   const sorted=[...MATCHES]
     .filter(g=>allResults[String(g.id)])
@@ -414,14 +420,14 @@ function computeCarryover() {
   sorted.forEach((g,i)=>{
     const res=allResults[String(g.id)];
     const mb=gameBets(g.id);
-    const winners=mb.filter(b=>b.h===res.h&&b.a===res.a);
+    const winners=calcGameWinners(g,res,mb);
     if(winners.length>0&&winners.every(w=>w.paid_out)) lastPaidIdx=i;
   });
   let carry=0;
   sorted.slice(lastPaidIdx+1).forEach(g=>{
     const res=allResults[String(g.id)];
     const mb=gameBets(g.id);
-    const winners=mb.filter(b=>b.h===res.h&&b.a===res.a);
+    const winners=calcGameWinners(g,res,mb);
     if(winners.length===0) carry+=mb.reduce((s,b)=>s+(b.amount||0),0);
   });
   return carry;
@@ -451,8 +457,8 @@ async function renderResult() {
     } else if(!mb.length){
       html+='<div class="no-result">베팅 참가자가 없습니다</div>';
     } else {
-      const winners=mb.filter(b=>b.h===res.h&&b.a===res.a);
-      const label='정확 예측 당첨';
+      const winners=calcGameWinners(m,res,mb);
+      const label=m.bet_type==='wdl'?'승무패 예측 당첨':'정확 예측 당첨';
       const loserPot=totalPot-winners.reduce((s,b)=>s+(b.amount||0),0);
       const carryover=winners.length?computeCarryover():0;
       const prize=winners.length?Math.floor((loserPot+carryover)/winners.length):0;

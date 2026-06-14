@@ -91,6 +91,7 @@ class GameIn(BaseModel):
     time:      str                     # "21:00"
     venue:     Optional[str] = ""
     status:    Optional[str] = "pending"  # pending | open | closed
+    bet_type:  Optional[str] = "exact"   # exact | wdl
 
 # ══════════════════════════════════════════════════════════════
 # PUBLIC API
@@ -186,6 +187,11 @@ def admin_update_payout(bet_id: int, body: PayoutUpdate, auth=Depends(admin_requ
             return b
     raise HTTPException(404, "베팅을 찾을 수 없습니다")
 
+@app.delete("/api/admin/bets/all")
+def admin_delete_all_bets(auth=Depends(admin_required)):
+    write_json(BETS_FILE, [])
+    return {"ok": True}
+
 @app.delete("/api/admin/bets/{bet_id}")
 def admin_delete_bet(bet_id: int, auth=Depends(admin_required)):
     bets = [b for b in get_bets() if b["id"] != bet_id]
@@ -226,7 +232,8 @@ def admin_add_game(body: GameIn, auth=Depends(admin_required)):
         "date":  body.date,
         "time":  body.time,
         "venue": body.venue,
-        "status": body.status or "open",
+        "status":   body.status   or "pending",
+        "bet_type": body.bet_type or "exact",
     }
     games.append(game)
     write_json(GAMES_FILE, games)
@@ -249,7 +256,8 @@ def admin_update_game(game_id: int, body: GameIn, auth=Depends(admin_required)):
                 "date":   body.date   or g["date"],
                 "time":   body.time   or g["time"],
                 "venue":  body.venue  or g["venue"],
-                "status": body.status or g["status"],
+                "status":   body.status   or g["status"],
+                "bet_type": body.bet_type or g.get("bet_type", "exact"),
             }
             write_json(GAMES_FILE, games)
             return games[i]
