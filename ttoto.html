@@ -404,9 +404,10 @@ function toggleExpand(id){expandedId=(expandedId===id)?null:id;renderStatus()}
 async function renderResult() {
   const con=document.getElementById('result-container');
   con.innerHTML='<div class="loader">결과 불러오는 중...</div>';
-  const [bets,results]=await Promise.all([apiFetch('/bets'),apiFetch('/results')]);
+  const [bets,results,games]=await Promise.all([apiFetch('/bets'),apiFetch('/results'),apiFetch('/games')]);
   if(bets)    allBets=bets;
   if(results) allResults=results;
+  if(games)   MATCHES=games;
   let html='';
   MATCHES.filter(m=>m.status!=='pending').forEach(m=>{
     const res=allResults[String(m.id)];

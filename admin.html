@@ -419,16 +419,7 @@ async function apiFetch(path, opts={}) {
 
 // ── 초기화 ──────────────────────────────────────────────
 async function init() {
-  // 게임 필터 옵션
-  ['pay-filter-game','payout-filter-game'].forEach(id => {
-    const sel = document.getElementById(id);
-    MATCHES.forEach(m => {
-      const opt = document.createElement('option');
-      opt.value = m.id;
-      opt.textContent = `${m.home.short} vs ${m.away.short}`;
-      sel.appendChild(opt);
-    });
-  });
+  // 게임 필터 옵션은 loadAll 후 renderGameFilters()에서 세팅
 
   // 토큰 상태 확인
   const status = await fetch(API + '/auth/status').then(r=>r.json()).catch(()=>({has_token:false}));
@@ -472,11 +463,26 @@ async function loadAll() {
   if (bets)    allBets    = bets;
   if (results) allResults = results;
   if (cfg)     { config = cfg; renderSettings(); }
-  if (games)   { allGames = games; }
+  if (games)   { allGames = games; renderGameFilters(); }
   renderGames();
   renderPayments();
   renderResults();
   renderPayouts();
+}
+
+function renderGameFilters() {
+  ['pay-filter-game','payout-filter-game'].forEach(selId => {
+    const sel = document.getElementById(selId);
+    const cur = sel.value;
+    sel.innerHTML = '<option value="">전체 경기</option>';
+    allGames.forEach(m => {
+      const opt = document.createElement('option');
+      opt.value = m.id;
+      opt.textContent = `${m.home.flag}${m.home.short} vs ${m.away.short}${m.away.flag} (${m.date})`;
+      if (String(m.id) === String(cur)) opt.selected = true;
+      sel.appendChild(opt);
+    });
+  });
 }
 
 // ── ① 설정 ──────────────────────────────────────────────
