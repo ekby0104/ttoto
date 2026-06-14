@@ -360,7 +360,7 @@ function renderStatus() {
     const mb=gameBets(m.id);
     const totalAmt=mb.reduce((s,b)=>s+(b.amount||0),0);
     const paidAmt=mb.filter(b=>b.paid).reduce((s,b)=>s+(b.amount||0),0);
-    const isExp=expandedId===m.id;
+    const isExp=String(expandedId)===String(m.id);
     const groups={};
     mb.forEach(b=>{const k=`${b.h}-${b.a}`;if(!groups[k])groups[k]=[];groups[k].push(b)});
     const sorted=Object.entries(groups).sort((a,b)=>b[1].length-a[1].length);
