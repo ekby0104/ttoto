@@ -401,11 +401,12 @@ function toast(msg, err=false) {
   el.textContent = msg; el.className = 'toast show' + (err?' err':'');
   clearTimeout(el._t); el._t = setTimeout(() => el.classList.remove('show'), 2800);
 }
-function switchATab(name) {
+async function switchATab(name) {
   document.querySelectorAll('.atab').forEach((t,i) =>
     t.classList.toggle('active', ['settings','games','payments','results','payouts'][i] === name));
   document.querySelectorAll('.apanel').forEach(p => p.classList.remove('active'));
   document.getElementById('apanel-' + name).classList.add('active');
+  await loadAll();
 }
 
 // ── API ──────────────────────────────────────────────────
