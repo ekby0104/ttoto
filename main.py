@@ -283,6 +283,28 @@ async def admin_import_games(korea_only: bool = False, auth=Depends(admin_requir
     worldcup26.ir 에서 전체 경기 일정을 가져와 games.json 에 병합.
     이미 id 가 같은 경기가 있으면 건너뜀.
     """
+    CODE_MAP = {
+        "South Korea":"KOR","Korea Republic":"KOR","Mexico":"MEX","South Africa":"RSA",
+        "United States":"USA","USA":"USA","Canada":"CAN","Argentina":"ARG",
+        "Brazil":"BRA","Germany":"GER","France":"FRA","England":"ENG",
+        "Spain":"ESP","Portugal":"POR","Japan":"JPN","Morocco":"MAR",
+        "Netherlands":"NED","Poland":"POL","Czech Republic":"CZE","Belgium":"BEL",
+        "Croatia":"CRO","Serbia":"SRB","Switzerland":"SUI","Uruguay":"URU",
+        "Colombia":"COL","Ecuador":"ECU","Peru":"PER","Chile":"CHI",
+        "Venezuela":"VEN","Paraguay":"PAR","Bolivia":"BOL","Senegal":"SEN",
+        "Nigeria":"NGA","Cameroon":"CMR","Ghana":"GHA","Egypt":"EGY",
+        "Algeria":"ALG","Tunisia":"TUN","Mali":"MLI","Saudi Arabia":"KSA",
+        "Iran":"IRN","Qatar":"QAT","New Zealand":"NZL","Indonesia":"IDN",
+        "Denmark":"DEN","Sweden":"SWE","Norway":"NOR","Austria":"AUT",
+        "Italy":"ITA","Greece":"GRE","Turkey":"TUR","Ukraine":"UKR",
+        "Romania":"ROU","Slovakia":"SVK","Hungary":"HUN","Albania":"ALB",
+        "Georgia":"GEO","Slovenia":"SVN","Kosovo":"KVX","Wales":"WAL",
+        "Scotland":"SCO","Northern Ireland":"NIR","Ireland":"IRL",
+        "Costa Rica":"CRC","Honduras":"HON","Jamaica":"JAM","Panama":"PAN",
+        "El Salvador":"SLV","Guatemala":"GUA","Cuba":"CUB","Haiti":"HAI",
+        "Trinidad and Tobago":"TRI","Australia":"AUS","New Caledonia":"NCL",
+        "Uzbekistan":"UZB","Iraq":"IRQ","Oman":"OMA","Bahrain":"BHR",
+    }
     FLAG_MAP = {
         "Mexico":"🇲🇽","South Africa":"🇿🇦","South Korea":"🇰🇷","Korea Republic":"🇰🇷",
         "Czech Republic":"🇨🇿","Poland":"🇵🇱","Netherlands":"🇳🇱","Argentina":"🇦🇷",
@@ -342,8 +364,8 @@ async def admin_import_games(korea_only: bool = False, auth=Depends(admin_requir
 
         h_name = str(h_name)
         a_name = str(a_name)
-        h_code = h_name[:3].upper()
-        a_code = a_name[:3].upper()
+        h_code = CODE_MAP.get(h_name, h_name[:3].upper())
+        a_code = CODE_MAP.get(a_name, a_name[:3].upper())
 
         # local_date: "06/11/2026 13:00" → date "2026.06.11", time "13:00"
         raw_dt = m.get("local_date") or m.get("datetime") or m.get("kickoff_utc") or m.get("date", "")
