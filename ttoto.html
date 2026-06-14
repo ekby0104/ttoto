@@ -278,6 +278,11 @@ function renderBets() {
             <div class="t-name">${m.home.name}<small>${m.home.short}</small></div>
           </div>
           <div class="score-zone">
+            ${closed && allResults[String(m.id)] ? `
+            <div class="score-col"><div class="score-lbl">홈</div><div class="score-box" style="display:flex;align-items:center;justify-content:center;cursor:default">${allResults[String(m.id)].h}</div></div>
+            <div class="score-sep">:</div>
+            <div class="score-col"><div class="score-lbl">원정</div><div class="score-box" style="display:flex;align-items:center;justify-content:center;cursor:default">${allResults[String(m.id)].a}</div></div>
+            ` : `
             <div class="score-col">
               <div class="score-lbl">홈</div>
               <input class="score-box" type="number" min="0" max="20" id="h-${m.id}" value="0" ${closed?'disabled':''}>
@@ -287,6 +292,7 @@ function renderBets() {
               <div class="score-lbl">원정</div>
               <input class="score-box" type="number" min="0" max="20" id="a-${m.id}" value="0" ${closed?'disabled':''}>
             </div>
+            `}
           </div>
           <div class="team away">
             <div class="t-flag">${m.away.flag}</div>
