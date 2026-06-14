@@ -606,8 +606,11 @@ async function saveResult(id) {
 async function deleteResult(id) {
   await apiFetch(`/admin/results/${id}`, {method:'DELETE'});
   delete allResults[String(id)];
-  renderResults(); renderPayouts();
-  toast('결과가 삭제됐습니다');
+  await apiFetch(`/admin/games/${id}/status?status=open`, {method:'PATCH'});
+  const gi = allGames.findIndex(g => String(g.id) === String(id));
+  if (gi > -1) allGames[gi].status = 'open';
+  renderResults(); renderPayouts(); renderGames();
+  toast('결과가 삭제됐습니다 (베팅 중으로 변경)');
 }
 
 // ── ④ 배당 처리 ──────────────────────────────────────────
