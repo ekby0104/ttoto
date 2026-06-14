@@ -411,8 +411,8 @@ function toggleExpand(id){expandedId=(expandedId===id)?null:id;renderStatus()}
 function calcGameWinners(g, res, mb) {
   if(!res) return [];
   return g.bet_type==='wdl'
-    ? mb.filter(b=>Math.sign(b.h-b.a)===Math.sign(res.h-res.a))
-    : mb.filter(b=>b.h===res.h&&b.a===res.a);
+    ? mb.filter(b=>b.paid&&Math.sign(b.h-b.a)===Math.sign(res.h-res.a))
+    : mb.filter(b=>b.paid&&b.h===res.h&&b.a===res.a);
 }
 function computeCarryover() {
   const sorted=[...MATCHES]

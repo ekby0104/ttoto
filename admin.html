@@ -675,9 +675,9 @@ function renderPayouts() {
     if (!mb.length) return;
     const totalPot = mb.reduce((s,b) => s+(b.amount||0), 0);
     const betType  = m.bet_type || 'exact';
-    const winners  = res ? mb.filter(b => betType==='wdl'
+    const winners  = res ? mb.filter(b => b.paid && (betType==='wdl'
       ? Math.sign(b.h-b.a)===Math.sign(res.h-res.a)
-      : b.h===res.h && b.a===res.a) : [];
+      : b.h===res.h && b.a===res.a)) : [];
     const loserPot = totalPot - winners.reduce((s,b) => s+(b.amount||0), 0);
     const carryover = winners.length ? computeCarryover() : 0;
     const prize    = winners.length ? Math.floor((loserPot + carryover) / winners.length) : 0;
