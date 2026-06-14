@@ -430,10 +430,8 @@ async function renderResult() {
     } else if(!mb.length){
       html+='<div class="no-result">베팅 참가자가 없습니다</div>';
     } else {
-      const exactW=mb.filter(b=>b.h===res.h&&b.a===res.a);
-      const resultW=mb.filter(b=>Math.sign(b.h-b.a)===Math.sign(res.h-res.a)&&!(b.h===res.h&&b.a===res.a));
-      const winners=exactW.length?exactW:resultW;
-      const label=exactW.length?'정확 예측 당첨':'승무패 예측 당첨';
+      const winners=mb.filter(b=>b.h===res.h&&b.a===res.a);
+      const label='정확 예측 당첨';
       const loserPot=totalPot-winners.reduce((s,b)=>s+(b.amount||0),0);
       const prize=winners.length?Math.floor(loserPot/winners.length):0;
       // 배당완료 여부: 당첨자 전원 paid_out=true면 완료

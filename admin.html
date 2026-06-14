@@ -620,10 +620,7 @@ function renderPayouts() {
     const mb       = allBets.filter(b => String(b.game_id) === String(m.id));
     if (!mb.length) return;
     const totalPot = mb.reduce((s,b) => s+(b.amount||0), 0);
-    const exactW   = res ? mb.filter(b => b.h===res.h && b.a===res.a) : [];
-    const resultW  = res ? mb.filter(b =>
-      Math.sign(b.h-b.a)===Math.sign(res.h-res.a) && !(b.h===res.h&&b.a===res.a)) : [];
-    const winners  = exactW.length ? exactW : resultW;
+    const winners  = res ? mb.filter(b => b.h===res.h && b.a===res.a) : [];
     const loserPot = totalPot - winners.reduce((s,b) => s+(b.amount||0), 0);
     const prize    = winners.length ? Math.floor(loserPot/winners.length) : 0;
     const winIds   = new Set(winners.map(w => w.id));
