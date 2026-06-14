@@ -259,7 +259,7 @@ function ovClose(e,id)  {if(e.target===e.currentTarget)closeModal(id)}
 function renderBets() {
   const con=document.getElementById('bet-container');
   let html='';
-  MATCHES.forEach(m=>{
+  MATCHES.filter(m=>m.status!=='pending').forEach(m=>{
       const mb=gameBets(m.id);
       const closed=m.status==='closed';
       const myBetCount=mb.length;
@@ -336,7 +336,7 @@ async function onKakaoClick() {
 function renderStatus() {
   const con=document.getElementById('status-game-list');
   let html='';
-  MATCHES.forEach(m=>{
+  MATCHES.filter(m=>m.status!=='pending').forEach(m=>{
     const mb=gameBets(m.id);
     const totalAmt=mb.reduce((s,b)=>s+(b.amount||0),0);
     const paidAmt=mb.filter(b=>b.paid).reduce((s,b)=>s+(b.amount||0),0);
@@ -394,7 +394,7 @@ async function renderResult() {
   if(bets)    allBets=bets;
   if(results) allResults=results;
   let html='';
-  MATCHES.forEach(m=>{
+  MATCHES.filter(m=>m.status!=='pending').forEach(m=>{
     const res=allResults[String(m.id)];
     const mb=gameBets(m.id);
     const totalPot=mb.reduce((s,b)=>s+(b.amount||0),0);
