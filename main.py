@@ -19,7 +19,7 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-DATA_DIR     = os.path.join(os.path.dirname(__file__), "data")
+DATA_DIR     = os.environ.get("DATA_DIR", os.path.join(os.path.dirname(__file__), "data"))
 BETS_FILE    = os.path.join(DATA_DIR, "bets.json")
 CONFIG_FILE  = os.path.join(DATA_DIR, "config.json")
 RESULTS_FILE = os.path.join(DATA_DIR, "results.json")
@@ -304,32 +304,57 @@ async def admin_import_games(auth=Depends(admin_required)):
 
     raw_matches = data if isinstance(data, list) else data.get("games", data.get("matches", []))
     existing    = get_games()
-    existing_ids = {g["id"] for g in existing}
+    existing_ids = {str(g["id"]) for g in existing}
     added = 0
 
     for m in raw_matches:
-        ext_id = m.get("id") or m.get("match_number") or m.get("matchNumber")
-        if ext_id in existing_ids:
+        ext_id = str(m.get("id") or m.get("match_number") or m.get("matchNumber") or "")
+        if not ext_id or ext_id in existing_ids:
             continue
-        home = m.get("home_team") or m.get("homeTeam") or m.get("team1") or {}
-        away = m.get("away_team") or m.get("awayTeam") or m.get("team2") or {}
-        h_name = (home.get("name") or home) if isinstance(home, dict) else str(home)
-        a_name = (away.get("name") or away) if isinstance(away, dict) else str(away)
-        h_code = home.get("code","") if isinstance(home, dict) else h_name[:3].upper()
-        a_code = away.get("code","") if isinstance(away, dict) else a_name[:3].upper()
-        raw_dt = m.get("datetime") or m.get("kickoff_utc") or m.get("date","")
-        date_str = raw_dt[:10].replace("-",".") if raw_dt else ""
-        time_str = raw_dt[11:16] if len(raw_dt) > 10 else m.get("time","")
-        group_raw = m.get("group","") or ""
-        group_str = f"{group_raw}조" if group_raw and not str(group_raw).endswith("조") else str(group_raw)
+
+        # worldcup26.ir 필드: home_team_name_en, away_team_name_en, local_date
+        h_name = m.get("home_team_name_en") or ""
+        a_name = m.get("away_team_name_en") or ""
+
+        # 일반 구조 fallback
+        if not h_name:
+            home = m.get("home_team") or m.get("homeTeam") or m.get("team1") or {}
+            h_name = (home.get("name") or home.get("code") or "") if isinstance(home, dict) else str(home)
+        if not a_name:
+            away = m.get("away_team") or m.get("awayTeam") or m.get("team2") or {}
+            a_name = (away.get("name") or away.get("code") or "") if isinstance(away, dict) else str(away)
+
+        h_name = str(h_name)
+        a_name = str(a_name)
+        h_code = h_name[:3].upper()
+        a_code = a_name[:3].upper()
+
+        # local_date: "06/11/2026 13:00" → date "2026.06.11", time "13:00"
+        raw_dt = m.get("local_date") or m.get("datetime") or m.get("kickoff_utc") or m.get("date", "")
+        raw_dt = str(raw_dt)
+        if "/" in raw_dt:  # MM/DD/YYYY HH:MM
+            parts = raw_dt.split(" ")
+            d_parts = parts[0].split("/")
+            date_str = f"{d_parts[2]}.{d_parts[0]}.{d_parts[1]}" if len(d_parts) == 3 else parts[0]
+            time_str = parts[1][:5] if len(parts) > 1 else ""
+        elif "-" in raw_dt:  # YYYY-MM-DD
+            date_str = raw_dt[:10].replace("-", ".")
+            time_str = raw_dt[11:16] if len(raw_dt) > 10 else ""
+        else:
+            date_str = raw_dt
+            time_str = ""
+
+        group_raw = str(m.get("group", "") or "")
+        group_str = f"{group_raw}조" if group_raw and not group_raw.endswith("조") else group_raw
+
         game = {
             "id":    ext_id,
             "group": group_str,
-            "home":  {"name": h_name, "short": h_code, "flag": FLAG_MAP.get(h_name,"🏳️")},
-            "away":  {"name": a_name, "short": a_code, "flag": FLAG_MAP.get(a_name,"🏳️")},
+            "home":  {"name": h_name, "short": h_code, "flag": FLAG_MAP.get(h_name, "🏳️")},
+            "away":  {"name": a_name, "short": a_code, "flag": FLAG_MAP.get(a_name, "🏳️")},
             "date":  date_str,
             "time":  time_str,
-            "venue": (m.get("stadium") or m.get("venue") or m.get("ground") or ""),
+            "venue": str(m.get("stadium") or m.get("venue") or m.get("ground") or ""),
             "status": "open",
         }
         existing.append(game)
