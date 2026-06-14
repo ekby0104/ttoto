@@ -406,6 +406,27 @@ function renderStatus() {
 }
 function toggleExpand(id){expandedId=(expandedId===id)?null:id;renderStatus()}
 
+function computeCarryover() {
+  const sorted=[...MATCHES]
+    .filter(g=>allResults[String(g.id)])
+    .sort((a,b)=>a.date.localeCompare(b.date));
+  let lastPaidIdx=-1;
+  sorted.forEach((g,i)=>{
+    const res=allResults[String(g.id)];
+    const mb=gameBets(g.id);
+    const winners=mb.filter(b=>b.h===res.h&&b.a===res.a);
+    if(winners.length>0&&winners.every(w=>w.paid_out)) lastPaidIdx=i;
+  });
+  let carry=0;
+  sorted.slice(lastPaidIdx+1).forEach(g=>{
+    const res=allResults[String(g.id)];
+    const mb=gameBets(g.id);
+    const winners=mb.filter(b=>b.h===res.h&&b.a===res.a);
+    if(winners.length===0) carry+=mb.reduce((s,b)=>s+(b.amount||0),0);
+  });
+  return carry;
+}
+
 // ── ③ 게임 결과 & 배당 ────────────────────────────────────
 async function renderResult() {
   const con=document.getElementById('result-container');
@@ -433,12 +454,15 @@ async function renderResult() {
       const winners=mb.filter(b=>b.h===res.h&&b.a===res.a);
       const label='정확 예측 당첨';
       const loserPot=totalPot-winners.reduce((s,b)=>s+(b.amount||0),0);
-      const carryover=winners.length?(config.carryover||0):0;
+      const carryover=winners.length?computeCarryover():0;
       const prize=winners.length?Math.floor((loserPot+carryover)/winners.length):0;
+      const gamePot=mb.reduce((s,b)=>s+(b.amount||0),0);
       // 배당완료 여부: 당첨자 전원 paid_out=true면 완료
       const allPaidOut=winners.length>0&&winners.every(b=>b.paid_out);
       html+=`<div class="rc-body">
-        <div class="rc-section-label">${winners.length?`🏆 ${label} · 총 판돈 ${Number(totalPot).toLocaleString()}원`:'❌ 당첨자 없음 · 판돈 이월'}</div>`;
+        <div class="rc-section-label">${winners.length
+          ? `🏆 ${label} · 판돈 ${Number(gamePot).toLocaleString()}원${carryover?` + 이월 ${Number(carryover).toLocaleString()}원`:''} · 인당 +${Number(prize).toLocaleString()}원`
+          : `❌ 당첨자 없음 · ${Number(gamePot).toLocaleString()}원 이월`}</div>`;
       if(winners.length){
         winners.forEach(b=>{
           const ret=(b.amount||0)+prize;
@@ -458,7 +482,7 @@ async function renderResult() {
           ${allPaidOut?'✅ 배당 완료':'⏳ 배당 대기 중'}
         </div>`;
       } else {
-        html+='<p style="font-size:13px;color:var(--muted);padding:8px 0">예측 적중자 없음 — 판돈이 이월됩니다</p>';
+        html+=`<p style="font-size:13px;color:var(--muted);padding:8px 0">예측 적중자 없음 — ${Number(gamePot).toLocaleString()}원이 다음 경기로 이월됩니다</p>`;
         html+='<div class="payout-badge pending-pay">⏳ 배당 없음</div>';
       }
       html+='</div>';
