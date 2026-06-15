@@ -287,12 +287,12 @@ function renderBets() {
             ` : `
             <div class="score-col">
               <div class="score-lbl">홈</div>
-              <input class="score-box" type="number" min="0" max="20" id="h-${m.id}" value="0" ${closed?'disabled':''}>
+              <input class="score-box" type="number" min="0" max="20" id="h-${m.id}" value="0" ${closed?'disabled':''} onfocus="this.select()">
             </div>
             <div class="score-sep">:</div>
             <div class="score-col">
               <div class="score-lbl">원정</div>
-              <input class="score-box" type="number" min="0" max="20" id="a-${m.id}" value="0" ${closed?'disabled':''}>
+              <input class="score-box" type="number" min="0" max="20" id="a-${m.id}" value="0" ${closed?'disabled':''} onfocus="this.select()">
             </div>
             `}
           </div>
