@@ -690,7 +690,7 @@ function renderPayouts() {
         <td><strong>${b.name}</strong></td>
         <td style="font-size:12px">${matchLabel(b.game_id)}</td>
         <td style="font-family:var(--mono)">${b.h}-${b.a}</td>
-        <td><span class="badge ${isW?'badge-green':'badge-gray'}">${isW?'🏆 당첨':'낙첨'}</span></td>
+        <td><span class="badge ${isW?'badge-green':res?'badge-gray':'badge-gray'}">${isW?'🏆 당첨':res?'낙첨':'미정'}</span></td>
         <td style="font-family:var(--mono);font-weight:700;color:${isW?'#c47f00':'#aaa'}">
           ${isW ? `+${Number(prize).toLocaleString()}원<br><span style="font-size:10px;color:#aaa">수령 ${Number(ret).toLocaleString()}원</span>` : '—'}
         </td>
