@@ -394,9 +394,9 @@ function renderStatus() {
     <div class="sg-item ${isExp?'expanded':''}" id="sg-${m.id}">
       <div class="sg-row" onclick="toggleExpand('${m.id}')">
         <div class="sg-teams">${m.home.flag} ${m.home.short} vs ${m.away.short} ${m.away.flag}
-          <small>${m.date}</small></div>
+          <small style="color:${m.status==='closed'?'#fff':'var(--gold)'}">${m.date}</small></div>
         <div class="sg-stats">
-          <div class="sg-cnt">${mb.length}명 예측</div>
+          <div class="sg-cnt">${mb.length}명 베팅</div>
           <div class="sg-amt">${totalAmt?'총 '+Number(totalAmt).toLocaleString()+'원':'—'}</div>
         </div>
         <div class="sg-arrow">›</div>
