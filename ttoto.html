@@ -56,7 +56,7 @@ main{max-width:820px;margin:0 auto;padding:16px 12px 40px}
 .sg-row{display:flex;align-items:center;gap:12px;padding:14px 16px;cursor:pointer;transition:background .15s;user-select:none}
 .sg-row:hover{background:rgba(255,255,255,.03)}
 .sg-teams{flex:1;font-family:var(--display);font-size:18px;letter-spacing:.5px}
-.sg-teams small{display:block;font-family:var(--body);font-size:12px;color:var(--muted);font-weight:400;margin-top:2px}
+.sg-teams small{display:block;font-family:var(--body);font-size:12px;color:#fff;font-weight:400;margin-top:2px}
 .sg-stats{text-align:right;flex-shrink:0}
 .sg-cnt{font-family:var(--mono);font-size:13px;color:var(--green)}
 .sg-amt{font-family:var(--mono);font-size:12px;color:var(--gold);margin-top:2px}
@@ -371,7 +371,7 @@ function renderStatus() {
       detail='<div class="sgd-empty">아직 예측이 없습니다</div>';
     } else {
       detail+=`<div class="sgd-summary">
-        <div class="sgd-sum-item">총 예측 <span>${mb.length}건</span></div>
+        <div class="sgd-sum-item">총 베팅 <span>${mb.length}건</span></div>
         <div class="sgd-sum-item">판돈 <span>${totalAmt?Number(totalAmt).toLocaleString()+'원':'0원'}</span></div>
         <div class="sgd-sum-item">입금확인 <span style="color:#14833a">${mb.filter(b=>b.paid).length}명 · ${paidAmt?Number(paidAmt).toLocaleString()+'원':'0원'}</span></div>
       </div>`;
@@ -385,7 +385,7 @@ function renderStatus() {
             ${gAmt?`<span class="sgd-score-pot">${Number(gAmt).toLocaleString()}원</span>`:''}
           </div>
           <div class="sgd-names">
-            ${players.map(p=>`<div class="sgd-name-tag ${p.paid?'paid':''}">${p.name}${p.paid?' 💛':''}</div>`).join('')}
+            ${players.map(p=>`<div class="sgd-name-tag ${p.paid?'paid':''}">${p.name}</div>`).join('')}
           </div>
         </div>`;
       });
@@ -476,7 +476,7 @@ async function renderResult() {
           const ret=(b.amount||0)+prize;
           html+=`<div class="winner-row">
             <div>
-              <div class="wr-name">${b.name}${b.paid?' 💛':''}</div>
+              <div class="wr-name">${b.name}</div>
               <div class="wr-pick">예측 ${b.h}-${b.a} · 베팅 ${Number(b.amount||0).toLocaleString()}원</div>
             </div>
             <div style="text-align:right">
