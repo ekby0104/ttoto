@@ -80,6 +80,20 @@ main{max-width:820px;margin:0 auto;padding:16px 12px 40px}
 .sgd-name-tag{background:#f7f7f7;border:1px solid #e0e0e0;border-radius:20px;padding:5px 13px;font-size:12px;color:#444}
 .sgd-name-tag.paid{border-color:#1db954;color:#14833a;background:#edfaf3}
 .sgd-empty{text-align:center;padding:20px;color:#bbb;font-size:13px}
+.sgd-viewtoggle{display:flex;gap:6px;margin-bottom:14px}
+.sgd-vt-btn{flex:1;padding:8px 10px;font-size:12px;font-weight:700;font-family:var(--body);border:1px solid #ddd;background:#fff;color:#888;border-radius:8px;cursor:pointer;transition:all .15s}
+.sgd-vt-btn.active{background:#111;color:#fff;border-color:#111}
+.sgd-table-wrap{overflow-x:auto;-webkit-overflow-scrolling:touch}
+.sgd-table{border-collapse:collapse;width:100%;font-size:12px}
+.sgd-table th,.sgd-table td{border:1px solid #ddd;padding:0}
+.sgd-th{background:#f4f4f4;color:#333;font-weight:700;text-align:center;font-family:var(--mono);min-width:40px;height:30px}
+.sgd-rowhead{background:#f4f4f4}
+.sgd-corner{background:#fafafa;position:relative;min-width:54px;height:30px;padding:3px 5px}
+.sgd-corner .col-lbl{position:absolute;top:3px;right:5px;font-size:10px;color:#555;font-weight:700}
+.sgd-corner .row-lbl{position:absolute;bottom:3px;left:5px;font-size:10px;color:#555;font-weight:700}
+.sgd-td{vertical-align:top;padding:3px!important;min-width:54px;background:#fff}
+.sgd-cell-name{display:block;font-size:11px;color:#444;line-height:1.5;white-space:nowrap}
+.sgd-cell-name.paid{color:#14833a;font-weight:700}
 /* 게임 결과 */
 .result-card{background:var(--card);border:1px solid var(--border);border-radius:14px;margin-bottom:14px;overflow:hidden}
 .rc-scoreboard{display:flex;align-items:center;justify-content:center;gap:14px;padding:20px 16px;text-align:center}
@@ -216,6 +230,7 @@ let allResults      = {};
 let allAiPredictions = {};
 let pendingBet      = null;
 let expandedId      = null;
+let statusView      = 'list';   // 'list' | 'table'
 
 // ── API 호출 ───────────────────────────────────────────────
 async function apiFetch(path, opts={}) {
@@ -392,20 +407,28 @@ function renderStatus() {
         <div class="sgd-sum-item">판돈 <span>${totalAmt?Number(totalAmt).toLocaleString()+'원':'0원'}</span></div>
         <div class="sgd-sum-item">입금확인 <span style="color:#14833a">${mb.filter(b=>b.paid).length}명 · ${paidAmt?Number(paidAmt).toLocaleString()+'원':'0원'}</span></div>
       </div>`;
-      sorted.forEach(([score,players])=>{
-        const[sh,sa]=score.split('-');
-        const gAmt=players.reduce((s,p)=>s+(p.amount||0),0);
-        detail+=`<div class="sgd-score-group">
-          <div class="sgd-score-head">
-            <span class="sgd-score-val">${sh} : ${sa}</span>
-            <span class="sgd-score-cnt">${players.length}명</span>
-            ${gAmt?`<span class="sgd-score-pot">${Number(gAmt).toLocaleString()}원</span>`:''}
-          </div>
-          <div class="sgd-names">
-            ${players.map(p=>`<div class="sgd-name-tag ${p.paid?'paid':''}">${p.name}</div>`).join('')}
-          </div>
-        </div>`;
-      });
+      detail+=`<div class="sgd-viewtoggle">
+        <button class="sgd-vt-btn ${statusView==='list'?'active':''}" onclick="event.stopPropagation();setStatusView('list')">📋 리스트</button>
+        <button class="sgd-vt-btn ${statusView==='table'?'active':''}" onclick="event.stopPropagation();setStatusView('table')">▦ 테이블</button>
+      </div>`;
+      if(statusView==='table'){
+        detail+=buildScoreTable(m,mb);
+      } else {
+        sorted.forEach(([score,players])=>{
+          const[sh,sa]=score.split('-');
+          const gAmt=players.reduce((s,p)=>s+(p.amount||0),0);
+          detail+=`<div class="sgd-score-group">
+            <div class="sgd-score-head">
+              <span class="sgd-score-val">${sh} : ${sa}</span>
+              <span class="sgd-score-cnt">${players.length}명</span>
+              ${gAmt?`<span class="sgd-score-pot">${Number(gAmt).toLocaleString()}원</span>`:''}
+            </div>
+            <div class="sgd-names">
+              ${players.map(p=>`<div class="sgd-name-tag ${p.paid?'paid':''}">${p.name}</div>`).join('')}
+            </div>
+          </div>`;
+        });
+      }
     }
     html+=`
     <div class="sg-item ${isExp?'expanded':''}" id="sg-${m.id}">
@@ -424,6 +447,36 @@ function renderStatus() {
   con.innerHTML=html;
 }
 function toggleExpand(id){expandedId=(expandedId===id)?null:id;renderStatus()}
+function setStatusView(v){statusView=v;renderStatus()}
+
+// 점수 매트릭스 테이블 (가로: 홈 득점, 세로: 원정 득점, 0~5, 6+는 '이상')
+function buildScoreTable(m,mb){
+  const cols=[0,1,2,3,4,5,'이상'];   // 홈 득점
+  const rows=[0,1,2,3,4,5,'이상'];   // 원정 득점
+  const bucket=(v)=>v>=6?'이상':String(v);
+  // cell[home][away] = [players]
+  const cell={};
+  mb.forEach(b=>{
+    const ch=bucket(b.h), ca=bucket(b.a);
+    const k=ch+'|'+ca;
+    (cell[k]=cell[k]||[]).push(b);
+  });
+  let html=`<div class="sgd-table-wrap"><table class="sgd-table">`;
+  // 헤더: 좌상단 라벨 + 홈 득점 컬럼
+  html+=`<tr><th class="sgd-corner"><span class="col-lbl">${m.home.flag} ${m.home.short}</span><span class="row-lbl">${m.away.flag} ${m.away.short}</span></th>`;
+  cols.forEach(c=>{html+=`<th class="sgd-th">${c}</th>`});
+  html+=`</tr>`;
+  rows.forEach(r=>{
+    html+=`<tr><th class="sgd-th sgd-rowhead">${r}</th>`;
+    cols.forEach(c=>{
+      const players=cell[c+'|'+r]||[];
+      html+=`<td class="sgd-td">${players.map(p=>`<span class="sgd-cell-name ${p.paid?'paid':''}">${p.name}</span>`).join('')}</td>`;
+    });
+    html+=`</tr>`;
+  });
+  html+=`</table></div>`;
+  return html;
+}
 
 function calcGameWinners(g, res, mb) {
   if(!res) return [];
