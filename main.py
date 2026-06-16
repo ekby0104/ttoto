@@ -8,7 +8,7 @@ from fastapi.staticfiles import StaticFiles
 from fastapi.responses import FileResponse
 from pydantic import BaseModel
 from typing import Optional
-import json, os, time, httpx
+import json, os, time, httpx, re
 
 app = FastAPI(title="사무실 월드컵 토토 API")
 
@@ -19,12 +19,13 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-DATA_DIR     = os.environ.get("DATA_DIR", os.path.join(os.path.dirname(__file__), "data"))
-BETS_FILE    = os.path.join(DATA_DIR, "bets.json")
-CONFIG_FILE  = os.path.join(DATA_DIR, "config.json")
-RESULTS_FILE = os.path.join(DATA_DIR, "results.json")
-AUTH_FILE    = os.path.join(DATA_DIR, "auth.json")
-GAMES_FILE   = os.path.join(DATA_DIR, "games.json")
+DATA_DIR          = os.environ.get("DATA_DIR", os.path.join(os.path.dirname(__file__), "data"))
+BETS_FILE         = os.path.join(DATA_DIR, "bets.json")
+CONFIG_FILE       = os.path.join(DATA_DIR, "config.json")
+RESULTS_FILE      = os.path.join(DATA_DIR, "results.json")
+AUTH_FILE         = os.path.join(DATA_DIR, "auth.json")
+GAMES_FILE        = os.path.join(DATA_DIR, "games.json")
+AI_PREDICTIONS_FILE = os.path.join(DATA_DIR, "ai_predictions.json")
 
 os.makedirs(DATA_DIR, exist_ok=True)
 
@@ -38,11 +39,12 @@ def write_json(path, data):
     with open(path, "w", encoding="utf-8") as f:
         json.dump(data, f, ensure_ascii=False, indent=2)
 
-def get_bets():    return read_json(BETS_FILE,    [])
-def get_config():  return read_json(CONFIG_FILE,  {"bet_amount": 3000, "kp_link": "", "site_title": "토토", "carryover": 0})
-def get_results(): return read_json(RESULTS_FILE, {})
-def get_auth():    return read_json(AUTH_FILE,     {"token": ""})
-def get_games():   return read_json(GAMES_FILE,    [])
+def get_bets():           return read_json(BETS_FILE,           [])
+def get_config():         return read_json(CONFIG_FILE,         {"bet_amount": 3000, "kp_link": "", "site_title": "토토", "carryover": 0})
+def get_results():        return read_json(RESULTS_FILE,        {})
+def get_auth():           return read_json(AUTH_FILE,           {"token": ""})
+def get_games():          return read_json(GAMES_FILE,          [])
+def get_ai_predictions(): return read_json(AI_PREDICTIONS_FILE, {})
 
 def admin_required(x_admin_token: Optional[str] = Header(None)):
     auth   = get_auth()
@@ -138,6 +140,10 @@ def list_bets(game_id: Optional[int] = None):
 def list_results():
     return get_results()
 
+@app.get("/api/ai-predictions")
+def list_ai_predictions():
+    return get_ai_predictions()
+
 @app.get("/api/auth/status")
 def auth_status():
     return {"has_token": bool(get_auth().get("token", ""))}
@@ -204,6 +210,62 @@ def admin_set_result(game_id: int, body: ResultIn, auth=Depends(admin_required))
     results[str(game_id)] = {"h": body.h, "a": body.a}
     write_json(RESULTS_FILE, results)
     return results[str(game_id)]
+
+@app.post("/api/admin/ai-predict")
+async def generate_ai_predictions(auth=Depends(admin_required)):
+    api_key = os.environ.get("ANTHROPIC_API_KEY", "")
+    if not api_key:
+        raise HTTPException(500, "ANTHROPIC_API_KEY 환경변수가 설정되지 않았습니다")
+
+    try:
+        import anthropic as _anthropic
+    except ImportError:
+        raise HTTPException(500, "anthropic 패키지가 설치되지 않았습니다")
+
+    games = get_games()
+    target_games = [g for g in games if g.get("status") in ("open", "closed")]
+    predictions = get_ai_predictions()
+    client = _anthropic.Anthropic(api_key=api_key)
+    generated = 0
+    errors = []
+
+    for game in target_games:
+        game_id = str(game["id"])
+        home = game["home"]["name"]
+        away = game["away"]["name"]
+        date = game.get("date", "")
+        try:
+            msg = client.messages.create(
+                model="claude-haiku-4-5-20251001",
+                max_tokens=200,
+                messages=[{
+                    "role": "user",
+                    "content": (
+                        f"FIFA 월드컵 2026 경기: {home} vs {away} ({date})\n"
+                        "두 팀의 최근 전력, FIFA 랭킹, 역대 전적을 고려하여 예상 스코어를 분석해줘.\n"
+                        "반드시 아래 JSON 형식으로만 답해줘:\n"
+                        '{"home_score": 숫자, "away_score": 숫자, "reason": "이유 25자 이내"}'
+                    )
+                }]
+            )
+            text = msg.content[0].text.strip()
+            # JSON 블록 추출
+            m = re.search(r'\{[^}]+\}', text, re.DOTALL)
+            if not m:
+                raise ValueError("JSON 없음")
+            pred = json.loads(m.group())
+            predictions[game_id] = {
+                "home_score": int(pred["home_score"]),
+                "away_score": int(pred["away_score"]),
+                "reason":     str(pred.get("reason", ""))[:40],
+                "generated_at": int(time.time()),
+            }
+            generated += 1
+        except Exception as e:
+            errors.append({"game_id": game_id, "error": str(e)})
+
+    write_json(AI_PREDICTIONS_FILE, predictions)
+    return {"ok": True, "generated": generated, "errors": errors, "predictions": predictions}
 
 @app.delete("/api/admin/results/{game_id}")
 def admin_delete_result(game_id: int, auth=Depends(admin_required)):
