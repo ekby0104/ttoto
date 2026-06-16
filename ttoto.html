@@ -309,7 +309,7 @@ function renderBets() {
             <div class="t-name">${m.away.name}<small>${m.away.short}</small></div>
           </div>
         </div>
-        ${(()=>{const p=allAiPredictions[String(m.id)];return p?`
+        ${(()=>{const p=allAiPredictions[String(m.id)];return (p&&!allResults[String(m.id)])?`
         <div class="ai-predict">
           <span class="ai-predict-label">🤖 AI 예측</span>
           <span class="ai-predict-score">${p.home_score} : ${p.away_score}</span>

@@ -223,7 +223,12 @@ async def generate_ai_predictions(auth=Depends(admin_required)):
         raise HTTPException(500, "anthropic 패키지가 설치되지 않았습니다")
 
     games = get_games()
-    target_games = [g for g in games if g.get("status") in ("open", "closed")]
+    results = get_results()
+    # 결과가 이미 나온(지난) 경기는 예측 불필요 → 제외
+    target_games = [
+        g for g in games
+        if g.get("status") in ("open", "closed") and str(g["id"]) not in results
+    ]
     predictions = get_ai_predictions()
     client = _anthropic.Anthropic(api_key=api_key)
     generated = 0
@@ -237,14 +242,15 @@ async def generate_ai_predictions(auth=Depends(admin_required)):
         try:
             msg = client.messages.create(
                 model="claude-haiku-4-5-20251001",
-                max_tokens=200,
+                max_tokens=300,
                 messages=[{
                     "role": "user",
                     "content": (
                         f"FIFA 월드컵 2026 경기: {home} vs {away} ({date})\n"
                         "두 팀의 최근 전력, FIFA 랭킹, 역대 전적을 고려하여 예상 스코어를 분석해줘.\n"
+                        "reason은 30자 이내의 완결된 한 문장으로 작성해줘 (문장이 잘리지 않게).\n"
                         "반드시 아래 JSON 형식으로만 답해줘:\n"
-                        '{"home_score": 숫자, "away_score": 숫자, "reason": "이유 25자 이내"}'
+                        '{"home_score": 숫자, "away_score": 숫자, "reason": "예측 근거 한 문장"}'
                     )
                 }]
             )
@@ -257,7 +263,7 @@ async def generate_ai_predictions(auth=Depends(admin_required)):
             predictions[game_id] = {
                 "home_score": int(pred["home_score"]),
                 "away_score": int(pred["away_score"]),
-                "reason":     str(pred.get("reason", ""))[:40],
+                "reason":     str(pred.get("reason", ""))[:80],
                 "generated_at": int(time.time()),
             }
             generated += 1
