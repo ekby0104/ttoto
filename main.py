@@ -454,3 +454,19 @@ def serve_admin():
 @app.get("/favicon.svg")
 def serve_favicon():
     return FileResponse(os.path.join(STATIC_DIR, "favicon.svg"), media_type="image/svg+xml")
+
+@app.get("/apple-touch-icon.png")
+def serve_apple_icon():
+    return FileResponse(os.path.join(STATIC_DIR, "apple-touch-icon.png"), media_type="image/png")
+
+@app.get("/apple-touch-icon-precomposed.png")
+def serve_apple_icon_precomposed():
+    return FileResponse(os.path.join(STATIC_DIR, "apple-touch-icon.png"), media_type="image/png")
+
+@app.get("/icon-192.png")
+def serve_icon_192():
+    return FileResponse(os.path.join(STATIC_DIR, "icon-192.png"), media_type="image/png")
+
+@app.get("/icon-512.png")
+def serve_icon_512():
+    return FileResponse(os.path.join(STATIC_DIR, "icon-512.png"), media_type="image/png")
