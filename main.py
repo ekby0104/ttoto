@@ -450,3 +450,7 @@ def serve_index():
 @app.get("/admin")
 def serve_admin():
     return FileResponse(os.path.join(STATIC_DIR, "admin.html"))
+
+@app.get("/favicon.svg")
+def serve_favicon():
+    return FileResponse(os.path.join(STATIC_DIR, "favicon.svg"), media_type="image/svg+xml")
