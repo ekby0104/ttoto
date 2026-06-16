@@ -112,6 +112,11 @@ main{max-width:820px;margin:0 auto;padding:16px 12px 40px}
 .toast{position:fixed;bottom:28px;left:50%;transform:translateX(-50%) translateY(16px);background:var(--green-dim);color:#fff;padding:11px 22px;border-radius:30px;font-weight:700;font-size:13px;opacity:0;transition:all .28s;pointer-events:none;z-index:999;white-space:nowrap}
 .toast.show{opacity:1;transform:translateX(-50%) translateY(0)}.toast.err{background:var(--red)}
 .loader{text-align:center;padding:40px;color:var(--muted);font-size:13px}
+/* AI 예측 */
+.ai-predict{background:rgba(74,158,255,.07);border-top:1px solid rgba(74,158,255,.15);padding:8px 14px;display:flex;align-items:center;gap:10px;flex-wrap:wrap}
+.ai-predict-label{font-size:10px;font-weight:700;color:var(--blue);font-family:var(--mono);letter-spacing:1px;flex-shrink:0;white-space:nowrap}
+.ai-predict-score{font-family:var(--display);font-size:20px;letter-spacing:3px;color:var(--blue);flex-shrink:0}
+.ai-predict-reason{font-size:11px;color:var(--muted2);font-family:var(--body);flex:1;min-width:0}
 @media(max-width:480px){
   .t-name{font-size:14px}.t-flag{font-size:24px}
   .score-box{width:44px;height:44px;font-size:24px}
@@ -202,11 +207,12 @@ const API = '/api';
 
 let MATCHES = [];
 
-let config     = {bet_amount: 3000, kp_link: ''};
-let allBets    = [];
-let allResults = {};
-let pendingBet = null;
-let expandedId = null;
+let config          = {bet_amount: 3000, kp_link: ''};
+let allBets         = [];
+let allResults      = {};
+let allAiPredictions = {};
+let pendingBet      = null;
+let expandedId      = null;
 
 // ── API 호출 ───────────────────────────────────────────────
 async function apiFetch(path, opts={}) {
@@ -220,11 +226,12 @@ async function apiFetch(path, opts={}) {
 }
 
 async function loadAll() {
-  const [cfg, bets, results, games] = await Promise.all([
+  const [cfg, bets, results, games, aiPreds] = await Promise.all([
     apiFetch('/config'),
     apiFetch('/bets'),
     apiFetch('/results'),
     apiFetch('/games'),
+    apiFetch('/ai-predictions'),
   ]);
   if (cfg) {
     config = cfg;
@@ -233,9 +240,10 @@ async function loadAll() {
       document.title = cfg.site_title;
     }
   }
-  if (bets)    allBets    = bets;
-  if (results) allResults = results;
-  if (games)   MATCHES = games;
+  if (bets)    allBets           = bets;
+  if (results) allResults        = results;
+  if (games)   MATCHES           = games;
+  if (aiPreds) allAiPredictions  = aiPreds;
 }
 
 // ── 유틸 ──────────────────────────────────────────────────
@@ -301,6 +309,12 @@ function renderBets() {
             <div class="t-name">${m.away.name}<small>${m.away.short}</small></div>
           </div>
         </div>
+        ${(()=>{const p=allAiPredictions[String(m.id)];return p?`
+        <div class="ai-predict">
+          <span class="ai-predict-label">🤖 AI 예측</span>
+          <span class="ai-predict-score">${p.home_score} : ${p.away_score}</span>
+          ${p.reason?`<span class="ai-predict-reason">${p.reason}</span>`:''}
+        </div>`:'';})()}
         ${!closed?`
         <div class="mc-foot">
           <button class="btn-submit" onclick="submitBet('${m.id}')">⚽ 베팅 제출</button>
