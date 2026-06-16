@@ -88,9 +88,9 @@ main{max-width:820px;margin:0 auto;padding:16px 12px 40px}
 .sgd-table th,.sgd-table td{border:1px solid #ddd;padding:0}
 .sgd-th{background:#f4f4f4;color:#333;font-weight:700;text-align:center;font-family:var(--mono);min-width:40px;height:30px}
 .sgd-rowhead{background:#f4f4f4}
-.sgd-corner{background:#fafafa;position:relative;min-width:54px;height:30px;padding:3px 5px}
-.sgd-corner .col-lbl{position:absolute;top:3px;right:5px;font-size:10px;color:#555;font-weight:700}
-.sgd-corner .row-lbl{position:absolute;bottom:3px;left:5px;font-size:10px;color:#555;font-weight:700}
+.sgd-corner{background:#fafafa}
+.sgd-country{background:#111;color:#fff;font-weight:700;text-align:center;font-size:12px;padding:6px 4px}
+.sgd-country-v{writing-mode:vertical-rl;text-orientation:upright;letter-spacing:2px;white-space:nowrap}
 .sgd-td{vertical-align:top;padding:3px!important;min-width:54px;background:#fff}
 .sgd-cell-name{display:block;font-size:11px;color:#444;line-height:1.5;white-space:nowrap}
 .sgd-cell-name.paid{color:#14833a;font-weight:700}
@@ -449,26 +449,27 @@ function renderStatus() {
 function toggleExpand(id){expandedId=(expandedId===id)?null:id;renderStatus()}
 function setStatusView(v){statusView=v;renderStatus()}
 
-// 점수 매트릭스 테이블 (가로: 홈 득점, 세로: 원정 득점, 0~5, 6+는 '이상')
+// 점수 매트릭스 테이블 (가로: 홈 득점, 세로: 원정 득점)
+// 기본 0~3, 4점 이상 베팅이 있으면 최대 점수까지 확장
 function buildScoreTable(m,mb){
-  const cols=[0,1,2,3,4,5,'이상'];   // 홈 득점
-  const rows=[0,1,2,3,4,5,'이상'];   // 원정 득점
-  const bucket=(v)=>v>=6?'이상':String(v);
-  // cell[home][away] = [players]
+  let maxScore=3;
+  mb.forEach(b=>{maxScore=Math.max(maxScore,b.h,b.a)});
+  const vals=[];for(let i=0;i<=maxScore;i++)vals.push(i);
+  const N=vals.length;
+  // cell[home|away] = [players]
   const cell={};
-  mb.forEach(b=>{
-    const ch=bucket(b.h), ca=bucket(b.a);
-    const k=ch+'|'+ca;
-    (cell[k]=cell[k]||[]).push(b);
-  });
+  mb.forEach(b=>{const k=b.h+'|'+b.a;(cell[k]=cell[k]||[]).push(b)});
   let html=`<div class="sgd-table-wrap"><table class="sgd-table">`;
-  // 헤더: 좌상단 라벨 + 홈 득점 컬럼
-  html+=`<tr><th class="sgd-corner"><span class="col-lbl">${m.home.flag} ${m.home.short}</span><span class="row-lbl">${m.away.flag} ${m.away.short}</span></th>`;
-  cols.forEach(c=>{html+=`<th class="sgd-th">${c}</th>`});
-  html+=`</tr>`;
-  rows.forEach(r=>{
-    html+=`<tr><th class="sgd-th sgd-rowhead">${r}</th>`;
-    cols.forEach(c=>{
+  // 1행: 빈 코너(2x2) + 홈 국가명
+  html+=`<tr><th class="sgd-corner" rowspan="2" colspan="2"></th><th class="sgd-country" colspan="${N}">${m.home.flag} ${m.home.short}</th></tr>`;
+  // 2행: 홈 득점 번호
+  html+=`<tr>`+vals.map(c=>`<th class="sgd-th">${c}</th>`).join('')+`</tr>`;
+  // 본문: 첫 행에 원정 국가명(세로 병합)
+  vals.forEach((r,ri)=>{
+    html+=`<tr>`;
+    if(ri===0) html+=`<th class="sgd-country sgd-country-v" rowspan="${N}">${m.away.flag} ${m.away.short}</th>`;
+    html+=`<th class="sgd-th sgd-rowhead">${r}</th>`;
+    vals.forEach(c=>{
       const players=cell[c+'|'+r]||[];
       html+=`<td class="sgd-td">${players.map(p=>`<span class="sgd-cell-name ${p.paid?'paid':''}">${p.name}</span>`).join('')}</td>`;
     });
