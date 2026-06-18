@@ -178,59 +178,64 @@ main{max-width:960px;margin:0 auto;padding:16px 12px 60px}
   <!-- ① 설정 -->
   <div id="apanel-settings" class="apanel active">
 
-    <!-- 카카오페이 & 베팅금액 -->
-    <div class="acard">
-      <div class="acard-title"><span class="icon">💳</span> 카카오페이 & 베팅 금액</div>
-      <div style="display:flex;flex-direction:column;gap:10px">
-        <div class="form-group">
-          <label class="form-label">페이지 타이틀</label>
-          <input class="form-input" id="cfg-title" type="text" placeholder="사무실 토토">
+    <!-- 카카오페이 & 베팅금액 (아코디언) -->
+    <div class="acc-item" id="acc-cfg">
+      <div class="acc-row" onclick="toggleAcc('cfg')">
+        <span class="acc-label"><span style="font-size:18px">💳</span> 카카오페이 & 베팅 금액</span>
+        <span class="acc-arrow">›</span>
+      </div>
+      <div class="acc-body">
+        <div style="display:flex;flex-direction:column;gap:10px">
+          <div class="form-group">
+            <label class="form-label">페이지 타이틀</label>
+            <input class="form-input" id="cfg-title" type="text" placeholder="사무실 토토">
+          </div>
+          <div class="form-group">
+            <label class="form-label">카카오페이 송금 링크</label>
+            <input class="form-input" id="cfg-link" type="url" placeholder="https://qr.kakaopay.com/...">
+          </div>
+          <div class="form-group">
+            <label class="form-label">경기당 베팅 금액 (원)</label>
+            <input class="form-input" id="cfg-amount" type="number" min="0" placeholder="3000">
+          </div>
+          <button class="btn btn-primary" onclick="saveConfig()">저장</button>
         </div>
-        <div class="form-group">
-          <label class="form-label">카카오페이 송금 링크</label>
-          <input class="form-input" id="cfg-link" type="url" placeholder="https://qr.kakaopay.com/...">
-        </div>
-        <div class="form-group">
-          <label class="form-label">경기당 베팅 금액 (원)</label>
-          <input class="form-input" id="cfg-amount" type="number" min="0" placeholder="3000">
-        </div>
-        <button class="btn btn-primary" onclick="saveConfig()">저장</button>
       </div>
     </div>
 
-    <!-- 관리자 토큰 -->
-    <div class="acard">
-      <div class="acard-title"><span class="icon">🔑</span> 관리자 토큰 설정</div>
-      <p class="acard-desc">
-        토큰을 설정하면 이후 관리자 페이지 접근 및 API 호출 시 토큰 인증이 필요합니다.<br>
-        토큰을 비워두면 누구나 관리자 페이지에 접근할 수 있습니다.
-      </p>
-
-      <!-- 현재 토큰 상태 -->
-      <div class="token-box">
-        <div class="current-label">현재 토큰 상태</div>
-        <div class="current-val" id="current-token-display">확인 중...</div>
+    <!-- 관리자 토큰 (아코디언) -->
+    <div class="acc-item" id="acc-token">
+      <div class="acc-row" onclick="toggleAcc('token')">
+        <span class="acc-label"><span style="font-size:18px">🔑</span> 관리자 토큰 설정</span>
+        <span class="acc-arrow">›</span>
       </div>
-
-      <div class="token-warning" id="token-warning" style="display:none">
-        <span>⚠️</span>
-        <span>토큰이 설정돼 있습니다. 변경하려면 현재 토큰을 먼저 입력하세요.</span>
-      </div>
-
-      <div id="current-token-row" style="display:none;margin-bottom:12px">
-        <div class="form-group">
-          <label class="form-label">현재 토큰</label>
-          <input class="form-input" id="current-token-input" type="password" placeholder="현재 토큰 입력">
+      <div class="acc-body">
+        <p class="acard-desc" style="margin-top:0">
+          토큰을 설정하면 이후 관리자 페이지 접근 및 API 호출 시 토큰 인증이 필요합니다.<br>
+          토큰을 비워두면 누구나 관리자 페이지에 접근할 수 있습니다.
+        </p>
+        <div class="token-box">
+          <div class="current-label">현재 토큰 상태</div>
+          <div class="current-val" id="current-token-display">확인 중...</div>
         </div>
-      </div>
-
-      <div style="display:flex;flex-direction:column;gap:8px">
-        <div class="form-group">
-          <label class="form-label">새 토큰</label>
-          <input class="form-input" id="new-token-input" type="text" placeholder="새 토큰 입력 (비우면 토큰 해제)">
-          <span class="form-hint">영문·숫자·특수문자 자유롭게 입력</span>
+        <div class="token-warning" id="token-warning" style="display:none">
+          <span>⚠️</span>
+          <span>토큰이 설정돼 있습니다. 변경하려면 현재 토큰을 먼저 입력하세요.</span>
         </div>
-        <button class="btn btn-primary" onclick="saveToken()">토큰 변경</button>
+        <div id="current-token-row" style="display:none;margin-bottom:12px">
+          <div class="form-group">
+            <label class="form-label">현재 토큰</label>
+            <input class="form-input" id="current-token-input" type="password" placeholder="현재 토큰 입력">
+          </div>
+        </div>
+        <div style="display:flex;flex-direction:column;gap:8px">
+          <div class="form-group">
+            <label class="form-label">새 토큰</label>
+            <input class="form-input" id="new-token-input" type="text" placeholder="새 토큰 입력 (비우면 토큰 해제)">
+            <span class="form-hint">영문·숫자·특수문자 자유롭게 입력</span>
+          </div>
+          <button class="btn btn-primary" onclick="saveToken()">토큰 변경</button>
+        </div>
       </div>
     </div>
   </div>
