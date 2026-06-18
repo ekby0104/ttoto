@@ -51,6 +51,15 @@ main{max-width:960px;margin:0 auto;padding:16px 12px 60px}
 .acard-title{font-size:15px;font-weight:700;margin-bottom:16px;display:flex;align-items:center;gap:8px}
 .acard-title .icon{font-size:18px}
 .acard-desc{font-size:13px;color:var(--muted);margin-bottom:16px;line-height:1.7}
+.acc-item{background:var(--card);border:1px solid var(--border);border-radius:12px;overflow:hidden;margin-bottom:10px;transition:border-color .2s}
+.acc-item.open{border-color:#4a9eff}
+.acc-row{display:flex;align-items:center;justify-content:space-between;padding:14px;cursor:pointer;user-select:none;gap:8px}
+.acc-row:hover{background:#f9f9f9}
+.acc-label{font-size:15px;font-weight:700;display:flex;align-items:center;gap:8px}
+.acc-arrow{font-size:20px;color:var(--muted);transition:transform .2s;flex-shrink:0}
+.acc-item.open .acc-arrow{transform:rotate(90deg);color:#4a9eff}
+.acc-body{display:none;padding:14px;border-top:1px solid var(--border)}
+.acc-item.open .acc-body{display:block}
 
 /* ── 폼 ── */
 .form-row{display:flex;gap:10px;align-items:flex-end;flex-wrap:wrap;margin-bottom:12px}
@@ -229,43 +238,53 @@ main{max-width:960px;margin:0 auto;padding:16px 12px 60px}
   <!-- ② 게임 관리 -->
   <div id="apanel-games" class="apanel">
 
-    <!-- AI 예측 생성 -->
-    <div class="acard">
-      <div class="acard-title"><span class="icon">🤖</span> AI 예측 생성</div>
-      <p class="acard-desc">
-        Claude AI가 각 경기의 예상 스코어를 분석합니다.<br>
-        <strong>ANTHROPIC_API_KEY</strong> 환경변수가 설정되어 있어야 합니다.<br>
-        상태가 <em>베팅 중</em> 또는 <em>마감</em>인 경기에 대해 예측을 생성합니다.
-      </p>
-      <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap">
-        <button class="btn btn-primary" onclick="generateAiPredictions()" id="ai-predict-btn" style="background:#2563eb">
-          🤖 AI 예측 생성
-        </button>
-        <span id="ai-predict-result" style="font-size:13px;color:var(--muted);font-family:var(--mono)"></span>
+    <!-- AI 예측 생성 (아코디언) -->
+    <div class="acc-item" id="acc-ai">
+      <div class="acc-row" onclick="toggleAcc('ai')">
+        <span class="acc-label"><span style="font-size:18px">🤖</span> AI 예측 생성</span>
+        <span class="acc-arrow">›</span>
+      </div>
+      <div class="acc-body">
+        <p class="acard-desc" style="margin-top:0">
+          Claude AI가 각 경기의 예상 스코어를 분석합니다.<br>
+          <strong>ANTHROPIC_API_KEY</strong> 환경변수가 설정되어 있어야 합니다.<br>
+          상태가 <em>베팅 중</em> 또는 <em>마감</em>인 경기에 대해 예측을 생성합니다.
+        </p>
+        <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap">
+          <button class="btn btn-primary" onclick="generateAiPredictions()" id="ai-predict-btn" style="background:#2563eb">
+            🤖 AI 예측 생성
+          </button>
+          <span id="ai-predict-result" style="font-size:13px;color:var(--muted);font-family:var(--mono)"></span>
+        </div>
       </div>
     </div>
 
-    <!-- 외부 API 불러오기 -->
-    <div class="acard">
-      <div class="acard-title"><span class="icon">🌐</span> 외부 API로 경기 불러오기</div>
-      <p class="acard-desc">
-        <strong>worldcup26.ir</strong> — 무료·API 키 불필요·실시간 업데이트<br>
-        2026 FIFA 월드컵 전 104경기 일정과 결과를 자동으로 가져옵니다.<br>
-        이미 등록된 경기는 건너뛰고 새 경기만 추가됩니다.
-      </p>
-      <div style="display:flex;align-items:center;gap:16px;flex-wrap:wrap;margin-bottom:10px">
-        <label style="display:flex;align-items:center;gap:6px;cursor:pointer;font-size:14px">
-          <input type="radio" name="import-filter" value="all" checked> 전체 (104경기)
-        </label>
-        <label style="display:flex;align-items:center;gap:6px;cursor:pointer;font-size:14px">
-          <input type="radio" name="import-filter" value="korea"> 🇰🇷 한국 경기만
-        </label>
+    <!-- 외부 API 불러오기 (아코디언) -->
+    <div class="acc-item" id="acc-import">
+      <div class="acc-row" onclick="toggleAcc('import')">
+        <span class="acc-label"><span style="font-size:18px">🌐</span> 외부 API로 경기 불러오기</span>
+        <span class="acc-arrow">›</span>
       </div>
-      <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap">
-        <button class="btn btn-primary" onclick="importGames()" id="import-btn">
-          📥 worldcup26.ir 에서 불러오기
-        </button>
-        <span id="import-result" style="font-size:13px;color:var(--muted);font-family:var(--mono)"></span>
+      <div class="acc-body">
+        <p class="acard-desc" style="margin-top:0">
+          <strong>worldcup26.ir</strong> — 무료·API 키 불필요·실시간 업데이트<br>
+          2026 FIFA 월드컵 전 104경기 일정과 결과를 자동으로 가져옵니다.<br>
+          이미 등록된 경기는 건너뛰고 새 경기만 추가됩니다.
+        </p>
+        <div style="display:flex;align-items:center;gap:16px;flex-wrap:wrap;margin-bottom:10px">
+          <label style="display:flex;align-items:center;gap:6px;cursor:pointer;font-size:14px">
+            <input type="radio" name="import-filter" value="all" checked> 전체 (104경기)
+          </label>
+          <label style="display:flex;align-items:center;gap:6px;cursor:pointer;font-size:14px">
+            <input type="radio" name="import-filter" value="korea"> 🇰🇷 한국 경기만
+          </label>
+        </div>
+        <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap">
+          <button class="btn btn-primary" onclick="importGames()" id="import-btn">
+            📥 worldcup26.ir 에서 불러오기
+          </button>
+          <span id="import-result" style="font-size:13px;color:var(--muted);font-family:var(--mono)"></span>
+        </div>
       </div>
     </div>
 
@@ -818,6 +837,10 @@ async function setGameStatus(id, status) {
   const i = allGames.findIndex(g => String(g.id) === String(id));
   if (i > -1) allGames[i] = res;
   toast(`상태 변경: ${status==='open'?'베팅 중':status==='closed'?'마감':'미등록'}`);
+}
+
+function toggleAcc(id) {
+  document.getElementById('acc-' + id).classList.toggle('open');
 }
 
 function toggleAddGameForm() {
