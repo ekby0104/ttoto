@@ -260,7 +260,7 @@ async function loadAll() {
   }
   if (bets)    allBets           = bets;
   if (results) allResults        = results;
-  if (games)   MATCHES           = games;
+  if (games)   { MATCHES = games; if (expandedId === null) expandedId = pickDefaultExpandId(); }
   if (aiPreds) allAiPredictions  = aiPreds;
 }
 
@@ -445,6 +445,20 @@ function renderStatus() {
     </div>`;
   });
   con.innerHTML=html;
+}
+function pickDefaultExpandId() {
+  const visible = MATCHES.filter(m => m.status !== 'pending');
+  if (!visible.length) return null;
+  const now = new Date(Date.now() + 9 * 3600 * 1000);
+  const today = now.toISOString().slice(0, 10).replace(/-/g, '.');
+  const todayGames = visible.filter(m => m.date === today);
+  if (todayGames.length)
+    return String((todayGames.find(m => m.status === 'open') || todayGames[0]).id);
+  const future = visible.filter(m => m.date > today)
+    .sort((a, b) => (a.date + a.time).localeCompare(b.date + b.time));
+  if (future.length) return String(future[0].id);
+  const past = [...visible].sort((a, b) => (b.date + b.time).localeCompare(a.date + a.time));
+  return String(past[0].id);
 }
 function toggleExpand(id){expandedId=(expandedId===id)?null:id;renderStatus()}
 function setStatusView(v){statusView=v;renderStatus()}
