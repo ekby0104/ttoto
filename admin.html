@@ -276,12 +276,12 @@ main{max-width:960px;margin:0 auto;padding:16px 12px 60px}
         <button class="btn btn-sm btn-primary" onclick="toggleAddGameForm()" id="add-game-toggle">+ 경기 추가</button>
       </div>
       <div id="add-game-form" style="display:none;margin-top:14px">
-        <div class="g-2col">
-          <div class="form-group">
+        <div style="display:flex;gap:8px;margin-bottom:10px">
+          <div style="flex:1">
             <label class="form-label">날짜</label>
             <input class="form-input" id="g-date" placeholder="2026.06.15">
           </div>
-          <div class="form-group">
+          <div style="width:100px;flex-shrink:0">
             <label class="form-label">시간 (KST)</label>
             <input class="form-input" id="g-time" placeholder="21:00">
           </div>
