@@ -426,17 +426,28 @@ async function switchATab(name) {
 }
 
 // ── API ──────────────────────────────────────────────────
+let tokenPromptInFlight = null;   // 동시 401 시 프롬프트 1회만 뜨도록 잠금
+
+function requestTokenOnce() {
+  // 이미 다른 요청이 프롬프트를 띄웠다면 그 결과를 공유
+  if (tokenPromptInFlight) return tokenPromptInFlight;
+  tokenPromptInFlight = new Promise(resolve => {
+    const t = prompt('🔑 관리자 토큰을 입력하세요:');
+    if (t) { sessionToken = t; sessionStorage.setItem('admin_token', t); }
+    resolve(t);
+  }).finally(() => { tokenPromptInFlight = null; });
+  return tokenPromptInFlight;
+}
+
 async function apiFetch(path, opts={}) {
   try {
     const headers = {'Content-Type':'application/json'};
     if (sessionToken) headers['X-Admin-Token'] = sessionToken;
     const r = await fetch(API + path, {headers, ...opts});
     if (r.status === 401) {
-      // 토큰 필요 — 프롬프트로 입력 요청
-      const t = prompt('🔑 관리자 토큰을 입력하세요:');
+      // 토큰 필요 — 동시 요청은 프롬프트 1회만 공유
+      const t = await requestTokenOnce();
       if (!t) return null;
-      sessionToken = t;
-      sessionStorage.setItem('admin_token', t);
       return apiFetch(path, opts); // 재시도
     }
     if (!r.ok) throw new Error(await r.text());
