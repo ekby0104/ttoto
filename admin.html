@@ -271,61 +271,58 @@ main{max-width:960px;margin:0 auto;padding:16px 12px 60px}
 
     <!-- 수기 등록 -->
     <div class="acard">
-      <div class="acard-title"><span class="icon">✏️</span> 수기 경기 등록</div>
-      <div class="g-2col">
-        <div class="form-group">
-          <label class="form-label">날짜 (예: 2026.06.15)</label>
-          <input class="form-input" id="g-date" placeholder="2026.06.15">
-        </div>
-        <div class="form-group">
-          <label class="form-label">시간 (예: 21:00)</label>
-          <input class="form-input" id="g-time" placeholder="21:00">
-        </div>
+      <div class="acard-title" style="display:flex;justify-content:space-between;align-items:center;margin-bottom:0">
+        <span><span class="icon">✏️</span> 수기 경기 등록</span>
+        <button class="btn btn-sm btn-primary" onclick="toggleAddGameForm()" id="add-game-toggle">+ 경기 추가</button>
       </div>
-      <div class="g-2col" style="margin-bottom:10px">
-        <div class="team-box">
-          <div class="team-box-title">홈팀</div>
-          <div class="form-group" style="margin-bottom:6px">
-            <label class="form-label">팀명</label>
+      <div id="add-game-form" style="display:none;margin-top:14px">
+        <div class="g-2col">
+          <div class="form-group">
+            <label class="form-label">날짜</label>
+            <input class="form-input" id="g-date" placeholder="2026.06.15">
+          </div>
+          <div class="form-group">
+            <label class="form-label">시간 (KST)</label>
+            <input class="form-input" id="g-time" placeholder="21:00">
+          </div>
+        </div>
+        <div style="display:flex;gap:6px;margin-bottom:8px;align-items:flex-end">
+          <div style="flex:2">
+            <label class="form-label">홈팀명</label>
             <input class="form-input" id="g-hname" placeholder="대한민국">
           </div>
-          <div class="g-2col" style="margin-bottom:0">
-            <div class="form-group">
-              <label class="form-label">약자</label>
-              <input class="form-input" id="g-hshort" placeholder="KOR">
-            </div>
-            <div class="form-group">
-              <label class="form-label">국기 이모지</label>
-              <input class="form-input" id="g-hflag" placeholder="🇰🇷">
-            </div>
+          <div style="flex:1">
+            <label class="form-label">약자</label>
+            <input class="form-input" id="g-hshort" placeholder="KOR">
+          </div>
+          <div style="flex:1">
+            <label class="form-label">이모지</label>
+            <input class="form-input" id="g-hflag" placeholder="🇰🇷">
           </div>
         </div>
-        <div class="team-box">
-          <div class="team-box-title">원정팀</div>
-          <div class="form-group" style="margin-bottom:6px">
-            <label class="form-label">팀명</label>
+        <div style="display:flex;gap:6px;margin-bottom:8px;align-items:flex-end">
+          <div style="flex:2">
+            <label class="form-label">원정팀명</label>
             <input class="form-input" id="g-aname" placeholder="브라질">
           </div>
-          <div class="g-2col" style="margin-bottom:0">
-            <div class="form-group">
-              <label class="form-label">약자</label>
-              <input class="form-input" id="g-ashort" placeholder="BRA">
-            </div>
-            <div class="form-group">
-              <label class="form-label">국기 이모지</label>
-              <input class="form-input" id="g-aflag" placeholder="🇧🇷">
-            </div>
+          <div style="flex:1">
+            <label class="form-label">약자</label>
+            <input class="form-input" id="g-ashort" placeholder="BRA">
+          </div>
+          <div style="flex:1">
+            <label class="form-label">이모지</label>
+            <input class="form-input" id="g-aflag" placeholder="🇧🇷">
           </div>
         </div>
+        <div class="form-group">
+          <label class="form-label">베팅 방식</label>
+          <select class="form-input" id="g-bet-type">
+            <option value="exact">정확 예측 (스코어 정확히)</option>
+            <option value="wdl">승무패 (승/무/패 방향만)</option>
+          </select>
+        </div>
+        <button class="btn btn-primary" onclick="addGame()" style="width:100%;margin-top:4px">+ 경기 등록</button>
       </div>
-      <div class="form-group" style="margin-top:8px">
-        <label class="form-label">베팅 방식</label>
-        <select class="form-input" id="g-bet-type">
-          <option value="exact">정확 예측 (스코어 정확히)</option>
-          <option value="wdl">승무패 (승/무/패 방향만)</option>
-        </select>
-      </div>
-      <button class="btn btn-primary" onclick="addGame()" style="width:100%;margin-top:4px">+ 경기 등록</button>
     </div>
 
     <!-- 등록된 경기 목록 -->
@@ -808,9 +805,10 @@ async function addGame() {
   if (!res) { toast('❌ 등록 실패', true); return }
   allGames.push(res);
   renderGames();
-  // 입력 초기화
   ['g-date','g-time','g-hname','g-hshort','g-hflag','g-aname','g-ashort','g-aflag']
     .forEach(id => { const el=document.getElementById(id); if(el) el.value=''; });
+  document.getElementById('add-game-form').style.display = 'none';
+  document.getElementById('add-game-toggle').textContent = '+ 경기 추가';
   toast(`✅ ${res.home.name} vs ${res.away.name} 경기 등록 완료`);
 }
 
@@ -820,6 +818,14 @@ async function setGameStatus(id, status) {
   const i = allGames.findIndex(g => String(g.id) === String(id));
   if (i > -1) allGames[i] = res;
   toast(`상태 변경: ${status==='open'?'베팅 중':status==='closed'?'마감':'미등록'}`);
+}
+
+function toggleAddGameForm() {
+  const form = document.getElementById('add-game-form');
+  const btn  = document.getElementById('add-game-toggle');
+  const show = form.style.display === 'none';
+  form.style.display = show ? 'block' : 'none';
+  btn.textContent = show ? '✕ 닫기' : '+ 경기 추가';
 }
 
 async function saveGameDateTime(id) {
