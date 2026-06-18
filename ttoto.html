@@ -195,7 +195,7 @@ main{max-width:820px;margin:0 auto;padding:16px 12px 40px}
     <div class="modal-body">
       <div class="pay-match-box" id="pay-match-info"></div>
       <p style="text-align:center;font-family:var(--mono);font-size:13px;color:var(--muted);margin-bottom:14px">
-        내 예측: <strong id="pay-score" style="color:var(--gold);font-size:16px"></strong>
+        <span style="color:#fff">내 베팅:</span> <strong id="pay-score" style="color:var(--gold);font-size:14px"></strong>
       </p>
       <div style="margin-bottom:14px">
         <div class="field-label">내 이름 (필수)</div>
@@ -313,12 +313,12 @@ function renderBets() {
             ` : `
             <div class="score-col">
               <div class="score-lbl">홈</div>
-              <input class="score-box" type="number" min="0" max="20" id="h-${m.id}" value="0" ${closed?'disabled':''} onfocus="this.select()">
+              <input class="score-box" type="number" min="0" max="20" id="h-${m.id}" value="" ${closed?'disabled':''} onfocus="this.select()">
             </div>
             <div class="score-sep">:</div>
             <div class="score-col">
               <div class="score-lbl">원정</div>
-              <input class="score-box" type="number" min="0" max="20" id="a-${m.id}" value="0" ${closed?'disabled':''} onfocus="this.select()">
+              <input class="score-box" type="number" min="0" max="20" id="a-${m.id}" value="" ${closed?'disabled':''} onfocus="this.select()">
             </div>
             `}
           </div>
