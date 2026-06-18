@@ -123,9 +123,9 @@ class ResultIn(BaseModel):
     a: int
 
 class FeedbackIn(BaseModel):
-    # 보안: 길이 20자 제한 + 특수문자 차단(한글/영문/숫자/공백만 허용)
+    # 보안: 길이 20자 제한 + 특수문자 차단(한글/영문/숫자/공백만 허용). 이름 필수.
     message: str = Field(..., min_length=1, max_length=20)
-    name:    Optional[str] = Field("", max_length=20)
+    name:    str = Field(..., min_length=1, max_length=20)
 
 class PaymentUpdate(BaseModel):
     paid: bool
@@ -220,6 +220,8 @@ def submit_feedback(fb: FeedbackIn):
     name = (fb.name or "").strip()[:20]
     if not msg:
         raise HTTPException(400, "내용을 입력해주세요")
+    if not name:
+        raise HTTPException(400, "이름을 입력해주세요")
     if not _FB_ALLOWED.match(msg) or not _FB_ALLOWED.match(name):
         raise HTTPException(400, "특수문자는 사용할 수 없습니다 (한글/영문/숫자만)")
     items = get_feedback()
@@ -235,6 +237,12 @@ def submit_feedback(fb: FeedbackIn):
     items.append(entry)
     write_json(FEEDBACK_FILE, items)
     return {"ok": True}
+
+@app.get("/api/feedback")
+def list_feedback():
+    # 공개 목록: 최신순, 최근 200건
+    items = sorted(get_feedback(), key=lambda x: x.get("created_at", 0), reverse=True)
+    return items[:200]
 
 # ══════════════════════════════════════════════════════════════
 # ADMIN API
