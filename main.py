@@ -377,6 +377,20 @@ def admin_update_game(game_id: int, body: GameIn, auth=Depends(admin_required)):
             return games[i]
     raise HTTPException(404, "게임을 찾을 수 없습니다")
 
+@app.patch("/api/admin/games/{game_id}/datetime")
+def admin_update_game_datetime(game_id: int, date: str, time: str, auth=Depends(admin_required)):
+    """경기 날짜/시간만 수정."""
+    games = get_games()
+    for g in games:
+        if str(g["id"]) == str(game_id):
+            g["date"] = date
+            g["time"] = time
+            g.pop("kst", None)
+            g.pop("kst_v2", None)
+            write_json(GAMES_FILE, games)
+            return {"ok": True}
+    raise HTTPException(404, "게임을 찾을 수 없습니다")
+
 @app.patch("/api/admin/games/{game_id}/status")
 def admin_set_game_status(game_id: int, status: str, auth=Depends(admin_required)):
     games = get_games()

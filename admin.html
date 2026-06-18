@@ -229,54 +229,6 @@ main{max-width:960px;margin:0 auto;padding:16px 12px 60px}
   <!-- ② 게임 관리 -->
   <div id="apanel-games" class="apanel">
 
-    <!-- KST 정확 변환 -->
-    <div class="acard" style="border-color:#81c784;background:#f1f8f1">
-      <div class="acard-title"><span class="icon">🕐</span> 경기장 시간대 기반 KST 변환</div>
-      <p class="acard-desc">
-        경기장 위치(미국 동부/중부/서부, 캐나다, 멕시코)에 맞는<br>
-        <strong>정확한 시간차를 적용</strong>하여 현지 시간 → 한국 시간으로 변환합니다.<br>
-        <em>이미 변환된 경기는 건너뜁니다.</em>
-      </p>
-      <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap">
-        <button class="btn btn-primary" onclick="fixKst()" id="fix-kst-btn" style="background:#388e3c">
-          🕐 KST 정확 변환
-        </button>
-        <span id="fix-kst-result" style="font-size:13px;color:var(--muted);font-family:var(--mono)"></span>
-      </div>
-      <div style="margin-top:12px;padding-top:12px;border-top:1px solid #c8e6c9">
-        <p style="font-size:12px;color:var(--muted);margin:0 0 8px">경기장 정보가 없어 자동 변환이 안 될 경우 시간차를 직접 입력:</p>
-        <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">
-          <label style="font-size:13px">현지 시간 +</label>
-          <input id="manual-hours-input" type="number" value="15" min="1" max="24"
-            style="width:60px;padding:4px 8px;border:1px solid #ccc;border-radius:6px;font-size:13px">
-          <label style="font-size:13px">시간 → KST</label>
-          <button class="btn" onclick="fixKstManual()" id="fix-kst-manual-btn"
-            style="background:#1b5e20;color:#fff;padding:6px 14px;font-size:13px">
-            수동 변환
-          </button>
-          <span id="fix-kst-manual-result" style="font-size:13px;color:var(--muted);font-family:var(--mono)"></span>
-        </div>
-        <p style="font-size:11px;color:var(--muted);margin:6px 0 0">
-          미국 동부+13 / 중부+14 / 서부+16 / 멕시코시티+15 / 과달라하라+16
-        </p>
-      </div>
-    </div>
-
-    <!-- KST 되돌리기 -->
-    <div class="acard" style="border-color:#ffe082;background:#fffdf0">
-      <div class="acard-title"><span class="icon">↩️</span> 시간 KST 변환 되돌리기</div>
-      <p class="acard-desc">
-        이전에 잘못 적용된 <strong>+9시간 변환을 취소</strong>합니다.<br>
-        <code>kst: true</code> 표시가 있는 경기의 시간을 9시간 되돌립니다.
-      </p>
-      <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap">
-        <button class="btn btn-danger" onclick="revertKst()" id="revert-kst-btn">
-          ↩️ KST 변환 되돌리기
-        </button>
-        <span id="revert-kst-result" style="font-size:13px;color:var(--muted);font-family:var(--mono)"></span>
-      </div>
-    </div>
-
     <!-- AI 예측 생성 -->
     <div class="acard">
       <div class="acard-title"><span class="icon">🤖</span> AI 예측 생성</div>
@@ -793,12 +745,26 @@ function renderGames() {
     tbody.innerHTML = '<tr><td colspan="8" style="text-align:center;color:#aaa;padding:20px">등록된 경기가 없습니다</td></tr>';
     return;
   }
-  tbody.innerHTML = allGames.map(g => `
+  tbody.innerHTML = allGames.map(g => {
+    const dateVal = (g.date || '').replace(/\./g, '-');
+    const timeVal = g.time || '';
+    return `
     <tr>
       <td style="font-family:var(--mono);color:#aaa">${g.id}</td>
       <td><strong>${g.home.flag} ${g.home.name}</strong></td>
       <td><strong>${g.away.flag} ${g.away.name}</strong></td>
-      <td style="font-family:var(--mono);font-size:12px">${g.date} ${g.time}</td>
+      <td>
+        <div style="display:flex;flex-direction:column;gap:3px">
+          <input type="date" id="gd-${g.id}" value="${dateVal}"
+            style="font-size:11px;padding:3px 5px;border:1px solid #ddd;border-radius:4px;width:130px">
+          <div style="display:flex;gap:4px;align-items:center">
+            <input type="time" id="gt-${g.id}" value="${timeVal}"
+              style="font-size:11px;padding:3px 5px;border:1px solid #ddd;border-radius:4px;width:80px">
+            <button onclick="saveGameDateTime('${g.id}')"
+              style="font-size:11px;padding:2px 7px;border:none;border-radius:4px;background:#1565c0;color:#fff;cursor:pointer">저장</button>
+          </div>
+        </div>
+      </td>
       <td>
         <select class="form-input" style="padding:4px 8px;font-size:12px;width:80px"
           onchange="setGameBetType('${g.id}', this.value)">
@@ -817,7 +783,8 @@ function renderGames() {
       <td>
         <button class="btn btn-sm btn-danger" onclick="deleteGame('${g.id}')">삭제</button>
       </td>
-    </tr>`).join('');
+    </tr>`;
+  }).join('');
 }
 
 async function addGame() {
@@ -855,6 +822,18 @@ async function setGameStatus(id, status) {
   toast(`상태 변경: ${status==='open'?'베팅 중':status==='closed'?'마감':'미등록'}`);
 }
 
+async function saveGameDateTime(id) {
+  const dateRaw = document.getElementById(`gd-${id}`).value; // YYYY-MM-DD
+  const time    = document.getElementById(`gt-${id}`).value; // HH:MM
+  if (!dateRaw || !time) { toast('날짜와 시간을 모두 입력하세요', true); return; }
+  const date = dateRaw.replace(/-/g, '.');
+  const res = await apiFetch(`/admin/games/${id}/datetime?date=${encodeURIComponent(date)}&time=${encodeURIComponent(time)}`, {method:'PATCH'});
+  if (!res) { toast('❌ 저장 실패', true); return; }
+  const g = allGames.find(g => String(g.id) === String(id));
+  if (g) { g.date = date; g.time = time; }
+  toast('✅ 저장됐습니다');
+}
+
 async function setGameBetType(id, betType) {
   const g = allGames.find(g => String(g.id) === String(id));
   if (!g) return;
@@ -885,60 +864,6 @@ async function deleteGame(id) {
   allGames = allGames.filter(g => g.id !== id);
   renderGames();
   toast('경기가 삭제됐습니다');
-}
-
-async function fixKstManual() {
-  const hours = parseInt(document.getElementById('manual-hours-input').value);
-  if (isNaN(hours) || hours < 1 || hours > 24) { toast('❌ 1~24 사이 숫자를 입력하세요', true); return; }
-  if (!confirm(`미변환 경기 시간을 +${hours}시간 하여 KST로 저장합니다. 계속하시겠어요?`)) return;
-  const btn = document.getElementById('fix-kst-manual-btn');
-  const res_el = document.getElementById('fix-kst-manual-result');
-  btn.disabled = true;
-  res_el.textContent = '';
-  const res = await apiFetch(`/admin/games/fix-kst-manual?hours=${hours}`, {method:'POST'});
-  btn.disabled = false;
-  if (!res) { toast('❌ 변환 실패', true); return; }
-  allGames = await apiFetch('/games') || allGames;
-  renderGames();
-  res_el.textContent = `완료: ${res.fixed}개 변환`;
-  toast(`✅ ${res.fixed}개 경기를 +${hours}h KST로 변환했습니다`);
-}
-
-async function fixKst() {
-  if (!confirm('경기장 시간대 기반으로 현지 시간을 KST로 변환합니다. 계속하시겠어요?')) return;
-  const btn = document.getElementById('fix-kst-btn');
-  const res_el = document.getElementById('fix-kst-result');
-  btn.disabled = true;
-  btn.textContent = '🕐 변환 중...';
-  res_el.textContent = '';
-  const res = await apiFetch('/admin/games/fix-kst', {method:'POST'});
-  btn.disabled = false;
-  btn.textContent = '🕐 KST 정확 변환';
-  if (!res) { toast('❌ 변환 실패', true); return; }
-  allGames = await apiFetch('/games') || allGames;
-  renderGames();
-  let msg = `완료: ${res.fixed}개 변환 (총 ${res.total}경기)`;
-  if (res.skipped > 0) msg += `, ${res.skipped}개 건너뜀`;
-  if (res.unknown_venues && res.unknown_venues.length > 0) msg += ` — 미인식 경기장: ${res.unknown_venues.join(', ')}`;
-  res_el.textContent = msg;
-  toast(`✅ ${res.fixed}개 경기를 KST로 정확 변환했습니다`);
-}
-
-async function revertKst() {
-  if (!confirm('이전에 적용한 +9시간 KST 변환을 되돌립니다. 계속하시겠어요?')) return;
-  const btn = document.getElementById('revert-kst-btn');
-  const res_el = document.getElementById('revert-kst-result');
-  btn.disabled = true;
-  btn.textContent = '↩️ 되돌리는 중...';
-  res_el.textContent = '';
-  const res = await apiFetch('/admin/games/revert-kst', {method:'POST'});
-  btn.disabled = false;
-  btn.textContent = '↩️ KST 변환 되돌리기';
-  if (!res) { toast('❌ 되돌리기 실패', true); return; }
-  allGames = await apiFetch('/games') || allGames;
-  renderGames();
-  res_el.textContent = `완료: ${res.reverted}개 되돌림 (총 ${res.total}경기)`;
-  toast(`✅ ${res.reverted}개 경기 시간을 원래대로 되돌렸습니다`);
 }
 
 async function generateAiPredictions() {
