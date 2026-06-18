@@ -229,6 +229,21 @@ main{max-width:960px;margin:0 auto;padding:16px 12px 60px}
   <!-- ② 게임 관리 -->
   <div id="apanel-games" class="apanel">
 
+    <!-- KST 변환 -->
+    <div class="acard">
+      <div class="acard-title"><span class="icon">🕐</span> 경기 시간 KST 변환</div>
+      <p class="acard-desc">
+        등록된 경기 일시를 UTC에서 <strong>한국 시간(KST, +9시간)</strong>으로 일괄 변환합니다.<br>
+        이미 변환된 경기는 건너뛰므로 여러 번 눌러도 안전합니다.
+      </p>
+      <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap">
+        <button class="btn btn-primary" onclick="convertToKst()" id="kst-btn">
+          🕐 KST로 변환
+        </button>
+        <span id="kst-result" style="font-size:13px;color:var(--muted);font-family:var(--mono)"></span>
+      </div>
+    </div>
+
     <!-- AI 예측 생성 -->
     <div class="acard">
       <div class="acard-title"><span class="icon">🤖</span> AI 예측 생성</div>
@@ -837,6 +852,22 @@ async function deleteGame(id) {
   allGames = allGames.filter(g => g.id !== id);
   renderGames();
   toast('경기가 삭제됐습니다');
+}
+
+async function convertToKst() {
+  const btn = document.getElementById('kst-btn');
+  const res_el = document.getElementById('kst-result');
+  btn.disabled = true;
+  btn.textContent = '🕐 변환 중...';
+  res_el.textContent = '';
+  const res = await apiFetch('/admin/games/to-kst', {method:'POST'});
+  btn.disabled = false;
+  btn.textContent = '🕐 KST로 변환';
+  if (!res) { toast('❌ 변환 실패', true); return; }
+  allGames = await apiFetch('/games') || allGames;
+  renderGames();
+  res_el.textContent = `완료: ${res.converted}개 변환 (총 ${res.total}경기)`;
+  toast(`✅ ${res.converted}개 경기를 KST로 변환했습니다`);
 }
 
 async function generateAiPredictions() {
