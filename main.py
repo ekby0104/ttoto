@@ -409,7 +409,31 @@ def admin_fix_kst(auth=Depends(admin_required)):
             if venue and venue not in unknown_venues:
                 unknown_venues.append(venue)
     write_json(GAMES_FILE, games)
-    return {"ok": True, "fixed": fixed, "skipped": skipped, "total": len(games), "unknown_venues": unknown_venues}
+    empty_count = sum(1 for g in games if not g.get("kst_v2") and not g.get("venue", ""))
+    return {"ok": True, "fixed": fixed, "skipped": skipped, "total": len(games),
+            "unknown_venues": unknown_venues, "empty_venue_count": empty_count}
+
+@app.post("/api/admin/games/fix-kst-manual")
+def admin_fix_kst_manual(hours: int, auth=Depends(admin_required)):
+    """venue 정보 없는 경기에 수동으로 시간차(hours)를 적용하여 KST 변환."""
+    if not (-24 <= hours <= 24):
+        raise HTTPException(400, "hours는 -24~24 사이여야 합니다")
+    games = get_games()
+    fixed = 0
+    for g in games:
+        if g.get("kst_v2"):
+            continue
+        try:
+            dt = datetime.strptime(f"{g['date'].replace('.', '-')} {g['time']}", "%Y-%m-%d %H:%M")
+            kst = dt + timedelta(hours=hours)
+            g["date"] = kst.strftime("%Y.%m.%d")
+            g["time"] = kst.strftime("%H:%M")
+            g["kst_v2"] = True
+            fixed += 1
+        except Exception:
+            pass
+    write_json(GAMES_FILE, games)
+    return {"ok": True, "fixed": fixed, "total": len(games)}
 
 @app.post("/api/admin/games/revert-kst")
 def admin_revert_kst(auth=Depends(admin_required)):
