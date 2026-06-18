@@ -809,6 +809,7 @@ function renderGames() {
           <option value="pending" ${g.status==='pending'?'selected':''}>미등록</option>
           <option value="open"    ${g.status==='open'   ?'selected':''}>베팅 중</option>
           <option value="closed"  ${g.status==='closed' ?'selected':''}>마감</option>
+          <option value="ended"   ${g.status==='ended'  ?'selected':''}>게임 종료</option>
         </select>
       </td>
       <td>
@@ -860,7 +861,8 @@ async function setGameStatus(id, status) {
   if (!res) { toast('❌ 상태 변경 실패', true); return }
   const i = allGames.findIndex(g => String(g.id) === String(id));
   if (i > -1) allGames[i] = res;
-  toast(`상태 변경: ${status==='open'?'베팅 중':status==='closed'?'마감':'미등록'}`);
+  const label={open:'베팅 중',closed:'마감',ended:'게임 종료',pending:'미등록'}[status]||status;
+  toast(`상태 변경: ${label}`);
 }
 
 function toggleAcc(id) {

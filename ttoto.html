@@ -296,11 +296,12 @@ function renderBets() {
   let html='';
   MATCHES.filter(m=>m.status!=='pending').forEach(m=>{
       const mb=gameBets(m.id);
-      const hasResult=!!allResults[String(m.id)];   // 경기 결과 등록됨 → 게임 종료
+      const hasResult=!!allResults[String(m.id)];   // 경기 결과 등록됨
+      const ended=hasResult||m.status==='ended';    // 게임 종료 (결과 등록 또는 관리자 종료)
       const closed=m.status==='closed';
-      const betDisabled=closed||hasResult;          // 베팅 불가
-      const badgeCls=hasResult?'badge-ended':closed?'badge-closed':'badge-open';
-      const badgeTxt=hasResult?'🏁 게임 종료':closed?'마감':'베팅 중';
+      const betDisabled=closed||ended;              // 베팅 불가
+      const badgeCls=ended?'badge-ended':closed?'badge-closed':'badge-open';
+      const badgeTxt=ended?'🏁 게임 종료':closed?'마감':'베팅 중';
       const myBetCount=mb.length;
       html+=`
       <div class="match-card ${myBetCount?'has-bet':''}" id="card-${m.id}">
@@ -341,8 +342,8 @@ function renderBets() {
           <span class="ai-predict-score">${p.home_score} : ${p.away_score}</span>
           ${p.reason?`<span class="ai-predict-reason">${p.reason}</span>`:''}
         </div>`:'';})()}
-        ${hasResult ? `
-        <div class="mc-msg ended">🏁 게임이 종료되었습니다 — 결과가 등록되었어요</div>`
+        ${ended ? `
+        <div class="mc-msg ended">🏁 게임이 종료되었습니다${hasResult?' — 결과가 등록되었어요':''}</div>`
         : closed ? `
         <div class="mc-msg">🔒 베팅이 종료되었습니다 — 경기 결과를 기다려주세요</div>`
         : `
