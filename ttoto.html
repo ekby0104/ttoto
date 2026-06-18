@@ -208,10 +208,10 @@ main{max-width:820px;margin:0 auto;padding:16px 12px 40px}
       <div class="fb-title">💬 피드백 보내기</div>
       <div class="fb-desc">개선 의견, 버그 제보, 건의사항을 남겨주세요. (관리자만 확인)</div>
       <label class="fb-label">이름 <span style="color:var(--muted)">(선택)</span></label>
-      <input id="fb-name" class="fb-input" type="text" maxlength="40" placeholder="익명 가능">
+      <input id="fb-name" class="fb-input" type="text" maxlength="20" placeholder="익명 가능 (한글/영문/숫자, 20자)">
       <label class="fb-label">내용</label>
-      <textarea id="fb-message" class="fb-input fb-textarea" maxlength="1000" placeholder="내용을 입력해주세요 (최대 1000자)"></textarea>
-      <div class="fb-count"><span id="fb-count">0</span>/1000</div>
+      <textarea id="fb-message" class="fb-input fb-textarea" maxlength="20" placeholder="내용을 입력해주세요 (한글/영문/숫자, 최대 20자)"></textarea>
+      <div class="fb-count"><span id="fb-count">0</span>/20</div>
       <button class="fb-submit" onclick="submitFeedback()">보내기</button>
     </div>
   </div>
@@ -323,8 +323,10 @@ async function submitFeedback() {
   const msgEl=document.getElementById('fb-message');
   const message=msgEl.value.trim();
   const name=nameEl.value.trim();
+  const allowed=/^[가-힣ㄱ-ㅎㅏ-ㅣa-zA-Z0-9 ]*$/;
   if(!message){toast('❌ 내용을 입력해주세요',true);return}
-  if(message.length>1000){toast('❌ 1000자 이내로 입력해주세요',true);return}
+  if(message.length>20){toast('❌ 20자 이내로 입력해주세요',true);return}
+  if(!allowed.test(message)||!allowed.test(name)){toast('❌ 특수문자는 사용할 수 없습니다',true);return}
   try{
     const r=await fetch(API+'/feedback',{
       method:'POST',
@@ -674,7 +676,10 @@ async function renderResult() {
   await loadAll();
   renderBets();
   const fbMsg=document.getElementById('fb-message');
-  if(fbMsg) fbMsg.addEventListener('input',()=>{document.getElementById('fb-count').textContent=fbMsg.value.length});
+  const fbName=document.getElementById('fb-name');
+  const strip=el=>{const c=el.value.replace(/[^가-힣ㄱ-ㅎㅏ-ㅣa-zA-Z0-9 ]/g,'').slice(0,20);if(c!==el.value)el.value=c};
+  if(fbMsg) fbMsg.addEventListener('input',()=>{strip(fbMsg);document.getElementById('fb-count').textContent=fbMsg.value.length});
+  if(fbName) fbName.addEventListener('input',()=>strip(fbName));
 })();
 </script>
 </body>

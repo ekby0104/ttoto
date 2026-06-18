@@ -123,9 +123,9 @@ class ResultIn(BaseModel):
     a: int
 
 class FeedbackIn(BaseModel):
-    # 보안: 길이 제한으로 과도한 입력/페이로드 차단
-    message: str = Field(..., min_length=1, max_length=1000)
-    name:    Optional[str] = Field("", max_length=40)
+    # 보안: 길이 20자 제한 + 특수문자 차단(한글/영문/숫자/공백만 허용)
+    message: str = Field(..., min_length=1, max_length=20)
+    name:    Optional[str] = Field("", max_length=20)
 
 class PaymentUpdate(BaseModel):
     paid: bool
@@ -211,14 +211,17 @@ def list_ai_predictions():
 def auth_status():
     return {"has_token": bool(get_auth().get("token", ""))}
 
+_FB_ALLOWED = re.compile(r"^[가-힣ㄱ-ㅎㅏ-ㅣa-zA-Z0-9 ]*$")  # 한글/영문/숫자/공백만
+
 @app.post("/api/feedback")
 def submit_feedback(fb: FeedbackIn):
-    # 보안: 원문 그대로 저장(JSON 저장은 인젝션 안전), XSS는 출력 시 escapeHtml로 차단(escape-on-output)
-    # 제어문자만 제거하고 길이 재검증
-    msg  = "".join(ch for ch in fb.message.strip() if ch == "\n" or ord(ch) >= 32)[:1000]
-    name = "".join(ch for ch in (fb.name or "").strip() if ord(ch) >= 32)[:40]
+    # 보안: 특수문자 차단 + 20자 제한. 원문 저장(JSON 인젝션 안전), 출력 시 escapeHtml(XSS 방어)
+    msg  = fb.message.strip()[:20]
+    name = (fb.name or "").strip()[:20]
     if not msg:
         raise HTTPException(400, "내용을 입력해주세요")
+    if not _FB_ALLOWED.match(msg) or not _FB_ALLOWED.match(name):
+        raise HTTPException(400, "특수문자는 사용할 수 없습니다 (한글/영문/숫자만)")
     items = get_feedback()
     # 보안: 저장 개수 상한 (스토리지 남용 방지)
     if len(items) >= 5000:
