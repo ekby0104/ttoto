@@ -47,6 +47,10 @@ def get_auth():           return read_json(AUTH_FILE,           {"token": ""})
 def get_games():          return read_json(GAMES_FILE,          [])
 def get_ai_predictions(): return read_json(AI_PREDICTIONS_FILE, {})
 
+def active_game_ids():
+    """삭제되지 않은 경기 id 집합 (문자열)"""
+    return {str(g["id"]) for g in get_games() if not g.get("deleted")}
+
 # 2026 FIFA 월드컵 경기장 → UTC 오프셋 (6월 기준, DST 적용)
 _VENUE_UTC_MAP = [
     # 미국 동부 (EDT = UTC-4)
@@ -140,6 +144,7 @@ class GameIn(BaseModel):
     venue:     Optional[str] = ""
     status:    Optional[str] = "pending"  # pending | open | closed
     bet_type:  Optional[str] = "exact"   # exact | wdl
+    deleted:   Optional[bool] = False    # 소프트 삭제 여부
 
 # ══════════════════════════════════════════════════════════════
 # PUBLIC API
@@ -151,8 +156,11 @@ def public_config():
     return {"bet_amount": cfg.get("bet_amount", 3000), "kp_link": cfg.get("kp_link", ""), "site_title": cfg.get("site_title", "토토"), "carryover": cfg.get("carryover", 0)}
 
 @app.get("/api/games")
-def list_games():
-    return get_games()
+def list_games(include_deleted: bool = False):
+    games = get_games()
+    if not include_deleted:
+        games = [g for g in games if not g.get("deleted")]
+    return games
 
 @app.post("/api/bets")
 def submit_bet(bet: BetIn):
@@ -178,6 +186,8 @@ def submit_bet(bet: BetIn):
 @app.get("/api/bets")
 def list_bets(game_id: Optional[int] = None):
     bets = get_bets()
+    active = active_game_ids()
+    bets = [b for b in bets if str(b["game_id"]) in active]   # 삭제된 경기의 베팅 숨김(FK)
     if game_id is not None:
         bets = [b for b in bets if b["game_id"] == game_id]
     return bets
@@ -215,6 +225,8 @@ def admin_update_config(body: ConfigUpdate, auth=Depends(admin_required)):
 @app.get("/api/admin/bets")
 def admin_list_bets(game_id: Optional[int] = None, auth=Depends(admin_required)):
     bets = get_bets()
+    active = active_game_ids()
+    bets = [b for b in bets if str(b["game_id"]) in active]   # 삭제된 경기의 베팅 숨김(FK)
     if game_id is not None:
         bets = [b for b in bets if b["game_id"] == game_id]
     return bets
@@ -471,17 +483,51 @@ def admin_revert_kst(auth=Depends(admin_required)):
 
 @app.delete("/api/admin/games/all")
 def admin_delete_all_games(auth=Depends(admin_required)):
-    write_json(GAMES_FILE, [])
-    write_json(RESULTS_FILE, {})
+    # 소프트 삭제: 전체 경기를 deleted 처리 (베팅·결과는 보존, 복구 가능)
+    games = get_games()
+    for g in games:
+        g["deleted"] = True
+    write_json(GAMES_FILE, games)
     return {"ok": True}
 
 @app.delete("/api/admin/games/{game_id}")
 def admin_delete_game(game_id: int, auth=Depends(admin_required)):
+    # 소프트 삭제: deleted=True 로 표시 (연결된 베팅은 자동 숨김, 복구 가능)
+    games = get_games()
+    found = False
+    for g in games:
+        if str(g["id"]) == str(game_id):
+            g["deleted"] = True
+            found = True
+    if not found:
+        raise HTTPException(404, "게임을 찾을 수 없습니다")
+    write_json(GAMES_FILE, games)
+    return {"ok": True}
+
+@app.post("/api/admin/games/{game_id}/restore")
+def admin_restore_game(game_id: int, auth=Depends(admin_required)):
+    # 소프트 삭제 복구
+    games = get_games()
+    found = False
+    for g in games:
+        if str(g["id"]) == str(game_id):
+            g["deleted"] = False
+            found = True
+    if not found:
+        raise HTTPException(404, "게임을 찾을 수 없습니다")
+    write_json(GAMES_FILE, games)
+    return {"ok": True}
+
+@app.delete("/api/admin/games/{game_id}/permanent")
+def admin_purge_game(game_id: int, auth=Depends(admin_required)):
+    # 영구 삭제: 경기 + 결과 + 연결된 베팅 모두 제거 (cascade)
     games = [g for g in get_games() if str(g["id"]) != str(game_id)]
     write_json(GAMES_FILE, games)
     results = get_results()
     results.pop(str(game_id), None)
     write_json(RESULTS_FILE, results)
+    bets = [b for b in get_bets() if str(b["game_id"]) != str(game_id)]
+    write_json(BETS_FILE, bets)
     return {"ok": True}
 
 # ── 외부 API에서 경기 가져오기 (worldcup26.ir — 무료·키 불필요) ──

@@ -358,7 +358,7 @@ main{max-width:960px;margin:0 auto;padding:16px 12px 60px}
       <div style="overflow-x:auto;-webkit-overflow-scrolling:touch">
         <table class="atable">
           <thead>
-            <tr><th>#</th><th>홈</th><th>원정</th><th>날짜/시간</th><th>베팅 방식</th><th>상태</th><th>관리</th></tr>
+            <tr><th>#</th><th>홈</th><th>원정</th><th>날짜/시간</th><th>베팅 방식</th><th>상태</th><th>삭제 여부</th><th>관리</th></tr>
           </thead>
           <tbody id="games-body"></tbody>
         </table>
@@ -427,7 +427,10 @@ let hasServerToken = false;
 let allBets = [];
 let allResults = {};
 let config = {};
-let allGames = [];
+let allGames = [];   // 삭제된 경기 포함 (게임 관리 탭에서 복구용)
+
+// 삭제되지 않은 경기만 (필터/결과/배당/이월에 사용)
+function activeGames() { return allGames.filter(g => !g.deleted); }
 
 function matchLabel(id) {
   const m = allGames.find(x => String(x.id) === String(id));
@@ -509,7 +512,7 @@ async function loadAll() {
     apiFetch('/admin/bets'),
     apiFetch('/results'),
     apiFetch('/admin/config'),
-    apiFetch('/games'),
+    apiFetch('/games?include_deleted=1'),
   ]);
   if (bets)    allBets    = bets;
   if (results) allResults = results;
@@ -526,7 +529,7 @@ function renderGameFilters() {
     const sel = document.getElementById(selId);
     const cur = sel.value;
     sel.innerHTML = '<option value="">전체 경기</option>';
-    allGames.forEach(m => {
+    activeGames().forEach(m => {
       const opt = document.createElement('option');
       opt.value = m.id;
       opt.textContent = `${m.home.flag}${m.home.short} vs ${m.away.short}${m.away.flag} (${m.date})`;
@@ -631,7 +634,7 @@ async function deleteBet(id) {
 
 // ── ③ 경기 결과 ──────────────────────────────────────────
 function renderResults() {
-  document.getElementById('result-rows').innerHTML = allGames.map(m => {
+  document.getElementById('result-rows').innerHTML = activeGames().map(m => {
     const res = allResults[String(m.id)];
     return `<div class="result-row">
       <div class="result-teams">
@@ -658,7 +661,7 @@ function gameTotalPot(id) {
   return allBets.filter(b => String(b.game_id) === String(id)).reduce((s,b) => s+(b.amount||0), 0);
 }
 function computeCarryover() {
-  const sorted = [...allGames]
+  const sorted = activeGames()
     .filter(g => allResults[String(g.id)])
     .sort((a,b) => a.date.localeCompare(b.date));
   let lastPaidIdx = -1;
@@ -708,7 +711,7 @@ async function deleteResult(id) {
 // ── ④ 배당 처리 ──────────────────────────────────────────
 function renderPayouts() {
   const gFilter = document.getElementById('payout-filter-game').value;
-  const matches = gFilter ? allGames.filter(m => String(m.id) === String(gFilter)) : allGames;
+  const matches = gFilter ? activeGames().filter(m => String(m.id) === String(gFilter)) : activeGames();
   const rows = [];
   matches.forEach(m => {
     const res      = allResults[String(m.id)];
@@ -772,8 +775,9 @@ function renderGames() {
   tbody.innerHTML = allGames.map(g => {
     const dateVal = (g.date || '').replace(/\./g, '-');
     const timeVal = g.time || '';
+    const del = !!g.deleted;
     return `
-    <tr>
+    <tr style="${del?'opacity:.5;background:#fbeaea':''}">
       <td style="font-family:var(--mono);color:#aaa">${g.id}</td>
       <td><strong>${g.home.flag} ${g.home.name}</strong></td>
       <td><strong>${g.away.flag} ${g.away.name}</strong></td>
@@ -805,7 +809,17 @@ function renderGames() {
         </select>
       </td>
       <td>
-        <button class="btn btn-sm btn-danger" onclick="deleteGame('${g.id}')">삭제</button>
+        ${del
+          ? '<span class="badge badge-red">🗑 삭제됨</span>'
+          : '<span class="badge badge-green">정상</span>'}
+      </td>
+      <td>
+        ${del
+          ? `<div style="display:flex;flex-direction:column;gap:4px">
+               <button class="btn btn-sm btn-primary" onclick="restoreGame('${g.id}')">복구</button>
+               <button class="btn btn-sm btn-danger" onclick="purgeGame('${g.id}')">영구삭제</button>
+             </div>`
+          : `<button class="btn btn-sm btn-danger" onclick="deleteGame('${g.id}')">삭제</button>`}
       </td>
     </tr>`;
   }).join('');
@@ -879,20 +893,31 @@ async function setGameBetType(id, betType) {
 }
 
 async function deleteAllGames() {
-  if (!confirm(`등록된 경기 ${allGames.length}개를 전부 삭제합니다. 관련 베팅 데이터에 영향을 줄 수 있습니다. 계속하시겠습니까?`)) return;
+  if (!confirm(`등록된 경기 ${activeGames().length}개를 전부 삭제합니다. (소프트 삭제 — 관련 베팅은 숨겨지고 나중에 복구 가능) 계속하시겠습니까?`)) return;
   const res = await apiFetch('/admin/games/all', {method:'DELETE'});
   if (!res) { toast('❌ 전체 삭제 실패', true); return }
-  allGames = [];
-  renderGames();
-  toast('✅ 경기 전체 삭제 완료');
+  await loadAll();
+  toast('✅ 경기 전체 삭제 완료 (복구 가능)');
 }
 
 async function deleteGame(id) {
-  if (!confirm('경기를 삭제하면 관련 베팅 데이터도 영향받을 수 있습니다. 삭제하시겠습니까?')) return;
+  if (!confirm('이 경기를 삭제합니다. 연결된 베팅은 함께 숨겨지며 나중에 복구할 수 있습니다. 계속하시겠습니까?')) return;
   await apiFetch(`/admin/games/${id}`, {method:'DELETE'});
-  allGames = allGames.filter(g => g.id !== id);
-  renderGames();
-  toast('경기가 삭제됐습니다');
+  await loadAll();
+  toast('경기가 삭제됐습니다 (복구 가능)');
+}
+
+async function restoreGame(id) {
+  await apiFetch(`/admin/games/${id}/restore`, {method:'POST'});
+  await loadAll();
+  toast('✅ 경기가 복구됐습니다');
+}
+
+async function purgeGame(id) {
+  if (!confirm('영구 삭제하면 경기·경기결과·연결된 모든 베팅이 완전히 제거되며 복구할 수 없습니다. 계속하시겠습니까?')) return;
+  await apiFetch(`/admin/games/${id}/permanent`, {method:'DELETE'});
+  await loadAll();
+  toast('🗑 영구 삭제 완료');
 }
 
 async function generateAiPredictions() {
