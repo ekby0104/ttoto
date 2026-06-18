@@ -229,6 +229,22 @@ main{max-width:960px;margin:0 auto;padding:16px 12px 60px}
   <!-- ② 게임 관리 -->
   <div id="apanel-games" class="apanel">
 
+    <!-- KST 정확 변환 -->
+    <div class="acard" style="border-color:#81c784;background:#f1f8f1">
+      <div class="acard-title"><span class="icon">🕐</span> 경기장 시간대 기반 KST 변환</div>
+      <p class="acard-desc">
+        경기장 위치(미국 동부/중부/서부, 캐나다, 멕시코)에 맞는<br>
+        <strong>정확한 시간차를 적용</strong>하여 현지 시간 → 한국 시간으로 변환합니다.<br>
+        <em>이미 변환된 경기는 건너뜁니다.</em>
+      </p>
+      <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap">
+        <button class="btn btn-primary" onclick="fixKst()" id="fix-kst-btn" style="background:#388e3c">
+          🕐 KST 정확 변환
+        </button>
+        <span id="fix-kst-result" style="font-size:13px;color:var(--muted);font-family:var(--mono)"></span>
+      </div>
+    </div>
+
     <!-- KST 되돌리기 -->
     <div class="acard" style="border-color:#ffe082;background:#fffdf0">
       <div class="acard-title"><span class="icon">↩️</span> 시간 KST 변환 되돌리기</div>
@@ -852,6 +868,26 @@ async function deleteGame(id) {
   allGames = allGames.filter(g => g.id !== id);
   renderGames();
   toast('경기가 삭제됐습니다');
+}
+
+async function fixKst() {
+  if (!confirm('경기장 시간대 기반으로 현지 시간을 KST로 변환합니다. 계속하시겠어요?')) return;
+  const btn = document.getElementById('fix-kst-btn');
+  const res_el = document.getElementById('fix-kst-result');
+  btn.disabled = true;
+  btn.textContent = '🕐 변환 중...';
+  res_el.textContent = '';
+  const res = await apiFetch('/admin/games/fix-kst', {method:'POST'});
+  btn.disabled = false;
+  btn.textContent = '🕐 KST 정확 변환';
+  if (!res) { toast('❌ 변환 실패', true); return; }
+  allGames = await apiFetch('/games') || allGames;
+  renderGames();
+  let msg = `완료: ${res.fixed}개 변환 (총 ${res.total}경기)`;
+  if (res.skipped > 0) msg += `, ${res.skipped}개 건너뜀`;
+  if (res.unknown_venues && res.unknown_venues.length > 0) msg += ` — 미인식 경기장: ${res.unknown_venues.join(', ')}`;
+  res_el.textContent = msg;
+  toast(`✅ ${res.fixed}개 경기를 KST로 정확 변환했습니다`);
 }
 
 async function revertKst() {
