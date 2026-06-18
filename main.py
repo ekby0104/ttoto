@@ -353,6 +353,26 @@ def admin_set_game_status(game_id: int, status: str, auth=Depends(admin_required
             return g
     raise HTTPException(404, "게임을 찾을 수 없습니다")
 
+@app.post("/api/admin/games/revert-kst")
+def admin_revert_kst(auth=Depends(admin_required)):
+    """잘못 적용된 +9h KST 변환을 되돌립니다 (kst:true 플래그가 있는 게임만)."""
+    games = get_games()
+    reverted = 0
+    for g in games:
+        if not g.get("kst"):
+            continue
+        try:
+            dt = datetime.strptime(f"{g['date'].replace('.', '-')} {g['time']}", "%Y-%m-%d %H:%M")
+            original = dt - timedelta(hours=9)
+            g["date"] = original.strftime("%Y.%m.%d")
+            g["time"] = original.strftime("%H:%M")
+            g.pop("kst", None)
+            reverted += 1
+        except Exception:
+            g.pop("kst", None)
+    write_json(GAMES_FILE, games)
+    return {"ok": True, "reverted": reverted, "total": len(games)}
+
 @app.delete("/api/admin/games/all")
 def admin_delete_all_games(auth=Depends(admin_required)):
     write_json(GAMES_FILE, [])
