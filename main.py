@@ -9,6 +9,7 @@ from fastapi.responses import FileResponse
 from pydantic import BaseModel
 from typing import Optional
 import json, os, time, httpx, re
+from datetime import datetime, timedelta
 
 app = FastAPI(title="사무실 월드컵 토토 API")
 
@@ -45,6 +46,17 @@ def get_results():        return read_json(RESULTS_FILE,        {})
 def get_auth():           return read_json(AUTH_FILE,           {"token": ""})
 def get_games():          return read_json(GAMES_FILE,          [])
 def get_ai_predictions(): return read_json(AI_PREDICTIONS_FILE, {})
+
+def to_kst(date_str: str, time_str: str):
+    """UTC 날짜/시각 문자열 → KST(+9h). 변환 불가 시 원본 반환."""
+    if not date_str or not time_str:
+        return date_str, time_str
+    try:
+        dt = datetime.strptime(f"{date_str.replace('.', '-')} {time_str}", "%Y-%m-%d %H:%M")
+        kst = dt + timedelta(hours=9)
+        return kst.strftime("%Y.%m.%d"), kst.strftime("%H:%M")
+    except Exception:
+        return date_str, time_str
 
 def admin_required(x_admin_token: Optional[str] = Header(None)):
     auth   = get_auth()
@@ -447,7 +459,7 @@ async def admin_import_games(korea_only: bool = False, auth=Depends(admin_requir
         h_code = CODE_MAP.get(h_name, h_name[:3].upper())
         a_code = CODE_MAP.get(a_name, a_name[:3].upper())
 
-        # local_date: "06/11/2026 13:00" → date "2026.06.11", time "13:00"
+        # local_date: "06/11/2026 13:00" (UTC) → KST 변환 후 저장
         raw_dt = m.get("local_date") or m.get("datetime") or m.get("kickoff_utc") or m.get("date", "")
         raw_dt = str(raw_dt)
         if "/" in raw_dt:  # MM/DD/YYYY HH:MM
@@ -461,6 +473,7 @@ async def admin_import_games(korea_only: bool = False, auth=Depends(admin_requir
         else:
             date_str = raw_dt
             time_str = ""
+        date_str, time_str = to_kst(date_str, time_str)  # UTC → KST
 
         group_raw = str(m.get("group", "") or "")
         group_str = f"{group_raw}조" if group_raw and not group_raw.endswith("조") else group_raw
@@ -484,6 +497,7 @@ async def admin_import_games(korea_only: bool = False, auth=Depends(admin_requir
             "time":  time_str,
             "venue": str(m.get("stadium") or m.get("venue") or m.get("ground") or ""),
             "status": "closed" if has_score else "pending",
+            "kst":   True,
         }
         existing.append(game)
         existing_ids.add(ext_id)
@@ -497,6 +511,22 @@ async def admin_import_games(korea_only: bool = False, auth=Depends(admin_requir
 
     write_json(GAMES_FILE, existing)
     return {"ok": True, "added": added, "total": len(existing)}
+
+@app.post("/api/admin/games/to-kst")
+def admin_convert_games_to_kst(auth=Depends(admin_required)):
+    """기존 게임의 일시를 UTC → KST(+9h)로 일괄 변환. kst:true 플래그로 중복 변환 방지."""
+    games = get_games()
+    converted = 0
+    for g in games:
+        if g.get("kst"):
+            continue
+        new_date, new_time = to_kst(g.get("date", ""), g.get("time", ""))
+        g["date"] = new_date
+        g["time"] = new_time
+        g["kst"] = True
+        converted += 1
+    write_json(GAMES_FILE, games)
+    return {"ok": True, "converted": converted, "total": len(games)}
 
 # ── 토큰 변경 ─────────────────────────────────────────────────
 @app.post("/api/admin/auth/token")
