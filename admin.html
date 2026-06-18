@@ -370,7 +370,7 @@ main{max-width:960px;margin:0 auto;padding:16px 12px 60px}
   <div id="apanel-payments" class="apanel">
     <div class="acard">
       <div class="acard-title" style="display:flex;justify-content:space-between;align-items:center">
-        <span><span class="icon">💛</span> 입금 확인 내역</span>
+        <span><span class="icon">💛</span> 입금 확인 내역 <span id="pay-count" style="font-size:12px;font-weight:400;color:var(--muted);font-family:var(--mono)"></span></span>
         <button class="btn btn-sm btn-danger" onclick="deleteAllBets()">🗑 전체 삭제</button>
       </div>
       <div style="display:flex;gap:8px;margin-bottom:14px;flex-wrap:wrap">
@@ -588,6 +588,9 @@ function renderPayments() {
   const gFilter = document.getElementById('pay-filter-game').value;
   const bets    = gFilter ? allBets.filter(b => b.game_id === parseInt(gFilter)) : allBets;
   const tbody   = document.getElementById('payments-body');
+  const cntEl   = document.getElementById('pay-count');
+  const paidCnt = bets.filter(b => b.paid).length;
+  if (cntEl) cntEl.textContent = bets.length ? `총 ${bets.length}건 · 입금 ${paidCnt} · 대기 ${bets.length - paidCnt}` : '';
   if (!bets.length) {
     tbody.innerHTML = '<tr><td colspan="6" style="text-align:center;color:#aaa;padding:20px">베팅 내역이 없습니다</td></tr>';
     return;
