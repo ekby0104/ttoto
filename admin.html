@@ -288,13 +288,13 @@ main{max-width:960px;margin:0 auto;padding:16px 12px 60px}
       </div>
     </div>
 
-    <!-- 수기 등록 -->
-    <div class="acard">
-      <div class="acard-title" style="display:flex;justify-content:space-between;align-items:center;margin-bottom:0">
-        <span><span class="icon">✏️</span> 수기 경기 등록</span>
-        <button class="btn btn-sm btn-primary" onclick="toggleAddGameForm()" id="add-game-toggle">+ 경기 추가</button>
+    <!-- 수기 등록 (아코디언) -->
+    <div class="acc-item" id="acc-manual">
+      <div class="acc-row" onclick="toggleAcc('manual')">
+        <span class="acc-label"><span style="font-size:18px">✏️</span> 수기 경기 등록</span>
+        <span class="acc-arrow">›</span>
       </div>
-      <div id="add-game-form" style="display:none;margin-top:14px">
+      <div class="acc-body">
         <div style="display:flex;gap:8px;margin-bottom:10px">
           <div style="flex:1">
             <label class="form-label">날짜</label>
@@ -826,8 +826,7 @@ async function addGame() {
   renderGames();
   ['g-date','g-time','g-hname','g-hshort','g-hflag','g-aname','g-ashort','g-aflag']
     .forEach(id => { const el=document.getElementById(id); if(el) el.value=''; });
-  document.getElementById('add-game-form').style.display = 'none';
-  document.getElementById('add-game-toggle').textContent = '+ 경기 추가';
+  document.getElementById('acc-manual').classList.remove('open');
   toast(`✅ ${res.home.name} vs ${res.away.name} 경기 등록 완료`);
 }
 
@@ -843,13 +842,6 @@ function toggleAcc(id) {
   document.getElementById('acc-' + id).classList.toggle('open');
 }
 
-function toggleAddGameForm() {
-  const form = document.getElementById('add-game-form');
-  const btn  = document.getElementById('add-game-toggle');
-  const show = form.style.display === 'none';
-  form.style.display = show ? 'block' : 'none';
-  btn.textContent = show ? '✕ 닫기' : '+ 경기 추가';
-}
 
 async function saveGameDateTime(id) {
   const dateRaw = document.getElementById(`gd-${id}`).value; // YYYY-MM-DD
