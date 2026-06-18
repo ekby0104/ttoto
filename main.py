@@ -9,6 +9,7 @@ from fastapi.responses import FileResponse
 from pydantic import BaseModel
 from typing import Optional
 import json, os, time, httpx, re
+from datetime import datetime, timedelta
 
 app = FastAPI(title="사무실 월드컵 토토 API")
 
@@ -45,6 +46,51 @@ def get_results():        return read_json(RESULTS_FILE,        {})
 def get_auth():           return read_json(AUTH_FILE,           {"token": ""})
 def get_games():          return read_json(GAMES_FILE,          [])
 def get_ai_predictions(): return read_json(AI_PREDICTIONS_FILE, {})
+
+# 2026 FIFA 월드컵 경기장 → UTC 오프셋 (6월 기준, DST 적용)
+_VENUE_UTC_MAP = [
+    # 미국 동부 (EDT = UTC-4)
+    ("MetLife", -4), ("New Jersey", -4), ("East Rutherford", -4),
+    ("Gillette", -4), ("Foxborough", -4), ("Boston", -4),
+    ("Hard Rock", -4), ("Miami", -4),
+    ("Mercedes-Benz", -4), ("Atlanta", -4),
+    ("Lincoln Financial", -4), ("Philadelphia", -4),
+    # 캐나다 동부 (EDT = UTC-4)
+    ("BMO", -4), ("Toronto", -4),
+    # 미국 중부 (CDT = UTC-5)
+    ("AT&T", -5), ("Arlington", -5), ("Dallas", -5),
+    ("Arrowhead", -5), ("Kansas City", -5),
+    ("NRG", -5), ("Houston", -5),
+    # 미국 서부 (PDT = UTC-7)
+    ("SoFi", -7), ("Inglewood", -7), ("Los Angeles", -7),
+    ("Levi", -7), ("Santa Clara", -7), ("San Francisco", -7),
+    ("Lumen", -7), ("Seattle", -7),
+    ("BC Place", -7), ("Vancouver", -7),
+    # 멕시코 (DST 미적용, 도시별 상이)
+    ("Azteca", -6), ("Mexico City", -6), ("Ciudad de Mexico", -6),
+    ("BBVA", -6), ("Monterrey", -6),
+    ("Akron", -7), ("Guadalajara", -7),
+]
+
+def _venue_utc_offset(venue: str):
+    """경기장 이름으로 UTC 오프셋 반환. 알 수 없으면 None."""
+    v = venue.lower()
+    for name, offset in _VENUE_UTC_MAP:
+        if name.lower() in v:
+            return offset
+    return None
+
+def local_to_kst(date_str: str, time_str: str, venue: str):
+    """경기장 현지 시간 → KST. 반환: (date_str, time_str, 변환성공여부)"""
+    offset = _venue_utc_offset(venue)
+    if offset is None:
+        return date_str, time_str, False
+    try:
+        dt = datetime.strptime(f"{date_str.replace('.', '-')} {time_str}", "%Y-%m-%d %H:%M")
+        kst = dt + timedelta(hours=(9 - offset))
+        return kst.strftime("%Y.%m.%d"), kst.strftime("%H:%M"), True
+    except Exception:
+        return date_str, time_str, False
 
 def admin_required(x_admin_token: Optional[str] = Header(None)):
     auth   = get_auth()
@@ -331,6 +377,20 @@ def admin_update_game(game_id: int, body: GameIn, auth=Depends(admin_required)):
             return games[i]
     raise HTTPException(404, "게임을 찾을 수 없습니다")
 
+@app.patch("/api/admin/games/{game_id}/datetime")
+def admin_update_game_datetime(game_id: int, date: str, time: str, auth=Depends(admin_required)):
+    """경기 날짜/시간만 수정."""
+    games = get_games()
+    for g in games:
+        if str(g["id"]) == str(game_id):
+            g["date"] = date
+            g["time"] = time
+            g.pop("kst", None)
+            g.pop("kst_v2", None)
+            write_json(GAMES_FILE, games)
+            return {"ok": True}
+    raise HTTPException(404, "게임을 찾을 수 없습니다")
+
 @app.patch("/api/admin/games/{game_id}/status")
 def admin_set_game_status(game_id: int, status: str, auth=Depends(admin_required)):
     games = get_games()
@@ -340,6 +400,74 @@ def admin_set_game_status(game_id: int, status: str, auth=Depends(admin_required
             write_json(GAMES_FILE, games)
             return g
     raise HTTPException(404, "게임을 찾을 수 없습니다")
+
+@app.post("/api/admin/games/fix-kst")
+def admin_fix_kst(auth=Depends(admin_required)):
+    """경기장 시간대 기반으로 현지 시간 → KST 정확 변환 (kst_v2 미처리 경기만)."""
+    games = get_games()
+    fixed = 0
+    skipped = 0
+    unknown_venues = []
+    for g in games:
+        if g.get("kst_v2"):
+            continue
+        venue = g.get("venue", "")
+        date_str, time_str, ok = local_to_kst(g["date"], g["time"], venue)
+        if ok:
+            g["date"] = date_str
+            g["time"] = time_str
+            g["kst_v2"] = True
+            fixed += 1
+        else:
+            skipped += 1
+            if venue and venue not in unknown_venues:
+                unknown_venues.append(venue)
+    write_json(GAMES_FILE, games)
+    empty_count = sum(1 for g in games if not g.get("kst_v2") and not g.get("venue", ""))
+    return {"ok": True, "fixed": fixed, "skipped": skipped, "total": len(games),
+            "unknown_venues": unknown_venues, "empty_venue_count": empty_count}
+
+@app.post("/api/admin/games/fix-kst-manual")
+def admin_fix_kst_manual(hours: int, auth=Depends(admin_required)):
+    """venue 정보 없는 경기에 수동으로 시간차(hours)를 적용하여 KST 변환."""
+    if not (-24 <= hours <= 24):
+        raise HTTPException(400, "hours는 -24~24 사이여야 합니다")
+    games = get_games()
+    fixed = 0
+    for g in games:
+        if g.get("kst_v2"):
+            continue
+        try:
+            dt = datetime.strptime(f"{g['date'].replace('.', '-')} {g['time']}", "%Y-%m-%d %H:%M")
+            kst = dt + timedelta(hours=hours)
+            g["date"] = kst.strftime("%Y.%m.%d")
+            g["time"] = kst.strftime("%H:%M")
+            g["kst_v2"] = True
+            fixed += 1
+        except Exception:
+            pass
+    write_json(GAMES_FILE, games)
+    return {"ok": True, "fixed": fixed, "total": len(games)}
+
+@app.post("/api/admin/games/revert-kst")
+def admin_revert_kst(auth=Depends(admin_required)):
+    """잘못 적용된 +9h KST 변환을 되돌립니다 (kst:true 플래그가 있는 게임만)."""
+    games = get_games()
+    reverted = 0
+    for g in games:
+        if not g.get("kst"):
+            continue
+        try:
+            dt = datetime.strptime(f"{g['date'].replace('.', '-')} {g['time']}", "%Y-%m-%d %H:%M")
+            original = dt - timedelta(hours=9)
+            g["date"] = original.strftime("%Y.%m.%d")
+            g["time"] = original.strftime("%H:%M")
+            g.pop("kst", None)
+            reverted += 1
+        except Exception:
+            g.pop("kst", None)
+    write_json(GAMES_FILE, games)
+    return {"ok": True, "reverted": reverted, "total": len(games)}
 
 @app.delete("/api/admin/games/all")
 def admin_delete_all_games(auth=Depends(admin_required)):
@@ -447,7 +575,7 @@ async def admin_import_games(korea_only: bool = False, auth=Depends(admin_requir
         h_code = CODE_MAP.get(h_name, h_name[:3].upper())
         a_code = CODE_MAP.get(a_name, a_name[:3].upper())
 
-        # local_date: "06/11/2026 13:00" → date "2026.06.11", time "13:00"
+        # local_date: "06/11/2026 13:00" — 경기장 현지 시간(venue local time)
         raw_dt = m.get("local_date") or m.get("datetime") or m.get("kickoff_utc") or m.get("date", "")
         raw_dt = str(raw_dt)
         if "/" in raw_dt:  # MM/DD/YYYY HH:MM
@@ -461,6 +589,9 @@ async def admin_import_games(korea_only: bool = False, auth=Depends(admin_requir
         else:
             date_str = raw_dt
             time_str = ""
+
+        venue_raw = str(m.get("stadium") or m.get("venue") or m.get("ground") or "")
+        date_str, time_str, converted = local_to_kst(date_str, time_str, venue_raw)
 
         group_raw = str(m.get("group", "") or "")
         group_str = f"{group_raw}조" if group_raw and not group_raw.endswith("조") else group_raw
@@ -482,8 +613,9 @@ async def admin_import_games(korea_only: bool = False, auth=Depends(admin_requir
             "away":  {"name": a_name, "short": a_code, "flag": FLAG_MAP.get(a_name, "🏳️")},
             "date":  date_str,
             "time":  time_str,
-            "venue": str(m.get("stadium") or m.get("venue") or m.get("ground") or ""),
+            "venue": venue_raw,
             "status": "closed" if has_score else "pending",
+            "kst_v2": converted,
         }
         existing.append(game)
         existing_ids.add(ext_id)
@@ -497,6 +629,22 @@ async def admin_import_games(korea_only: bool = False, auth=Depends(admin_requir
 
     write_json(GAMES_FILE, existing)
     return {"ok": True, "added": added, "total": len(existing)}
+
+@app.post("/api/admin/games/to-kst")
+def admin_convert_games_to_kst(auth=Depends(admin_required)):
+    """기존 게임의 일시를 UTC → KST(+9h)로 일괄 변환. kst:true 플래그로 중복 변환 방지."""
+    games = get_games()
+    converted = 0
+    for g in games:
+        if g.get("kst"):
+            continue
+        new_date, new_time = to_kst(g.get("date", ""), g.get("time", ""))
+        g["date"] = new_date
+        g["time"] = new_time
+        g["kst"] = True
+        converted += 1
+    write_json(GAMES_FILE, games)
+    return {"ok": True, "converted": converted, "total": len(games)}
 
 # ── 토큰 변경 ─────────────────────────────────────────────────
 @app.post("/api/admin/auth/token")
