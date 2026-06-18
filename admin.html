@@ -173,6 +173,7 @@ main{max-width:960px;margin:0 auto;padding:16px 12px 60px}
     <button class="atab" onclick="switchATab('payments')">💛 입금 확인</button>
     <button class="atab" onclick="switchATab('results')">📋 경기 결과</button>
     <button class="atab" onclick="switchATab('payouts')">🏆 배당 처리</button>
+    <button class="atab" onclick="switchATab('feedback')">💬 피드백</button>
   </nav>
 
   <!-- ① 설정 -->
@@ -414,6 +415,20 @@ main{max-width:960px;margin:0 auto;padding:16px 12px 60px}
       </div>
     </div>
   </div>
+
+  <!-- ⑥ 피드백 -->
+  <div id="apanel-feedback" class="apanel">
+    <div class="acard">
+      <div class="acard-title" style="display:flex;justify-content:space-between;align-items:center">
+        <span><span class="icon">💬</span> 피드백 <span id="fb-admin-count" style="font-size:12px;font-weight:400;color:var(--muted);font-family:var(--mono)"></span></span>
+        <div style="display:flex;gap:8px">
+          <button class="btn btn-ghost btn-sm" onclick="loadFeedback()">새로고침</button>
+          <button class="btn btn-sm btn-danger" onclick="deleteAllFeedback()">🗑 전체 삭제</button>
+        </div>
+      </div>
+      <div id="feedback-list"></div>
+    </div>
+  </div>
 </main>
 
 <div class="toast" id="toast"></div>
@@ -443,10 +458,51 @@ function toast(msg, err=false) {
 }
 async function switchATab(name) {
   document.querySelectorAll('.atab').forEach((t,i) =>
-    t.classList.toggle('active', ['settings','games','payments','results','payouts'][i] === name));
+    t.classList.toggle('active', ['settings','games','payments','results','payouts','feedback'][i] === name));
   document.querySelectorAll('.apanel').forEach(p => p.classList.remove('active'));
   document.getElementById('apanel-' + name).classList.add('active');
+  if (name === 'feedback') { await loadFeedback(); return; }
   await loadAll();
+}
+
+// ── 피드백 (관리자) ─────────────────────────────────────────
+// 보안: 서버에서 이미 HTML escape 되어 저장되지만, 출력도 textContent 기반(escapeHtml)으로 이중 방어
+function escapeHtml(s) {
+  return String(s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+}
+async function loadFeedback() {
+  const list = await apiFetch('/admin/feedback');
+  const con = document.getElementById('feedback-list');
+  const cnt = document.getElementById('fb-admin-count');
+  if (!Array.isArray(list)) { con.innerHTML = '<div style="color:#aaa;padding:20px;text-align:center">불러오기 실패</div>'; return; }
+  if (cnt) cnt.textContent = list.length ? `총 ${list.length}건` : '';
+  if (!list.length) { con.innerHTML = '<div style="color:#aaa;padding:24px;text-align:center">아직 피드백이 없습니다</div>'; return; }
+  con.innerHTML = list.map(f => {
+    const date = new Date((f.created_at||0)*1000).toLocaleString('ko-KR');
+    const name = f.name ? escapeHtml(f.name) : '익명';
+    return `<div style="border:1px solid var(--border);border-radius:10px;padding:14px;margin-bottom:10px;background:#fafafa">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;gap:8px">
+        <strong style="font-size:14px">${name}</strong>
+        <span style="font-size:11px;color:var(--muted);font-family:var(--mono)">${escapeHtml(date)}</span>
+      </div>
+      <div style="font-size:14px;line-height:1.6;white-space:pre-wrap;word-break:break-word">${escapeHtml(f.message||'')}</div>
+      <div style="text-align:right;margin-top:8px">
+        <button class="btn btn-sm btn-danger" onclick="deleteFeedback(${Number(f.id)})">삭제</button>
+      </div>
+    </div>`;
+  }).join('');
+}
+async function deleteFeedback(id) {
+  if (!confirm('이 피드백을 삭제하시겠습니까?')) return;
+  await apiFetch(`/admin/feedback/${id}`, {method:'DELETE'});
+  await loadFeedback();
+  toast('삭제됐습니다');
+}
+async function deleteAllFeedback() {
+  if (!confirm('모든 피드백을 삭제합니다. 계속하시겠습니까?')) return;
+  await apiFetch('/admin/feedback/all', {method:'DELETE'});
+  await loadFeedback();
+  toast('✅ 피드백 전체 삭제 완료');
 }
 
 // ── API ──────────────────────────────────────────────────

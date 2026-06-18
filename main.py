@@ -6,7 +6,7 @@ from fastapi import FastAPI, HTTPException, Depends, Header
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 from fastapi.responses import FileResponse
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 from typing import Optional
 import json, os, time, httpx, re
 from datetime import datetime, timedelta
@@ -27,6 +27,7 @@ RESULTS_FILE      = os.path.join(DATA_DIR, "results.json")
 AUTH_FILE         = os.path.join(DATA_DIR, "auth.json")
 GAMES_FILE        = os.path.join(DATA_DIR, "games.json")
 AI_PREDICTIONS_FILE = os.path.join(DATA_DIR, "ai_predictions.json")
+FEEDBACK_FILE     = os.path.join(DATA_DIR, "feedback.json")
 
 os.makedirs(DATA_DIR, exist_ok=True)
 
@@ -46,6 +47,7 @@ def get_results():        return read_json(RESULTS_FILE,        {})
 def get_auth():           return read_json(AUTH_FILE,           {"token": ""})
 def get_games():          return read_json(GAMES_FILE,          [])
 def get_ai_predictions(): return read_json(AI_PREDICTIONS_FILE, {})
+def get_feedback():       return read_json(FEEDBACK_FILE,        [])
 
 def active_game_ids():
     """삭제되지 않은 경기 id 집합 (문자열)"""
@@ -119,6 +121,11 @@ class ConfigUpdate(BaseModel):
 class ResultIn(BaseModel):
     h: int
     a: int
+
+class FeedbackIn(BaseModel):
+    # 보안: 길이 제한으로 과도한 입력/페이로드 차단
+    message: str = Field(..., min_length=1, max_length=1000)
+    name:    Optional[str] = Field("", max_length=40)
 
 class PaymentUpdate(BaseModel):
     paid: bool
@@ -204,6 +211,28 @@ def list_ai_predictions():
 def auth_status():
     return {"has_token": bool(get_auth().get("token", ""))}
 
+@app.post("/api/feedback")
+def submit_feedback(fb: FeedbackIn):
+    # 보안: 원문 그대로 저장(JSON 저장은 인젝션 안전), XSS는 출력 시 escapeHtml로 차단(escape-on-output)
+    # 제어문자만 제거하고 길이 재검증
+    msg  = "".join(ch for ch in fb.message.strip() if ch == "\n" or ord(ch) >= 32)[:1000]
+    name = "".join(ch for ch in (fb.name or "").strip() if ord(ch) >= 32)[:40]
+    if not msg:
+        raise HTTPException(400, "내용을 입력해주세요")
+    items = get_feedback()
+    # 보안: 저장 개수 상한 (스토리지 남용 방지)
+    if len(items) >= 5000:
+        items = items[-4999:]
+    entry = {
+        "id":         int(time.time() * 1000),
+        "name":       name,
+        "message":    msg,
+        "created_at": int(time.time()),
+    }
+    items.append(entry)
+    write_json(FEEDBACK_FILE, items)
+    return {"ok": True}
+
 # ══════════════════════════════════════════════════════════════
 # ADMIN API
 # ══════════════════════════════════════════════════════════════
@@ -211,6 +240,22 @@ def auth_status():
 @app.get("/api/admin/config")
 def admin_get_config(auth=Depends(admin_required)):
     return get_config()
+
+@app.get("/api/admin/feedback")
+def admin_list_feedback(auth=Depends(admin_required)):
+    # 최신순
+    return sorted(get_feedback(), key=lambda x: x.get("created_at", 0), reverse=True)
+
+@app.delete("/api/admin/feedback/all")
+def admin_delete_all_feedback(auth=Depends(admin_required)):
+    write_json(FEEDBACK_FILE, [])
+    return {"ok": True}
+
+@app.delete("/api/admin/feedback/{fb_id}")
+def admin_delete_feedback(fb_id: int, auth=Depends(admin_required)):
+    items = [f for f in get_feedback() if f.get("id") != fb_id]
+    write_json(FEEDBACK_FILE, items)
+    return {"ok": True}
 
 @app.patch("/api/admin/config")
 def admin_update_config(body: ConfigUpdate, auth=Depends(admin_required)):
