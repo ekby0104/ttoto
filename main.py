@@ -177,6 +177,13 @@ def submit_bet(bet: BetIn):
     if not any(str(g["id"]) == str(bet.game_id) for g in games):
         raise HTTPException(status_code=404, detail="게임을 찾을 수 없습니다")
     bets  = get_bets()
+    dup = next((b for b in bets
+                if str(b["game_id"]) == str(bet.game_id)
+                and b["name"] == bet.name
+                and b["h"] == bet.h
+                and b["a"] == bet.a), None)
+    if dup:
+        raise HTTPException(status_code=409, detail="동일한 경기에 같은 이름·같은 득점으로 이미 베팅하셨습니다")
     entry = {
         "id":         int(time.time() * 1000),
         "game_id":    bet.game_id,

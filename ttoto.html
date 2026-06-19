@@ -485,8 +485,14 @@ async function saveBet() {
   if(!/^[가-힣ㄱ-ㅎㅏ-ㅣa-zA-Z0-9]+$/.test(name)){toast('❌ 한글·영문·숫자만 입력해주세요',true);return false}
   localStorage.setItem('toto_myname',name);
   const {matchId,h,a}=pendingBet;
-  const res=await apiFetch('/bets',{method:'POST',body:JSON.stringify({game_id:matchId,name,h,a})});
-  if(!res){toast('❌ 서버 오류가 발생했습니다',true);return false}
+  try {
+    const r=await fetch(API+'/bets',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({game_id:matchId,name,h,a})});
+    if(!r.ok){
+      const err=await r.json().catch(()=>({}));
+      toast('❌ '+(err.detail||'서버 오류가 발생했습니다'),true);
+      return false;
+    }
+  } catch(e){toast('❌ 서버에 연결할 수 없습니다',true);return false}
   allBets=await apiFetch('/bets')||allBets;
   closeModal('ov-pay');
   renderBets();
