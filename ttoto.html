@@ -506,7 +506,7 @@ async function onDirectClick() {
 function renderStatus() {
   const con=document.getElementById('status-game-list');
   let html='';
-  MATCHES.filter(m=>m.status!=='pending').forEach(m=>{
+  [...MATCHES].filter(m=>m.status!=='pending').sort((a,b)=>(b.date+b.time).localeCompare(a.date+a.time)).forEach(m=>{
     const mb=gameBets(m.id);
     const totalAmt=mb.reduce((s,b)=>s+(b.amount||0),0);
     const paidAmt=mb.filter(b=>b.paid).reduce((s,b)=>s+(b.amount||0),0);
