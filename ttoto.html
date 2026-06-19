@@ -22,9 +22,9 @@ body{background:var(--bg);color:var(--text);font-family:var(--body);min-height:1
 header{background:linear-gradient(180deg,#000 0%,var(--surface) 100%);border-bottom:2px solid var(--green-dim);padding:17px 20px;text-align:center;position:relative}
 header::after{content:'';position:absolute;bottom:-2px;left:0;right:0;height:2px;background:linear-gradient(90deg,transparent,var(--green),var(--gold),var(--green),transparent)}
 .h-title{font-family:var(--display);font-size:clamp(28px,8vw,52px);letter-spacing:3px;line-height:1;color:#fff}
-.tabs{display:flex;background:var(--surface);border-bottom:1px solid var(--border);overflow-x:auto;padding:0 12px;gap:2px;position:sticky;top:0;z-index:50}
+.tabs{display:flex;background:var(--surface);border-bottom:1px solid var(--border);position:sticky;top:0;z-index:50}
 .tabs::-webkit-scrollbar{display:none}
-.tab{padding:13px 18px;font-size:13px;font-weight:700;color:var(--muted);cursor:pointer;border-bottom:3px solid transparent;white-space:nowrap;transition:all .2s;background:none;border-left:none;border-right:none;border-top:none;font-family:var(--body)}
+.tab{flex:1;padding:13px 4px;font-size:13px;font-weight:700;color:var(--muted);cursor:pointer;border-bottom:3px solid transparent;white-space:nowrap;transition:all .2s;background:none;border-left:none;border-right:none;border-top:none;font-family:var(--body);text-align:center}
 .tab:hover{color:var(--text)}.tab.active{color:var(--green);border-bottom-color:var(--green)}
 main{max-width:820px;margin:0 auto;padding:16px 12px 40px}
 .panel{display:none}.panel.active{display:block}
@@ -38,7 +38,7 @@ main{max-width:820px;margin:0 auto;padding:16px 12px 40px}
 .mc-badge{font-size:12px;font-weight:700;padding:3px 10px;border-radius:20px;font-family:var(--mono)}
 .badge-open{background:var(--green-bg);color:var(--green)}.badge-closed{background:rgba(255,255,255,.06);color:var(--muted)}
 .badge-ended{background:rgba(245,197,24,.12);color:var(--gold)}
-.mc-msg{padding:12px 14px;border-top:1px solid var(--border);text-align:center;font-size:13px;color:var(--muted);background:rgba(255,255,255,.02)}
+.mc-msg{padding:12px 14px;border-top:1px solid var(--border);text-align:center;font-size:12px;color:var(--muted);background:rgba(255,255,255,.02)}
 .mc-msg.ended{color:var(--gold)}
 .fb-box{background:var(--card);border:1px solid var(--border);border-radius:14px;padding:20px 16px}
 .fb-title{font-family:var(--display);font-size:22px;letter-spacing:1px;color:#fff;margin-bottom:6px}
@@ -197,10 +197,10 @@ main{max-width:820px;margin:0 auto;padding:16px 12px 40px}
   <h1 class="h-title" id="site-title">사무실 토토</h1>
 </header>
 <nav class="tabs">
-  <button class="tab active" onclick="switchTab('bet')">⚽ 경기 베팅</button>
-  <button class="tab" onclick="switchTab('status')">📊 베팅 현황</button>
-  <button class="tab" onclick="switchTab('result')">🏆 게임 결과</button>
-  <button class="tab" onclick="switchTab('feedback')">💬 피드백</button>
+  <button class="tab active" onclick="switchTab('bet')">⚽ 베팅</button>
+  <button class="tab" onclick="switchTab('status')">📊 현황</button>
+  <button class="tab" onclick="switchTab('result')">🏆 결과</button>
+  <button class="tab" onclick="switchTab('feedback')">💬 문의</button>
 </nav>
 <main>
   <div id="panel-bet" class="panel active"><div id="bet-container"><div class="loader">불러오는 중...</div></div></div>
