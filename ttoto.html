@@ -81,6 +81,8 @@ main{max-width:820px;margin:0 auto;padding:16px 12px 40px}
 .btn-submit:hover{background:#ffd740}
 /* 예측 현황 */
 .status-game-list{display:flex;flex-direction:column}
+.status-notice{display:flex;align-items:center;gap:8px;background:rgba(29,185,84,.08);border:1px solid var(--green-dim);border-radius:10px;padding:10px 14px;margin-bottom:14px;font-size:12px;color:var(--muted);line-height:1.5}
+.status-notice .sn-dot{width:10px;height:10px;border-radius:50%;background:var(--green);flex-shrink:0}
 .sg-item{background:var(--card);border:1px solid var(--border);border-radius:12px;overflow:hidden;margin-bottom:10px;transition:border-color .25s}
 .sg-item.expanded{border-color:var(--green-dim)}
 .sg-row{display:flex;align-items:center;gap:12px;padding:14px 16px;cursor:pointer;transition:background .15s;user-select:none}
@@ -205,6 +207,7 @@ main{max-width:820px;margin:0 auto;padding:16px 12px 40px}
 <main>
   <div id="panel-bet" class="panel active"><div id="bet-container"><div class="loader">불러오는 중...</div></div></div>
   <div id="panel-status" class="panel">
+    <div class="status-notice"><span class="sn-dot"></span><span>입금 확인 후 베팅자 이름이 <span style="color:var(--green);font-weight:700">초록색</span>으로 변경됩니다</span></div>
     <div id="status-game-list" class="status-game-list"></div>
   </div>
   <div id="panel-result" class="panel">
