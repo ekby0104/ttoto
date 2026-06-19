@@ -237,7 +237,8 @@ main{max-width:820px;margin:0 auto;padding:16px 12px 40px}
       <div class="pay-match-box" id="pay-match-info"></div>
       <div style="margin-bottom:14px">
         <div class="field-label">이름</div>
-        <input class="field-input" id="pay-name" type="text" placeholder="홍길동" autocomplete="name" maxlength="5" style="margin-bottom:0">
+        <input class="field-input" id="pay-name" type="text" placeholder="홍길동" autocomplete="name" maxlength="5" style="margin-bottom:0"
+        oninput="this.value=this.value.replace(/[^가-힣ㄱ-ㅎㅏ-ㅣa-zA-Z0-9]/g,'')">
       </div>
       <div style="text-align:center;margin-bottom:12px;padding:12px;background:#0d0d0d;border-radius:10px">
         <div style="font-size:12px;color:var(--muted);margin-bottom:4px;font-family:var(--mono)">베팅 스코어</div>
@@ -479,6 +480,7 @@ async function saveBet() {
   const name=document.getElementById('pay-name').value.trim();
   if(!name){toast('❌ 이름을 입력해주세요',true);return false}
   if(name.length>5){toast('❌ 이름은 5자 이내로 입력해주세요',true);return false}
+  if(!/^[가-힣ㄱ-ㅎㅏ-ㅣa-zA-Z0-9]+$/.test(name)){toast('❌ 한글·영문·숫자만 입력해주세요',true);return false}
   localStorage.setItem('toto_myname',name);
   const {matchId,h,a}=pendingBet;
   const res=await apiFetch('/bets',{method:'POST',body:JSON.stringify({game_id:matchId,name,h,a})});
@@ -493,6 +495,7 @@ function onKakaoClick() {
   const name=document.getElementById('pay-name').value.trim();
   if(!name){toast('❌ 이름을 입력해주세요',true);return false}
   if(name.length>5){toast('❌ 이름은 5자 이내로 입력해주세요',true);return false}
+  if(!/^[가-힣ㄱ-ㅎㅏ-ㅣa-zA-Z0-9]+$/.test(name)){toast('❌ 한글·영문·숫자만 입력해주세요',true);return false}
   saveBet().then(ok=>{
     if(ok) toast('✅ 베팅 완료! 카카오페이 송금해주세요 💛');
   });

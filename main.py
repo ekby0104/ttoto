@@ -171,6 +171,8 @@ def list_games(include_deleted: bool = False):
 
 @app.post("/api/bets")
 def submit_bet(bet: BetIn):
+    if not re.match(r'^[가-힣ㄱ-ㅎㅏ-ㅣa-zA-Z0-9]+$', bet.name):
+        raise HTTPException(status_code=400, detail="이름은 한글·영문·숫자만 사용 가능합니다")
     games = get_games()
     if not any(str(g["id"]) == str(bet.game_id) for g in games):
         raise HTTPException(status_code=404, detail="게임을 찾을 수 없습니다")
