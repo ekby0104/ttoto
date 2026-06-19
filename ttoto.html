@@ -637,13 +637,8 @@ function computeCarryover() {
 }
 
 // ── ③ 게임 결과 & 배당 ────────────────────────────────────
-async function renderResult() {
+function renderResult() {
   const con=document.getElementById('result-container');
-  con.innerHTML='<div class="loader">결과 불러오는 중...</div>';
-  const [bets,results,games]=await Promise.all([apiFetch('/bets'),apiFetch('/results'),apiFetch('/games')]);
-  if(bets)    allBets=bets;
-  if(results) allResults=results;
-  if(games)   MATCHES=games;
   let html='';
   MATCHES.filter(m=>m.status!=='pending').forEach(m=>{
     const res=allResults[String(m.id)];
