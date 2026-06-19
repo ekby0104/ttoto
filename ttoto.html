@@ -583,8 +583,9 @@ function pickDefaultExpandIds() {
   const now = new Date(Date.now() + 9 * 3600 * 1000);
   const today = now.toISOString().slice(0, 10).replace(/-/g, '.');
   const todayGames = visible.filter(m => m.date === today);
-  const futureGames = visible.filter(m => m.date > today);
-  const targets = [...todayGames, ...futureGames];
+  const futureGames = visible.filter(m => m.date > today)
+    .sort((a, b) => (a.date + a.time).localeCompare(b.date + b.time));
+  const targets = [...todayGames, ...(futureGames.length ? [futureGames[0]] : [])];
   if (targets.length) return new Set(targets.map(m => String(m.id)));
   // 과거 게임만 있으면 가장 최근 1개만 열기
   const past = [...visible].sort((a, b) => (b.date + b.time).localeCompare(a.date + a.time));
