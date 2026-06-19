@@ -647,7 +647,7 @@ function renderResult() {
     html+=`<div class="result-card">
       <div class="mc-head">
         <span class="mc-meta ${res?'closed':'open'}">📅 ${m.date} ${m.time}</span>
-        <span class="mc-badge ${res?'badge-ended':'badge-closed'}">${res?'종료':'결과 대기'}</span>
+        <span class="mc-badge ${res?'badge-ended':m.status==='open'?'badge-open':'badge-closed'}">${res?'🏁 게임 종료':m.status==='open'?'베팅 중':'마감'}</span>
       </div>
       <div class="rc-scoreboard">
         <div class="rc-team"><div class="rc-flag">${m.home.flag}</div><div class="rc-tname">${m.home.name}</div></div>
