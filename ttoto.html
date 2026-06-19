@@ -645,12 +645,15 @@ function renderResult() {
     const mb=gameBets(m.id);
     const totalPot=mb.reduce((s,b)=>s+(b.amount||0),0);
     html+=`<div class="result-card">
+      <div class="mc-head">
+        <span class="mc-meta ${res?'closed':'open'}">📅 ${m.date} ${m.time}</span>
+        <span class="mc-badge ${res?'badge-ended':'badge-closed'}">${res?'종료':'결과 대기'}</span>
+      </div>
       <div class="rc-scoreboard">
         <div class="rc-team"><div class="rc-flag">${m.home.flag}</div><div class="rc-tname">${m.home.name}</div></div>
         <div class="rc-score-box ${res?'':'pending'}">${res?`${res.h} : ${res.a}`:'TBD'}</div>
         <div class="rc-team"><div class="rc-flag">${m.away.flag}</div><div class="rc-tname">${m.away.name}</div></div>
-      </div>
-      <div style="text-align:center;font-family:var(--mono);font-size:11px;color:var(--muted);padding:4px 0 2px">${m.date} ${m.time}</div>`;
+      </div>`;
     if(m.status==='open'){
       // 베팅 중인 경기는 결과 섹션 표시 안 함
     } else if(!res){
