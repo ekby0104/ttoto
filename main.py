@@ -108,7 +108,7 @@ def admin_required(x_admin_token: Optional[str] = Header(None)):
 # ── 모델 ──────────────────────────────────────────────────────
 class BetIn(BaseModel):
     game_id: int
-    name:    str
+    name:    str = Field(..., min_length=1, max_length=5)
     h:       int
     a:       int
 
