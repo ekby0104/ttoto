@@ -649,8 +649,11 @@ function renderResult() {
         <div class="rc-team"><div class="rc-flag">${m.home.flag}</div><div class="rc-tname">${m.home.name}</div></div>
         <div class="rc-score-box ${res?'':'pending'}">${res?`${res.h} : ${res.a}`:'TBD'}</div>
         <div class="rc-team"><div class="rc-flag">${m.away.flag}</div><div class="rc-tname">${m.away.name}</div></div>
-      </div>`;
-    if(!res){
+      </div>
+      <div style="text-align:center;font-family:var(--mono);font-size:11px;color:var(--muted);padding:4px 0 2px">${m.date} ${m.time}</div>`;
+    if(m.status==='open'){
+      // 베팅 중인 경기는 결과 섹션 표시 안 함
+    } else if(!res){
       html+='<div class="no-result">⏳ 경기 결과 대기 중</div>';
     } else if(!mb.length){
       html+='<div class="no-result">베팅 참가자가 없습니다</div>';
