@@ -125,7 +125,7 @@ class ResultIn(BaseModel):
 class FeedbackIn(BaseModel):
     # 보안: 길이 20자 제한 + 특수문자 차단(한글/영문/숫자/공백만 허용). 이름 필수.
     message: str = Field(..., min_length=1, max_length=20)
-    name:    str = Field(..., min_length=1, max_length=20)
+    name:    str = Field(..., min_length=1, max_length=5)
 
 class PaymentUpdate(BaseModel):
     paid: bool
