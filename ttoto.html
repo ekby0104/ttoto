@@ -696,7 +696,7 @@ function renderResult() {
       const allPaidOut=winners.length>0&&winners.every(b=>b.paid_out);
       html+=`<div class="rc-body">
         <div class="rc-section-label">${winners.length
-          ? `🏆 ${label} · 판돈 ${Number(gamePot).toLocaleString()}원${carryover?` + 이월 ${Number(carryover).toLocaleString()}원`:''} · 인당 +${Number(prize).toLocaleString()}원${winners[0].amount?`(${Math.round(prize/winners[0].amount*100)}%)`:''}`
+          ? `🏆 ${label} · 판돈 ${Number(gamePot).toLocaleString()}원${carryover?` + 이월 ${Number(carryover).toLocaleString()}원`:''}`
           : `❌ 당첨자 없음 · ${Number(gamePot).toLocaleString()}원 이월`}</div>`;
       if(winners.length){
         winners.forEach(b=>{
