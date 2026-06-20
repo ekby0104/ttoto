@@ -644,7 +644,7 @@ async def _fetch_and_parse_games(korea_only: bool):
         "Trinidad and Tobago":"🇹🇹",
     }
     try:
-        async with httpx.AsyncClient(timeout=10) as client:
+        async with httpx.AsyncClient(timeout=40) as client:  # 외부 API 응답이 20초+ 걸림
             r = await client.get("https://worldcup26.ir/get/games")
             r.raise_for_status()
             data = r.json()
