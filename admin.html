@@ -648,7 +648,7 @@ async function saveToken() {
 // ── ② 입금 확인 ──────────────────────────────────────────
 function renderPayments() {
   const gFilter = document.getElementById('pay-filter-game').value;
-  const bets    = gFilter ? allBets.filter(b => b.game_id === parseInt(gFilter)) : allBets;
+  const bets    = (gFilter ? allBets.filter(b => b.game_id === parseInt(gFilter)) : allBets).slice().sort((a,b)=>(b.created_at||0)-(a.created_at||0));
   const tbody   = document.getElementById('payments-body');
   const cntEl   = document.getElementById('pay-count');
   const paidCnt = bets.filter(b => b.paid).length;

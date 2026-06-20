@@ -108,7 +108,7 @@ def admin_required(x_admin_token: Optional[str] = Header(None)):
 # ── 모델 ──────────────────────────────────────────────────────
 class BetIn(BaseModel):
     game_id: int
-    name:    str
+    name:    str = Field(..., min_length=1, max_length=5)
     h:       int
     a:       int
 
@@ -125,7 +125,7 @@ class ResultIn(BaseModel):
 class FeedbackIn(BaseModel):
     # 보안: 길이 20자 제한 + 특수문자 차단(한글/영문/숫자/공백만 허용). 이름 필수.
     message: str = Field(..., min_length=1, max_length=20)
-    name:    str = Field(..., min_length=1, max_length=20)
+    name:    str = Field(..., min_length=1, max_length=5)
 
 class PaymentUpdate(BaseModel):
     paid: bool
@@ -171,10 +171,19 @@ def list_games(include_deleted: bool = False):
 
 @app.post("/api/bets")
 def submit_bet(bet: BetIn):
+    if not re.match(r'^[가-힣ㄱ-ㅎㅏ-ㅣa-zA-Z0-9]+$', bet.name):
+        raise HTTPException(status_code=400, detail="이름은 한글·영문·숫자만 사용 가능합니다")
     games = get_games()
     if not any(str(g["id"]) == str(bet.game_id) for g in games):
         raise HTTPException(status_code=404, detail="게임을 찾을 수 없습니다")
     bets  = get_bets()
+    dup = next((b for b in bets
+                if str(b["game_id"]) == str(bet.game_id)
+                and b["name"] == bet.name
+                and b["h"] == bet.h
+                and b["a"] == bet.a), None)
+    if dup:
+        raise HTTPException(status_code=409, detail="동일한 경기에 같은 이름·같은 득점으로 이미 베팅하셨습니다")
     entry = {
         "id":         int(time.time() * 1000),
         "game_id":    bet.game_id,
