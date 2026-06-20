@@ -292,8 +292,8 @@ main{max-width:960px;margin:0 auto;padding:16px 12px 60px}
           </label>
         </div>
         <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap">
-          <button class="btn btn-primary" onclick="importGames()" id="import-btn">
-            📥 worldcup26.ir 에서 불러오기
+          <button class="btn btn-primary" onclick="openImportPreview()" id="import-btn">
+            📥 경기 목록 불러오기
           </button>
           <span id="import-result" style="font-size:13px;color:var(--muted);font-family:var(--mono)"></span>
         </div>
@@ -436,6 +436,25 @@ main{max-width:960px;margin:0 auto;padding:16px 12px 60px}
     </div>
   </div>
 </main>
+
+<!-- 경기 불러오기 미리보기 모달 -->
+<div id="import-modal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:1000;align-items:flex-end;justify-content:center">
+  <div style="background:#fff;width:100%;max-width:620px;max-height:88vh;border-radius:16px 16px 0 0;display:flex;flex-direction:column;overflow:hidden">
+    <div style="padding:16px;border-bottom:1px solid var(--border);display:flex;justify-content:space-between;align-items:center;gap:8px">
+      <strong style="font-size:15px">📥 불러올 경기 선택 <span id="im-count" style="font-size:12px;color:var(--muted);font-weight:400"></span></strong>
+      <button onclick="closeImportModal()" style="background:none;border:none;font-size:22px;cursor:pointer;color:var(--muted);line-height:1">×</button>
+    </div>
+    <div style="padding:10px 16px;border-bottom:1px solid var(--border);display:flex;gap:8px;flex-wrap:wrap">
+      <button class="btn btn-ghost btn-sm" onclick="imSelectAll(true)">전체 선택</button>
+      <button class="btn btn-ghost btn-sm" onclick="imSelectAll(false)">전체 해제</button>
+    </div>
+    <div id="im-list" style="overflow-y:auto;padding:8px 16px;flex:1"></div>
+    <div style="padding:14px 16px;border-top:1px solid var(--border);display:flex;gap:8px">
+      <button class="btn btn-ghost" style="flex:1" onclick="closeImportModal()">취소</button>
+      <button class="btn btn-primary" style="flex:2" onclick="confirmImport()" id="im-confirm-btn">선택 경기 등록</button>
+    </div>
+  </div>
+</div>
 
 <div class="toast" id="toast"></div>
 
@@ -1002,21 +1021,66 @@ async function generateAiPredictions() {
   toast(`✅ ${res.generated}개 경기 AI 예측이 생성됐습니다`);
 }
 
-async function importGames() {
+let importPreview = [];        // 미리보기로 가져온 경기 목록
+let importKoreaOnly = false;
+
+async function openImportPreview() {
   const btn = document.getElementById('import-btn');
   const res_el = document.getElementById('import-result');
-  const koreaOnly = document.querySelector('input[name="import-filter"]:checked')?.value === 'korea';
+  importKoreaOnly = document.querySelector('input[name="import-filter"]:checked')?.value === 'korea';
   btn.disabled = true;
   btn.textContent = '📥 불러오는 중...';
   res_el.textContent = '';
-  const res = await apiFetch(`/admin/games/import?korea_only=${koreaOnly}`, {method:'POST'});
+  const res = await apiFetch(`/admin/games/import/preview?korea_only=${importKoreaOnly}`);
   btn.disabled = false;
-  btn.textContent = '📥 worldcup26.ir 에서 불러오기';
-  if (!res) { toast('❌ 외부 API 연결 실패', true); return }
-  allGames = await apiFetch('/games') || allGames;
-  renderGames();
-  res_el.textContent = `완료: ${res.added}개 추가 (총 ${res.total}경기)`;
-  toast(`✅ ${res.added}개 경기가 추가됐습니다`);
+  btn.textContent = '📥 경기 목록 불러오기';
+  if (!res || !Array.isArray(res.games)) { toast('❌ 외부 API 연결 실패', true); return }
+  importPreview = res.games;
+  renderImportModal();
+  document.getElementById('import-modal').style.display = 'flex';
+  document.body.style.overflow = 'hidden';
+}
+
+function renderImportModal() {
+  const con = document.getElementById('im-list');
+  const newGames = importPreview.filter(g => !g.exists);
+  document.getElementById('im-count').textContent =
+    `(전체 ${importPreview.length} · 신규 ${newGames.length} · 등록됨 ${importPreview.length - newGames.length})`;
+  con.innerHTML = importPreview.map(g => {
+    const resTxt = g.result ? ` · 결과 ${g.result.h}-${g.result.a}` : '';
+    const dis = g.exists;
+    return `<label style="display:flex;align-items:center;gap:10px;padding:10px 6px;border-bottom:1px solid #eee;cursor:${dis?'not-allowed':'pointer'};opacity:${dis?'.5':'1'}">
+      <input type="checkbox" class="im-chk" value="${g.id}" ${dis?'disabled':'checked'}>
+      <div style="flex:1;min-width:0">
+        <div style="font-weight:700;font-size:14px">${g.home.flag} ${g.home.short} vs ${g.away.short} ${g.away.flag}</div>
+        <div style="font-size:12px;color:var(--muted);font-family:var(--mono)">📅 ${g.date} ${g.time||''}${resTxt}</div>
+      </div>
+      ${dis?'<span class="badge badge-gray">등록됨</span>':''}
+    </label>`;
+  }).join('');
+}
+
+function imSelectAll(v) {
+  document.querySelectorAll('.im-chk:not(:disabled)').forEach(c => c.checked = v);
+}
+function closeImportModal() {
+  document.getElementById('import-modal').style.display = 'none';
+  document.body.style.overflow = '';
+}
+
+async function confirmImport() {
+  const ids = [...document.querySelectorAll('.im-chk:checked')].map(c => c.value);
+  if (!ids.length) { toast('❌ 선택된 경기가 없습니다', true); return }
+  const btn = document.getElementById('im-confirm-btn');
+  btn.disabled = true; btn.textContent = '등록 중...';
+  const res = await apiFetch(`/admin/games/import/confirm?korea_only=${importKoreaOnly}`,
+    {method:'POST', body:JSON.stringify({ids})});
+  btn.disabled = false; btn.textContent = '선택 경기 등록';
+  if (!res) { toast('❌ 등록 실패', true); return }
+  closeImportModal();
+  await loadAll();
+  document.getElementById('import-result').textContent = `완료: ${res.added}개 추가 (총 ${res.total}경기)`;
+  toast(`✅ ${res.added}개 경기가 등록됐습니다`);
 }
 
 </script>

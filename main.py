@@ -596,12 +596,9 @@ def admin_purge_game(game_id: int, auth=Depends(admin_required)):
     return {"ok": True}
 
 # ── 외부 API에서 경기 가져오기 (worldcup26.ir — 무료·키 불필요) ──
-@app.post("/api/admin/games/import")
-async def admin_import_games(korea_only: bool = False, auth=Depends(admin_required)):
-    """
-    worldcup26.ir 에서 전체 경기 일정을 가져와 games.json 에 병합.
-    이미 id 가 같은 경기가 있으면 건너뜀.
-    """
+async def _fetch_and_parse_games(korea_only: bool):
+    """worldcup26.ir 에서 경기를 가져와 파싱한 목록 반환 (저장하지 않음).
+    반환: [{"game": {...}, "result": {"h":..,"a":..}|None}, ...]"""
     CODE_MAP = {
         "South Korea":"KOR","Korea Republic":"KOR","Mexico":"MEX","South Africa":"RSA",
         "United States":"USA","USA":"USA","Canada":"CAN","Argentina":"ARG",
@@ -655,13 +652,11 @@ async def admin_import_games(korea_only: bool = False, auth=Depends(admin_requir
         raise HTTPException(502, f"외부 API 오류: {e}")
 
     raw_matches = data if isinstance(data, list) else data.get("games", data.get("matches", []))
-    existing    = get_games()
-    existing_ids = {str(g["id"]) for g in existing}
-    added = 0
+    parsed = []
 
     for m in raw_matches:
         ext_id = str(m.get("id") or m.get("match_number") or m.get("matchNumber") or "")
-        if not ext_id or ext_id in existing_ids:
+        if not ext_id:
             continue
         if korea_only:
             h = str(m.get("home_team_name_en", ""))
@@ -728,17 +723,48 @@ async def admin_import_games(korea_only: bool = False, auth=Depends(admin_requir
             "status": "closed" if has_score else "pending",
             "kst_v2": converted,
         }
-        existing.append(game)
-        existing_ids.add(ext_id)
+        result = {"h": h_score_int, "a": a_score_int} if has_score else None
+        parsed.append({"game": game, "result": result})
 
-        if has_score:
-            results = get_results()
-            results[ext_id] = {"h": h_score_int, "a": a_score_int}
-            write_json(RESULTS_FILE, results)
+    return parsed
 
+
+class ImportConfirm(BaseModel):
+    ids: list[str]
+
+
+@app.get("/api/admin/games/import/preview")
+async def admin_import_preview(korea_only: bool = False, auth=Depends(admin_required)):
+    """가져올 경기 목록 미리보기 (저장하지 않음). 이미 등록된 경기는 exists=True."""
+    parsed = await _fetch_and_parse_games(korea_only)
+    existing_ids = {str(g["id"]) for g in get_games()}
+    games = []
+    for p in parsed:
+        g = p["game"]
+        games.append({**g, "result": p["result"], "exists": str(g["id"]) in existing_ids})
+    return {"games": games}
+
+
+@app.post("/api/admin/games/import/confirm")
+async def admin_import_confirm(body: ImportConfirm, korea_only: bool = False, auth=Depends(admin_required)):
+    """선택된 경기 id 만 등록."""
+    parsed = await _fetch_and_parse_games(korea_only)
+    sel = {str(i) for i in body.ids}
+    existing = get_games()
+    existing_ids = {str(g["id"]) for g in existing}
+    results = get_results()
+    added = 0
+    for p in parsed:
+        g = p["game"]; gid = str(g["id"])
+        if gid not in sel or gid in existing_ids:
+            continue
+        existing.append(g)
+        existing_ids.add(gid)
+        if p["result"]:
+            results[gid] = p["result"]
         added += 1
-
     write_json(GAMES_FILE, existing)
+    write_json(RESULTS_FILE, results)
     return {"ok": True, "added": added, "total": len(existing)}
 
 @app.post("/api/admin/games/to-kst")
