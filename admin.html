@@ -814,7 +814,7 @@ function renderPayouts() {
       const isW = winIds.has(b.id);
       const ret = isW ? (b.amount||0)+prize : 0;
       rows.push(`<tr>
-        <td><strong>${b.name}</strong></td>
+        <td class="pay-name"><strong>${b.name}</strong></td>
         <td style="font-size:12px">${matchLabel(b.game_id)}</td>
         <td style="font-family:var(--mono)">${b.h}-${b.a}</td>
         <td><span class="badge ${isW?'badge-green':res?'badge-gray':'badge-gray'}">${isW?'🏆 당첨':res?'낙첨':'미정'}</span></td>
