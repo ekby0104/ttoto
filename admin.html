@@ -110,9 +110,12 @@ main{max-width:960px;margin:0 auto;padding:16px 12px 60px}
 .badge-gold{background:var(--gold-bg);color:var(--gold)}
 .badge-red{background:var(--red-bg);color:var(--red)}
 .badge-gray{background:#f0f0f0;color:var(--muted)}
+/* 입금확인: 이름 최대 5글자 한 줄, 초과 시 줄바꿈 */
+.pay-name{width:5.5em;max-width:5.5em;white-space:normal;word-break:break-all;line-height:1.35}
 /* 입금확인 처리 버튼: 좁은 세로 배치 */
-.pay-act{display:flex;flex-direction:column;gap:4px;width:1%;white-space:nowrap}
-.pay-act .btn{padding:5px 8px;font-size:12px;text-align:center}
+.pay-act{width:1%;white-space:nowrap}
+.pay-act .btn{display:block;width:100%;padding:6px 4px;font-size:12px;line-height:1;text-align:center;margin-bottom:4px;border-radius:6px;min-width:46px}
+.pay-act .btn:last-child{margin-bottom:0}
 
 /* ── 경기 결과 ── */
 .result-row{display:flex;align-items:flex-start;gap:8px;padding:12px 0;border-bottom:1px solid var(--border);flex-wrap:wrap}
@@ -656,16 +659,16 @@ function renderPayments() {
   }
   tbody.innerHTML = bets.map(b => `
     <tr>
-      <td><strong>${b.name}</strong></td>
+      <td class="pay-name"><strong>${b.name}</strong></td>
       <td style="font-size:12px;white-space:nowrap">${matchLabel(b.game_id)}</td>
-      <td><span style="font-family:var(--mono);font-weight:700">${b.h}-${b.a}</span></td>
+      <td style="white-space:nowrap"><span style="font-family:var(--mono);font-weight:700">${b.h}-${b.a}</span></td>
       <td style="font-family:var(--mono);white-space:nowrap">${Number(b.amount||0).toLocaleString()}원</td>
       <td><span class="badge ${b.paid?'badge-green':'badge-gray'}" style="white-space:nowrap">${b.paid?'✅ 입금':'⏳ 대기'}</span></td>
       <td class="pay-act">
         <button class="btn btn-sm ${b.paid?'btn-ghost':'btn-gold'}" onclick="togglePayment(${b.id},${!b.paid})">
           ${b.paid?'취소':'입금'}
         </button>
-        <button class="btn btn-sm btn-danger" onclick="deleteBet(${b.id})">🗑</button>
+        <button class="btn btn-sm btn-danger" onclick="deleteBet(${b.id})">삭제</button>
       </td>
     </tr>`).join('');
 }
