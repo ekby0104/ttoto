@@ -520,50 +520,21 @@ async function renderFeedback(){
     item.appendChild(_ic);
     if(comments.length){
       try{
-        var cmtsDiv=mk('div','fb-comments');
         for(var j=0;j<comments.length;j++){
           var c=comments[j];
-          var cmtDiv=mk('div','fb-comment');
-          var hd=mk('div','fb-comment-head');
-          var lbl=mk('span','fb-comment-label'); lbl.textContent='🛡️ 관리자';
-          var cdt=mk('span','fb-comment-date'); cdt.textContent=new Date((c.created_at||0)*1000).toLocaleString('ko-KR');
-          var act=mk('div','fb-comment-actions');
-          var eb=mk('button','fb-comment-action-btn'); eb.textContent='✏️';
-          eb.onclick=(function(cid){return function(){toggleCmtEdit(cid)};})(c.id);
-          var dlb=mk('button','fb-comment-action-btn'); dlb.textContent='🗑️';
-          dlb.onclick=(function(cid){return function(){toggleCmtDel(cid)};})(c.id);
-          act.appendChild(eb); act.appendChild(dlb);
-          hd.appendChild(lbl); hd.appendChild(cdt); hd.appendChild(act);
-          cmtDiv.appendChild(hd);
-          var txt=mk('div','fb-comment-text'); txt.textContent=c.text||'';
-          cmtDiv.appendChild(txt);
-          // 수정 영역
-          var ea=mk('div','fb-reply-area'); ea.id='fb-cedit-'+c.id;
-          var etok=mk('input','fb-reply-token'); etok.type='password'; etok.id='fb-cedit-token-'+c.id; etok.placeholder='관리자 토큰';
-          var etxt=mk('textarea','fb-reply-input'); etxt.id='fb-cedit-text-'+c.id; etxt.value=c.text||'';
-          var erow=mk('div'); erow.style.cssText='display:flex;gap:6px;margin-top:4px';
-          var esub=mk('button','fb-reply-submit'); esub.textContent='수정 완료';
-          esub.onclick=(function(fid,cid){return function(){doEditComment(fid,cid)};})(f.id,c.id);
-          var ecnl=mk('button','fb-comment-cancel-btn'); ecnl.textContent='취소';
-          ecnl.onclick=(function(cid){return function(){document.getElementById('fb-cedit-'+cid).style.display='none'};})(c.id);
-          erow.appendChild(esub); erow.appendChild(ecnl);
-          ea.appendChild(etok); ea.appendChild(etxt); ea.appendChild(erow);
-          cmtDiv.appendChild(ea);
-          // 삭제 영역
-          var da=mk('div','fb-reply-area'); da.id='fb-cdel-'+c.id;
-          var dp=mk('p'); dp.style.cssText='font-size:12px;color:#e05555;margin-bottom:8px'; dp.textContent='이 답글을 삭제하시겠습니까?';
-          var dtok=mk('input','fb-reply-token'); dtok.type='password'; dtok.id='fb-cdel-token-'+c.id; dtok.placeholder='관리자 토큰';
-          var drow=mk('div'); drow.style.cssText='display:flex;gap:6px;margin-top:4px';
-          var dsub=mk('button','fb-reply-submit'); dsub.style.background='#e05555'; dsub.textContent='삭제';
-          dsub.onclick=(function(fid,cid){return function(){doDeleteComment(fid,cid)};})(f.id,c.id);
-          var dcnl=mk('button','fb-comment-cancel-btn'); dcnl.textContent='취소';
-          dcnl.onclick=(function(cid){return function(){document.getElementById('fb-cdel-'+cid).style.display='none'};})(c.id);
-          drow.appendChild(dsub); drow.appendChild(dcnl);
-          da.appendChild(dp); da.appendChild(dtok); da.appendChild(drow);
-          cmtDiv.appendChild(da);
-          cmtsDiv.appendChild(cmtDiv);
+          // 인라인 스타일만 사용 — CSS 클래스 의존성 제거 (iOS 렌더링 격리 테스트)
+          var box=document.createElement('div');
+          box.style.cssText='background:#fffbe6;border:2px solid #c62828;border-radius:8px;padding:10px 12px;margin-top:8px';
+          var lblB=document.createElement('div');
+          lblB.style.cssText='font-size:11px;font-weight:700;color:#c62828;margin-bottom:4px';
+          lblB.textContent='관리자 답글';
+          box.appendChild(lblB);
+          var txtB=document.createElement('div');
+          txtB.style.cssText='font-size:14px;color:#111;line-height:1.5';
+          txtB.textContent=c.text||'(빈 내용)';
+          box.appendChild(txtB);
+          item.appendChild(box);
         }
-        item.appendChild(cmtsDiv);
       }catch(err){
         var errDiv=document.createElement('div');
         errDiv.style.cssText='background:orange;color:#000;padding:6px;font-size:11px;font-family:monospace;border-radius:4px;margin-top:6px';
