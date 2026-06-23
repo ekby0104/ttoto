@@ -482,7 +482,8 @@ async function renderFeedback(){
   try{ list=await fetch(API+'/feedback',{cache:'no-store'}).then(r=>r.json()); }catch(e){ list=null; }
   if(!Array.isArray(list)){con.innerHTML='';return}
   if(!list.length){con.innerHTML='<div class="fb-empty">아직 등록된 피드백이 없습니다</div>';return}
-  let html='';
+  let totalCmts=0;for(let i=0;i<list.length;i++)totalCmts+=(list[i].comments||[]).length;
+  let html='<div style="background:rgba(29,185,84,.15);border:1px solid var(--green-dim);border-radius:8px;padding:5px 10px;font-size:11px;color:var(--green);margin-bottom:10px">&#128270; API 답글 수: '+totalCmts+'개 / 피드백: '+list.length+'건</div>';
   for(let i=0;i<list.length;i++){
     const f=list[i];
     const date=new Date((f.created_at||0)*1000).toLocaleString('ko-KR');
