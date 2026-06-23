@@ -483,13 +483,6 @@ async function renderFeedback(){
   try{ list=await fetch(API+'/feedback',{cache:'no-store'}).then(r=>r.json()); }catch(e){ list=null; }
   // 전체 DOM API로 재구성 — innerHTML 일절 사용 안 함 (iOS Safari 파싱 버그 완전 우회)
   while(con.firstChild) con.removeChild(con.firstChild);
-  // ▼ 디버그 배너 (문제 확인 후 제거 예정)
-  const _dbg=document.createElement('div');
-  const _cnt=Array.isArray(list)?list.length:0;
-  const _cmt=Array.isArray(list)?list.reduce((s,f)=>s+((f.comments||[]).length),0):0;
-  _dbg.style.cssText='background:#c62828;color:#fff;padding:8px 12px;border-radius:8px;font-size:12px;margin-bottom:10px;font-family:monospace';
-  _dbg.textContent='[DEBUG] 피드백 '+_cnt+'건 | 총 댓글 '+_cmt+'개';
-  con.appendChild(_dbg);
   if(!Array.isArray(list)) return;
   if(!list.length){
     const empty=document.createElement('div');
@@ -513,44 +506,86 @@ async function renderFeedback(){
     // 본문
     const msg=mk('div','fb-item-msg'); msg.textContent=f.message||'';
     item.appendChild(msg);
-    // 댓글 목록 — try-catch로 에러 표시 (디버그 중)
-    var _ic=document.createElement('div');
-    _ic.style.cssText='font-size:11px;color:#888;font-family:monospace;margin-top:4px';
-    _ic.textContent='[D] comments:'+comments.length+' id:'+f.id;
-    item.appendChild(_ic);
+    // 댓글 목록 — 인라인 스타일만 사용 (iOS Safari CSS 클래스 렌더링 회피)
+    var ST_TOKEN='width:100%;background:#0d0d0d;border:1px solid #333;border-radius:8px;color:#f0f0f0;font-size:13px;padding:9px 12px;outline:none;margin-bottom:8px;letter-spacing:1px';
+    var ST_TEXTAREA='width:100%;background:#0d0d0d;border:1px solid #333;border-radius:8px;color:#f0f0f0;font-size:13px;padding:9px 12px;outline:none;margin-bottom:8px;resize:vertical;min-height:70px;line-height:1.5';
+    var ST_SUBMIT='background:#1db954;color:#fff;border:none;border-radius:8px;padding:9px 18px;font-size:13px;font-weight:700;cursor:pointer';
+    var ST_CANCEL='flex:1;background:rgba(255,255,255,.06);color:#999;border:1px solid #333;border-radius:8px;padding:9px 14px;font-size:13px;font-weight:700;cursor:pointer';
     if(comments.length){
-      try{
-        for(var j=0;j<comments.length;j++){
-          var c=comments[j];
-          // 인라인 스타일만 사용 — CSS 클래스 의존성 제거 (iOS 렌더링 격리 테스트)
-          var box=document.createElement('div');
-          box.style.cssText='background:#fffbe6;border:2px solid #c62828;border-radius:8px;padding:10px 12px;margin-top:8px';
-          var lblB=document.createElement('div');
-          lblB.style.cssText='font-size:11px;font-weight:700;color:#c62828;margin-bottom:4px';
-          lblB.textContent='관리자 답글';
-          box.appendChild(lblB);
-          var txtB=document.createElement('div');
-          txtB.style.cssText='font-size:14px;color:#111;line-height:1.5';
-          txtB.textContent=c.text||'(빈 내용)';
-          box.appendChild(txtB);
-          item.appendChild(box);
-        }
-      }catch(err){
-        var errDiv=document.createElement('div');
-        errDiv.style.cssText='background:orange;color:#000;padding:6px;font-size:11px;font-family:monospace;border-radius:4px;margin-top:6px';
-        errDiv.textContent='[ERR] '+(err&&err.message?err.message:String(err));
-        item.appendChild(errDiv);
+      for(var j=0;j<comments.length;j++){
+        var c=comments[j];
+        var box=document.createElement('div');
+        box.style.cssText='background:rgba(29,185,84,.08);border-left:3px solid #14833a;border-radius:0 8px 8px 0;padding:10px 12px;margin-top:8px';
+        // 헤더 (라벨 + 날짜 + 수정/삭제 버튼)
+        var hd=document.createElement('div');
+        hd.style.cssText='display:flex;align-items:center;gap:6px;margin-bottom:5px';
+        var lblB=document.createElement('span');
+        lblB.style.cssText='font-size:11px;font-weight:700;color:#1db954';
+        lblB.textContent='🛡️ 관리자';
+        var dtB=document.createElement('span');
+        dtB.style.cssText='font-size:11px;color:#666;flex:1';
+        dtB.textContent=new Date((c.created_at||0)*1000).toLocaleString('ko-KR');
+        var eb=document.createElement('button');
+        eb.style.cssText='background:none;border:none;color:#999;font-size:14px;cursor:pointer;padding:2px 6px';
+        eb.textContent='✏️';
+        eb.onclick=(function(cid){return function(){toggleCmtEdit(cid)};})(c.id);
+        var dlb=document.createElement('button');
+        dlb.style.cssText='background:none;border:none;color:#999;font-size:14px;cursor:pointer;padding:2px 6px';
+        dlb.textContent='🗑️';
+        dlb.onclick=(function(cid){return function(){toggleCmtDel(cid)};})(c.id);
+        hd.appendChild(lblB); hd.appendChild(dtB); hd.appendChild(eb); hd.appendChild(dlb);
+        box.appendChild(hd);
+        // 본문
+        var txtB=document.createElement('div');
+        txtB.style.cssText='font-size:14px;color:#f0f0f0;line-height:1.5;white-space:pre-wrap;word-break:break-word';
+        txtB.textContent=c.text||'';
+        box.appendChild(txtB);
+        // 수정 영역 (기본 숨김)
+        var ea=document.createElement('div');
+        ea.id='fb-cedit-'+c.id;
+        ea.style.cssText='margin-top:10px;border-top:1px dashed #333;padding-top:10px;display:none';
+        var etok=document.createElement('input');
+        etok.type='password'; etok.id='fb-cedit-token-'+c.id; etok.placeholder='관리자 토큰'; etok.style.cssText=ST_TOKEN;
+        var etxt=document.createElement('textarea');
+        etxt.id='fb-cedit-text-'+c.id; etxt.value=c.text||''; etxt.style.cssText=ST_TEXTAREA;
+        var erow=document.createElement('div'); erow.style.cssText='display:flex;gap:6px';
+        var esub=document.createElement('button'); esub.textContent='수정 완료'; esub.style.cssText=ST_SUBMIT;
+        esub.onclick=(function(fid,cid){return function(){doEditComment(fid,cid)};})(f.id,c.id);
+        var ecnl=document.createElement('button'); ecnl.textContent='취소'; ecnl.style.cssText=ST_CANCEL;
+        ecnl.onclick=(function(cid){return function(){document.getElementById('fb-cedit-'+cid).style.display='none'};})(c.id);
+        erow.appendChild(esub); erow.appendChild(ecnl);
+        ea.appendChild(etok); ea.appendChild(etxt); ea.appendChild(erow);
+        box.appendChild(ea);
+        // 삭제 영역 (기본 숨김)
+        var da=document.createElement('div');
+        da.id='fb-cdel-'+c.id;
+        da.style.cssText='margin-top:10px;border-top:1px dashed #333;padding-top:10px;display:none';
+        var dp=document.createElement('p');
+        dp.style.cssText='font-size:12px;color:#e05555;margin-bottom:8px'; dp.textContent='이 답글을 삭제하시겠습니까?';
+        var dtok=document.createElement('input');
+        dtok.type='password'; dtok.id='fb-cdel-token-'+c.id; dtok.placeholder='관리자 토큰'; dtok.style.cssText=ST_TOKEN;
+        var drow=document.createElement('div'); drow.style.cssText='display:flex;gap:6px';
+        var dsub=document.createElement('button'); dsub.textContent='삭제'; dsub.style.cssText=ST_SUBMIT+';background:#e05555';
+        dsub.onclick=(function(fid,cid){return function(){doDeleteComment(fid,cid)};})(f.id,c.id);
+        var dcnl=document.createElement('button'); dcnl.textContent='취소'; dcnl.style.cssText=ST_CANCEL;
+        dcnl.onclick=(function(cid){return function(){document.getElementById('fb-cdel-'+cid).style.display='none'};})(c.id);
+        drow.appendChild(dsub); drow.appendChild(dcnl);
+        da.appendChild(dp); da.appendChild(dtok); da.appendChild(drow);
+        box.appendChild(da);
+        item.appendChild(box);
       }
     }
-    // 답글 달기 토글 버튼
-    const togBtn=mk('button','fb-reply-toggle'); togBtn.id='fb-toggle-'+f.id; togBtn.textContent='💬 관리자 답글';
+    // 답글 달기 토글 버튼 (인라인 스타일)
+    const togBtn=document.createElement('button'); togBtn.id='fb-toggle-'+f.id; togBtn.textContent='💬 관리자 답글';
+    togBtn.style.cssText='display:inline-flex;align-items:center;gap:4px;background:none;border:1px solid #333;border-radius:20px;color:#999;font-size:11px;cursor:pointer;padding:5px 12px;margin-top:10px';
     togBtn.onclick=(function(fid){return function(){toggleReply(fid)};})(f.id);
     item.appendChild(togBtn);
-    // 답글 입력 영역
-    const ra=mk('div','fb-reply-area'); ra.id='fb-reply-'+f.id;
-    const rtok=mk('input','fb-reply-token'); rtok.type='password'; rtok.id='fb-reply-token-'+f.id; rtok.placeholder='관리자 토큰';
-    const rtxt=mk('textarea','fb-reply-input'); rtxt.id='fb-reply-text-'+f.id; rtxt.placeholder='답글을 입력해주세요';
-    const rsub=mk('button','fb-reply-submit'); rsub.textContent='등록';
+    // 답글 입력 영역 (인라인 스타일, 기본 숨김)
+    const ra=document.createElement('div'); ra.id='fb-reply-'+f.id;
+    ra.style.cssText='margin-top:10px;border-top:1px dashed #333;padding-top:10px;display:none';
+    const rtok=document.createElement('input'); rtok.type='password'; rtok.id='fb-reply-token-'+f.id; rtok.placeholder='관리자 토큰'; rtok.style.cssText=ST_TOKEN;
+    const rtxt=document.createElement('textarea'); rtxt.id='fb-reply-text-'+f.id; rtxt.placeholder='답글을 입력해주세요'; rtxt.style.cssText=ST_TEXTAREA;
+    const rsub=document.createElement('button'); rsub.textContent='등록'; rsub.style.cssText=ST_SUBMIT;
     rsub.onclick=(function(fid){return function(){submitComment(fid)};})(f.id);
     ra.appendChild(rtok); ra.appendChild(rtxt); ra.appendChild(rsub);
     item.appendChild(ra);
