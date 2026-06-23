@@ -482,19 +482,17 @@ async function renderFeedback(){
   try{ list=await fetch(API+'/feedback',{cache:'no-store'}).then(r=>r.json()); }catch(e){ list=null; }
   if(!Array.isArray(list)){con.innerHTML='';return}
   if(!list.length){con.innerHTML='<div class="fb-empty">아직 등록된 피드백이 없습니다</div>';return}
-  let totalCmts=0;for(let i=0;i<list.length;i++)totalCmts+=(list[i].comments||[]).length;
-  let html='<div style="background:rgba(29,185,84,.15);border:1px solid var(--green-dim);border-radius:8px;padding:5px 10px;font-size:11px;color:var(--green);margin-bottom:10px">&#128270; API 답글 수: '+totalCmts+'개 / 피드백: '+list.length+'건</div>';
+  let html='';
   for(let i=0;i<list.length;i++){
     const f=list[i];
     const date=new Date((f.created_at||0)*1000).toLocaleString('ko-KR');
-    html+='<div class="fb-item">';
+    html+='<div class="fb-item" id="fb-item-'+f.id+'">';
     html+='<div class="fb-item-head">';
     html+='<span class="fb-item-name">'+fbEscape(f.name||'')+'</span>';
     html+='<span class="fb-item-date">'+fbEscape(date)+'</span>';
     html+='</div>';
     html+='<div class="fb-item-msg">'+fbEscape(f.message||'')+'</div>';
-    html+=buildCommentsHtml(f.id, f.comments||[]);
-    html+='<button class="fb-reply-toggle" onclick="toggleReply('+f.id+')">&#128172; 관리자 답글</button>';
+    html+='<button class="fb-reply-toggle" id="fb-toggle-'+f.id+'" onclick="toggleReply('+f.id+')">&#128172; 관리자 답글</button>';
     html+='<div class="fb-reply-area" id="fb-reply-'+f.id+'">';
     html+='<input type="password" id="fb-reply-token-'+f.id+'" class="fb-reply-token" placeholder="관리자 토큰">';
     html+='<textarea id="fb-reply-text-'+f.id+'" class="fb-reply-input" placeholder="답글을 입력해주세요"></textarea>';
@@ -503,6 +501,89 @@ async function renderFeedback(){
     html+='</div>';
   }
   con.innerHTML=html;
+  // 댓글은 DOM API로 직접 삽입 (innerHTML HTML 파싱 문제 우회)
+  for(let i=0;i<list.length;i++){
+    const f=list[i];
+    const comments=f.comments||[];
+    if(!comments.length) continue;
+    const itemEl=document.getElementById('fb-item-'+f.id);
+    const toggleBtn=document.getElementById('fb-toggle-'+f.id);
+    if(!itemEl||!toggleBtn) continue;
+    const cmtsDiv=document.createElement('div');
+    cmtsDiv.className='fb-comments';
+    for(let j=0;j<comments.length;j++){
+      const c=comments[j];
+      const cmtDiv=document.createElement('div');
+      cmtDiv.className='fb-comment';
+      // 헤더
+      const headDiv=document.createElement('div');
+      headDiv.className='fb-comment-head';
+      const lblSpan=document.createElement('span');
+      lblSpan.className='fb-comment-label';
+      lblSpan.textContent='🛡️ 관리자';
+      const dtSpan=document.createElement('span');
+      dtSpan.className='fb-comment-date';
+      dtSpan.textContent=new Date((c.created_at||0)*1000).toLocaleString('ko-KR');
+      const actDiv=document.createElement('div');
+      actDiv.className='fb-comment-actions';
+      const editBtn=document.createElement('button');
+      editBtn.className='fb-comment-action-btn';
+      editBtn.textContent='✏️';
+      editBtn.onclick=(function(cid){return function(){toggleCmtEdit(cid)};})(c.id);
+      const delBtn=document.createElement('button');
+      delBtn.className='fb-comment-action-btn';
+      delBtn.textContent='🗑️';
+      delBtn.onclick=(function(cid){return function(){toggleCmtDel(cid)};})(c.id);
+      actDiv.appendChild(editBtn);actDiv.appendChild(delBtn);
+      headDiv.appendChild(lblSpan);headDiv.appendChild(dtSpan);headDiv.appendChild(actDiv);
+      cmtDiv.appendChild(headDiv);
+      // 본문
+      const txtDiv=document.createElement('div');
+      txtDiv.className='fb-comment-text';
+      txtDiv.textContent=c.text||'';
+      cmtDiv.appendChild(txtDiv);
+      // 수정 영역
+      const editArea=document.createElement('div');
+      editArea.className='fb-reply-area';
+      editArea.id='fb-cedit-'+c.id;
+      const etInput=document.createElement('input');
+      etInput.type='password';etInput.id='fb-cedit-token-'+c.id;etInput.className='fb-reply-token';etInput.placeholder='관리자 토큰';
+      const etText=document.createElement('textarea');
+      etText.id='fb-cedit-text-'+c.id;etText.className='fb-reply-input';etText.textContent=c.text||'';
+      const eBtnRow=document.createElement('div');
+      eBtnRow.style.cssText='display:flex;gap:6px;margin-top:4px';
+      const eBtn=document.createElement('button');
+      eBtn.className='fb-reply-submit';eBtn.textContent='수정 완료';
+      eBtn.onclick=(function(fid,cid){return function(){doEditComment(fid,cid)};})(f.id,c.id);
+      const eCancelBtn=document.createElement('button');
+      eCancelBtn.className='fb-comment-cancel-btn';eCancelBtn.textContent='취소';
+      eCancelBtn.onclick=(function(cid){return function(){document.getElementById('fb-cedit-'+cid).style.display='none'};})(c.id);
+      eBtnRow.appendChild(eBtn);eBtnRow.appendChild(eCancelBtn);
+      editArea.appendChild(etInput);editArea.appendChild(etText);editArea.appendChild(eBtnRow);
+      cmtDiv.appendChild(editArea);
+      // 삭제 영역
+      const delArea=document.createElement('div');
+      delArea.className='fb-reply-area';
+      delArea.id='fb-cdel-'+c.id;
+      const dp=document.createElement('p');
+      dp.style.cssText='font-size:12px;color:var(--red);margin-bottom:8px';dp.textContent='이 답글을 삭제하시겠습니까?';
+      const dtInput=document.createElement('input');
+      dtInput.type='password';dtInput.id='fb-cdel-token-'+c.id;dtInput.className='fb-reply-token';dtInput.placeholder='관리자 토큰';
+      const dBtnRow=document.createElement('div');
+      dBtnRow.style.cssText='display:flex;gap:6px;margin-top:4px';
+      const dBtn=document.createElement('button');
+      dBtn.className='fb-reply-submit';dBtn.style.background='var(--red)';dBtn.textContent='삭제';
+      dBtn.onclick=(function(fid,cid){return function(){doDeleteComment(fid,cid)};})(f.id,c.id);
+      const dCancelBtn=document.createElement('button');
+      dCancelBtn.className='fb-comment-cancel-btn';dCancelBtn.textContent='취소';
+      dCancelBtn.onclick=(function(cid){return function(){document.getElementById('fb-cdel-'+cid).style.display='none'};})(c.id);
+      dBtnRow.appendChild(dBtn);dBtnRow.appendChild(dCancelBtn);
+      delArea.appendChild(dp);delArea.appendChild(dtInput);delArea.appendChild(dBtnRow);
+      cmtDiv.appendChild(delArea);
+      cmtsDiv.appendChild(cmtDiv);
+    }
+    itemEl.insertBefore(cmtsDiv,toggleBtn);
+  }
 }
 function openModal(id)  {document.getElementById(id).classList.add('show');   document.body.style.overflow='hidden'}
 function closeModal(id) {document.getElementById(id).classList.remove('show');document.body.style.overflow=''}
