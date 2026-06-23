@@ -482,24 +482,26 @@ async function renderFeedback(){
   try{ list=await fetch(API+'/feedback',{cache:'no-store'}).then(r=>r.json()); }catch(e){ list=null; }
   if(!Array.isArray(list)){con.innerHTML='';return}
   if(!list.length){con.innerHTML='<div class="fb-empty">아직 등록된 피드백이 없습니다</div>';return}
-  con.innerHTML=list.map(f=>{
+  let html='';
+  for(let i=0;i<list.length;i++){
+    const f=list[i];
     const date=new Date((f.created_at||0)*1000).toLocaleString('ko-KR');
-    const commentsHtml=buildCommentsHtml(f.id, f.comments||[]);
-    return `<div class="fb-item">
-      <div class="fb-item-head">
-        <span class="fb-item-name">${fbEscape(f.name||'')}</span>
-        <span class="fb-item-date">${fbEscape(date)}</span>
-      </div>
-      <div class="fb-item-msg">${fbEscape(f.message||'')}</div>
-      ${commentsHtml}
-      <button class="fb-reply-toggle" onclick="toggleReply(${f.id})">💬 관리자 답글</button>
-      <div class="fb-reply-area" id="fb-reply-${f.id}">
-        <input type="password" id="fb-reply-token-${f.id}" class="fb-reply-token" placeholder="관리자 토큰">
-        <textarea id="fb-reply-text-${f.id}" class="fb-reply-input" placeholder="답글을 입력해주세요"></textarea>
-        <button class="fb-reply-submit" onclick="submitComment(${f.id})">등록</button>
-      </div>
-    </div>`;
-  }).join('');
+    html+='<div class="fb-item">';
+    html+='<div class="fb-item-head">';
+    html+='<span class="fb-item-name">'+fbEscape(f.name||'')+'</span>';
+    html+='<span class="fb-item-date">'+fbEscape(date)+'</span>';
+    html+='</div>';
+    html+='<div class="fb-item-msg">'+fbEscape(f.message||'')+'</div>';
+    html+=buildCommentsHtml(f.id, f.comments||[]);
+    html+='<button class="fb-reply-toggle" onclick="toggleReply('+f.id+')">&#128172; 관리자 답글</button>';
+    html+='<div class="fb-reply-area" id="fb-reply-'+f.id+'">';
+    html+='<input type="password" id="fb-reply-token-'+f.id+'" class="fb-reply-token" placeholder="관리자 토큰">';
+    html+='<textarea id="fb-reply-text-'+f.id+'" class="fb-reply-input" placeholder="답글을 입력해주세요"></textarea>';
+    html+='<button class="fb-reply-submit" onclick="submitComment('+f.id+')">등록</button>';
+    html+='</div>';
+    html+='</div>';
+  }
+  con.innerHTML=html;
 }
 function openModal(id)  {document.getElementById(id).classList.add('show');   document.body.style.overflow='hidden'}
 function closeModal(id) {document.getElementById(id).classList.remove('show');document.body.style.overflow=''}
