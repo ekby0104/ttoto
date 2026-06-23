@@ -776,7 +776,7 @@ function renderStatus() {
               <span class="sgd-score-cnt">${players.length}명</span>
               ${gAmt?`<span class="sgd-score-pot">${Number(gAmt).toLocaleString()}원</span>`:''}
             </div>
-            ${totalAmt&&expReceive>0?`<div class="sgd-exp-prize">💰 당첨시 인당 예상 수령 금액 : ${Number(expReceive).toLocaleString()}원</div>`:''}
+            ${totalAmt&&expReceive>0?`<div class="sgd-exp-prize">💰 당첨시 인당 : ${Number(expReceive).toLocaleString()}원</div>`:''}
             <div class="sgd-names">
               ${players.map(p=>`<div class="sgd-name-tag ${p.paid?'paid':''}">${p.name}</div>`).join('')}
             </div>
