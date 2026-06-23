@@ -616,10 +616,10 @@ function renderBets() {
       const badgeCls=ended?'badge-ended':closed?'badge-closed':'badge-open';
       const badgeTxt=ended?'🏁 게임 종료':closed?'마감':'베팅 중';
       const myBetCount=mb.length;
-      // 게임 시작 12시간 전부터 반짝임 (테스트: 베팅중 게임은 항상 반짝임)
+      // 게임 시작 24시간 전부터 반짝임 (베팅 가능한 경우만)
       const startMs=Date.parse(`${(m.date||'').replace(/\./g,'-')}T${m.time||'00:00'}:00+09:00`);
-      const within12h=!isNaN(startMs)&&(startMs-Date.now())<=12*3600*1000&&(startMs-Date.now())>-3*3600*1000;
-      const soon=!betDisabled&&(within12h||true);   // TODO: 테스트 후 ||true 제거
+      const within24h=!isNaN(startMs)&&(startMs-Date.now())<=24*3600*1000&&(startMs-Date.now())>0;
+      const soon=!betDisabled&&within24h;
       html+=`
       <div class="match-card ${myBetCount&&!betDisabled?'has-bet':''} ${soon?'soon':''}" id="card-${m.id}">
         <div class="mc-head">
@@ -899,10 +899,9 @@ function renderResult() {
     const res=allResults[String(m.id)];
     const mb=gameBets(m.id);
     const totalPot=mb.reduce((s,b)=>s+(b.amount||0),0);
-    // 오늘 종료된 게임은 반짝임 (테스트: 종료된 게임은 항상 반짝임)
+    // 당일 종료된 게임만 반짝임
     const todayStr=new Date(Date.now()+9*3600*1000).toISOString().slice(0,10).replace(/-/g,'.');
-    const endedToday=!!res&&m.date===todayStr;
-    const soon=!!res&&(endedToday||true);   // TODO: 테스트 후 ||true 제거
+    const soon=!!res&&m.date===todayStr;
     html+=`<div class="result-card ${soon?'soon':''}">
       <div class="mc-head">
         <span class="mc-meta ${res?'closed':'open'}">📅 ${m.date} ${m.time}</span>
