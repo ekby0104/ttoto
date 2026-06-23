@@ -769,15 +769,14 @@ function renderStatus() {
         sorted.forEach(([score,players])=>{
           const[sh,sa]=score.split('-');
           const gAmt=players.reduce((s,p)=>s+(p.amount||0),0);
-          const loserPot=totalAmt-gAmt;
-          const expPrize=players.length?Math.floor(loserPot/players.length):0;
+          const expReceive=players.length?Math.floor(totalAmt/players.length):0;
           detail+=`<div class="sgd-score-group">
             <div class="sgd-score-head">
               <span class="sgd-score-val">${sh} : ${sa}</span>
               <span class="sgd-score-cnt">${players.length}명</span>
               ${gAmt?`<span class="sgd-score-pot">${Number(gAmt).toLocaleString()}원</span>`:''}
             </div>
-            ${totalAmt&&expPrize>0?`<div class="sgd-exp-prize">💰 당첨시 인당 +${Number(expPrize).toLocaleString()}원 예상</div>`:''}
+            ${totalAmt&&expReceive>0?`<div class="sgd-exp-prize">💰 당첨시 인당 예상 수령 금액 : ${Number(expReceive).toLocaleString()}원</div>`:''}
             <div class="sgd-names">
               ${players.map(p=>`<div class="sgd-name-tag ${p.paid?'paid':''}">${p.name}</div>`).join('')}
             </div>
