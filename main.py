@@ -297,6 +297,29 @@ def admin_add_feedback_comment(fb_id: int, body: CommentIn, auth=Depends(admin_r
             return {"ok": True, "comment": comment}
     raise HTTPException(404, "피드백을 찾을 수 없습니다")
 
+@app.patch("/api/admin/feedback/{fb_id}/comments/{comment_id}")
+def admin_edit_feedback_comment(fb_id: int, comment_id: int, body: CommentIn, auth=Depends(admin_required)):
+    items = get_feedback()
+    for item in items:
+        if item.get("id") == fb_id:
+            for comment in item.get("comments", []):
+                if comment.get("id") == comment_id:
+                    comment["text"] = body.text.strip()[:200]
+                    write_json(FEEDBACK_FILE, items)
+                    return {"ok": True}
+            raise HTTPException(404, "댓글을 찾을 수 없습니다")
+    raise HTTPException(404, "피드백을 찾을 수 없습니다")
+
+@app.delete("/api/admin/feedback/{fb_id}/comments/{comment_id}")
+def admin_delete_feedback_comment(fb_id: int, comment_id: int, auth=Depends(admin_required)):
+    items = get_feedback()
+    for item in items:
+        if item.get("id") == fb_id:
+            item["comments"] = [c for c in item.get("comments", []) if c.get("id") != comment_id]
+            write_json(FEEDBACK_FILE, items)
+            return {"ok": True}
+    raise HTTPException(404, "피드백을 찾을 수 없습니다")
+
 @app.patch("/api/admin/config")
 def admin_update_config(body: ConfigUpdate, auth=Depends(admin_required)):
     cfg = get_config()

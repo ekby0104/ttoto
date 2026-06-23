@@ -60,10 +60,14 @@ main{max-width:820px;margin:0 auto;padding:16px 12px 40px}
 .fb-comments{margin-top:10px;padding-top:10px;border-top:1px solid var(--border)}
 .fb-comment{background:rgba(29,185,84,.06);border-left:3px solid var(--green-dim);border-radius:0 8px 8px 0;padding:10px 12px;margin-bottom:8px}
 .fb-comment:last-child{margin-bottom:0}
-.fb-comment-head{display:flex;justify-content:space-between;align-items:center;margin-bottom:5px}
+.fb-comment-head{display:flex;justify-content:space-between;align-items:center;gap:6px;margin-bottom:5px}
 .fb-comment-label{font-size:11px;font-weight:700;color:var(--green);font-family:var(--mono)}
-.fb-comment-date{font-size:11px;color:var(--muted);font-family:var(--mono)}
+.fb-comment-date{font-size:11px;color:var(--muted);font-family:var(--mono);flex:1}
 .fb-comment-text{font-size:13px;color:var(--text);line-height:1.5;white-space:pre-wrap;word-break:break-word}
+.fb-comment-actions{display:flex;gap:2px;flex-shrink:0}
+.fb-comment-action-btn{background:none;border:none;color:var(--muted);font-size:11px;cursor:pointer;padding:2px 6px;border-radius:4px;font-family:var(--body);transition:color .15s}
+.fb-comment-action-btn:hover{color:var(--text)}
+.fb-comment-cancel-btn{flex:1;background:rgba(255,255,255,.06);color:var(--muted);border:1px solid var(--border2);border-radius:8px;padding:9px 14px;font-size:13px;font-weight:700;cursor:pointer;font-family:var(--body)}
 .fb-reply-toggle{display:inline-flex;align-items:center;gap:4px;background:none;border:1px solid var(--border2);border-radius:20px;color:var(--muted);font-size:11px;cursor:pointer;padding:5px 12px;font-family:var(--body);margin-top:10px;transition:all .15s}
 .fb-reply-toggle:hover{color:var(--text);border-color:var(--green)}
 .fb-reply-area{margin-top:10px;border-top:1px dashed var(--border2);padding-top:10px;display:none}
@@ -378,7 +382,78 @@ function fbEscape(s){return String(s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&
 function toggleReply(fbId){
   const area=document.getElementById('fb-reply-'+fbId);
   if(!area) return;
-  area.style.display=area.style.display==='none'?'block':'none';
+  const hidden=getComputedStyle(area).display==='none';
+  area.style.display=hidden?'block':'none';
+}
+function buildCommentsHtml(fbId,comments){
+  if(!comments||!comments.length) return '';
+  let h='<div class="fb-comments">';
+  comments.forEach(function(c){
+    const cd=new Date((c.created_at||0)*1000).toLocaleString('ko-KR');
+    h+='<div class="fb-comment">';
+    h+='<div class="fb-comment-head">';
+    h+='<span class="fb-comment-label">&#128737;&#65039; 관리자</span>';
+    h+='<span class="fb-comment-date">'+fbEscape(cd)+'</span>';
+    h+='<div class="fb-comment-actions">';
+    h+='<button class="fb-comment-action-btn" onclick="toggleCmtEdit('+c.id+')">✏️</button>';
+    h+='<button class="fb-comment-action-btn" onclick="toggleCmtDel('+c.id+')">🗑️</button>';
+    h+='</div></div>';
+    h+='<div class="fb-comment-text">'+fbEscape(c.text||'')+'</div>';
+    h+='<div class="fb-reply-area" id="fb-cedit-'+c.id+'">';
+    h+='<input type="password" id="fb-cedit-token-'+c.id+'" class="fb-reply-token" placeholder="관리자 토큰">';
+    h+='<textarea id="fb-cedit-text-'+c.id+'" class="fb-reply-input">'+fbEscape(c.text||'')+'</textarea>';
+    h+='<div style="display:flex;gap:6px;margin-top:4px">';
+    h+='<button class="fb-reply-submit" onclick="doEditComment('+fbId+','+c.id+')">수정 완료</button>';
+    h+='<button class="fb-comment-cancel-btn" onclick="document.getElementById(\'fb-cedit-'+c.id+'\').style.display=\'none\'">취소</button>';
+    h+='</div></div>';
+    h+='<div class="fb-reply-area" id="fb-cdel-'+c.id+'">';
+    h+='<p style="font-size:12px;color:var(--red);margin-bottom:8px">이 답글을 삭제하시겠습니까?</p>';
+    h+='<input type="password" id="fb-cdel-token-'+c.id+'" class="fb-reply-token" placeholder="관리자 토큰">';
+    h+='<div style="display:flex;gap:6px;margin-top:4px">';
+    h+='<button class="fb-reply-submit" style="background:var(--red)" onclick="doDeleteComment('+fbId+','+c.id+')">삭제</button>';
+    h+='<button class="fb-comment-cancel-btn" onclick="document.getElementById(\'fb-cdel-'+c.id+'\').style.display=\'none\'">취소</button>';
+    h+='</div></div>';
+    h+='</div>';
+  });
+  h+='</div>';
+  return h;
+}
+function toggleCmtEdit(cid){
+  const ea=document.getElementById('fb-cedit-'+cid);
+  const da=document.getElementById('fb-cdel-'+cid);
+  if(da) da.style.display='none';
+  if(ea){const hidden=getComputedStyle(ea).display==='none';ea.style.display=hidden?'block':'none';}
+}
+function toggleCmtDel(cid){
+  const ea=document.getElementById('fb-cedit-'+cid);
+  const da=document.getElementById('fb-cdel-'+cid);
+  if(ea) ea.style.display='none';
+  if(da){const hidden=getComputedStyle(da).display==='none';da.style.display=hidden?'block':'none';}
+}
+async function doEditComment(fbId,cid){
+  const tokenEl=document.getElementById('fb-cedit-token-'+cid);
+  const textEl=document.getElementById('fb-cedit-text-'+cid);
+  const token=(tokenEl?tokenEl.value:'').trim();
+  const text=(textEl?textEl.value:'').trim();
+  if(!token){toast('❌ 관리자 토큰을 입력해주세요',true);return}
+  if(!text){toast('❌ 내용을 입력해주세요',true);return}
+  try{
+    const r=await fetch(API+'/admin/feedback/'+fbId+'/comments/'+cid,{method:'PATCH',headers:{'Content-Type':'application/json','X-Admin-Token':token},body:JSON.stringify({text})});
+    if(!r.ok){const err=await r.json().catch(()=>({}));toast('❌ '+(err.detail||'수정 실패'),true);return}
+  }catch(e){toast('❌ 서버에 연결할 수 없습니다',true);return}
+  toast('✅ 답글이 수정되었습니다');
+  await renderFeedback();
+}
+async function doDeleteComment(fbId,cid){
+  const tokenEl=document.getElementById('fb-cdel-token-'+cid);
+  const token=(tokenEl?tokenEl.value:'').trim();
+  if(!token){toast('❌ 관리자 토큰을 입력해주세요',true);return}
+  try{
+    const r=await fetch(API+'/admin/feedback/'+fbId+'/comments/'+cid,{method:'DELETE',headers:{'X-Admin-Token':token}});
+    if(!r.ok){const err=await r.json().catch(()=>({}));toast('❌ '+(err.detail||'삭제 실패'),true);return}
+  }catch(e){toast('❌ 서버에 연결할 수 없습니다',true);return}
+  toast('✅ 답글이 삭제되었습니다');
+  await renderFeedback();
 }
 async function submitComment(fbId){
   const tokenEl=document.getElementById('fb-reply-token-'+fbId);
@@ -409,11 +484,7 @@ async function renderFeedback(){
   if(!list.length){con.innerHTML='<div class="fb-empty">아직 등록된 피드백이 없습니다</div>';return}
   con.innerHTML=list.map(f=>{
     const date=new Date((f.created_at||0)*1000).toLocaleString('ko-KR');
-    const comments=(f.comments||[]);
-    const commentsHtml=comments.length?`<div class="fb-comments">${comments.map(c=>{
-      const cd=new Date((c.created_at||0)*1000).toLocaleString('ko-KR');
-      return `<div class="fb-comment"><div class="fb-comment-head"><span class="fb-comment-label">🛡️ 관리자</span><span class="fb-comment-date">${fbEscape(cd)}</span></div><div class="fb-comment-text">${fbEscape(c.text||'')}</div></div>`;
-    }).join('')}</div>`:'';
+    const commentsHtml=buildCommentsHtml(f.id, f.comments||[]);
     return `<div class="fb-item">
       <div class="fb-item-head">
         <span class="fb-item-name">${fbEscape(f.name||'')}</span>
