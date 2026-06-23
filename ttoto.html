@@ -57,6 +57,22 @@ main{max-width:820px;margin:0 auto;padding:16px 12px 40px}
 .fb-item-date{font-size:11px;color:var(--muted);font-family:var(--mono);flex-shrink:0}
 .fb-item-msg{font-size:14px;line-height:1.6;color:var(--text);white-space:pre-wrap;word-break:break-word}
 .fb-empty{text-align:center;padding:24px;color:var(--muted);font-size:13px}
+.fb-comments{margin-top:10px;padding-top:10px;border-top:1px solid var(--border)}
+.fb-comment{background:rgba(29,185,84,.06);border-left:3px solid var(--green-dim);border-radius:0 8px 8px 0;padding:10px 12px;margin-bottom:8px}
+.fb-comment:last-child{margin-bottom:0}
+.fb-comment-head{display:flex;justify-content:space-between;align-items:center;margin-bottom:5px}
+.fb-comment-label{font-size:11px;font-weight:700;color:var(--green);font-family:var(--mono)}
+.fb-comment-date{font-size:11px;color:var(--muted);font-family:var(--mono)}
+.fb-comment-text{font-size:13px;color:var(--text);line-height:1.5;white-space:pre-wrap;word-break:break-word}
+.fb-reply-toggle{display:inline-flex;align-items:center;gap:4px;background:none;border:1px solid var(--border2);border-radius:20px;color:var(--muted);font-size:11px;cursor:pointer;padding:5px 12px;font-family:var(--body);margin-top:10px;transition:all .15s}
+.fb-reply-toggle:hover{color:var(--text);border-color:var(--green)}
+.fb-reply-area{margin-top:10px;border-top:1px dashed var(--border2);padding-top:10px;display:none}
+.fb-reply-token{width:100%;background:#0d0d0d;border:1px solid var(--border2);border-radius:8px;color:var(--text);font-size:13px;padding:9px 12px;outline:none;font-family:var(--mono);margin-bottom:8px;transition:border-color .2s;letter-spacing:1px}
+.fb-reply-token:focus{border-color:var(--green)}
+.fb-reply-input{width:100%;background:#0d0d0d;border:1px solid var(--border2);border-radius:8px;color:var(--text);font-size:13px;padding:9px 12px;outline:none;font-family:var(--body);margin-bottom:8px;resize:vertical;min-height:70px;line-height:1.5;transition:border-color .2s}
+.fb-reply-input:focus{border-color:var(--green)}
+.fb-reply-submit{background:var(--green);color:#fff;border:none;border-radius:8px;padding:9px 18px;font-size:13px;font-weight:700;cursor:pointer;font-family:var(--body);transition:background .15s}
+.fb-reply-submit:hover{background:var(--green-dim)}
 .upcoming-sec{margin-top:24px}
 .upcoming-title{font-family:var(--mono);font-size:12px;color:var(--muted);letter-spacing:1px;margin-bottom:10px;padding-bottom:6px;border-bottom:1px solid var(--border)}
 .upcoming-card{display:flex;align-items:center;gap:12px;background:rgba(255,255,255,.02);border:1px dashed var(--border2);border-radius:12px;padding:12px 14px;margin-bottom:8px}
@@ -222,8 +238,8 @@ main{max-width:820px;margin:0 auto;padding:16px 12px 40px}
       <input id="fb-name" class="fb-input" type="text" maxlength="5" placeholder="이름 (한글/영문/숫자, 5자)"
         oninput="this.value=this.value.replace(/[^가-힣ㄱ-ㅎㅏ-ㅣa-zA-Z0-9]/g,'')">
       <label class="fb-label">내용</label>
-      <textarea id="fb-message" class="fb-input fb-textarea" maxlength="20" placeholder="내용을 입력해주세요 (한글/영문/숫자, 최대 20자)"></textarea>
-      <div class="fb-count"><span id="fb-count">0</span>/20</div>
+      <textarea id="fb-message" class="fb-input fb-textarea" maxlength="100" placeholder="내용을 입력해주세요 (한글/영문/숫자, 최대 100자)"></textarea>
+      <div class="fb-count"><span id="fb-count">0</span>/100</div>
       <button class="fb-submit" onclick="submitFeedback()">보내기</button>
     </div>
     <div id="fb-list" class="fb-list"></div>
@@ -341,7 +357,7 @@ async function submitFeedback() {
   if(!name){toast('❌ 이름을 입력해주세요',true);return}
   if(!message){toast('❌ 내용을 입력해주세요',true);return}
   if(name.length>5){toast('❌ 이름은 5자 이내로 입력해주세요',true);return}
-  if(message.length>20){toast('❌ 내용은 20자 이내로 입력해주세요',true);return}
+  if(message.length>100){toast('❌ 내용은 100자 이내로 입력해주세요',true);return}
   if(!allowed.test(message)||!allowed.test(name)){toast('❌ 특수문자는 사용할 수 없습니다',true);return}
   try{
     const r=await fetch(API+'/feedback',{
@@ -359,6 +375,32 @@ async function submitFeedback() {
 
 // 보안: 공개 출력이므로 escapeHtml로 XSS 방어 (escape-on-output)
 function fbEscape(s){return String(s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]))}
+function toggleReply(fbId){
+  const area=document.getElementById('fb-reply-'+fbId);
+  if(!area) return;
+  area.style.display=area.style.display==='none'?'block':'none';
+}
+async function submitComment(fbId){
+  const tokenEl=document.getElementById('fb-reply-token-'+fbId);
+  const textEl=document.getElementById('fb-reply-text-'+fbId);
+  const token=(tokenEl?tokenEl.value:'').trim();
+  const text=(textEl?textEl.value:'').trim();
+  if(!token){toast('❌ 관리자 토큰을 입력해주세요',true);return}
+  if(!text){toast('❌ 답글 내용을 입력해주세요',true);return}
+  try{
+    const r=await fetch(API+'/admin/feedback/'+fbId+'/comments',{
+      method:'POST',
+      headers:{'Content-Type':'application/json','X-Admin-Token':token},
+      body:JSON.stringify({text})
+    });
+    if(!r.ok){const err=await r.json().catch(()=>({}));toast('❌ '+(err.detail||'저장 실패'),true);return}
+  }catch(e){toast('❌ 서버에 연결할 수 없습니다',true);return}
+  if(tokenEl) tokenEl.value='';
+  if(textEl) textEl.value='';
+  document.getElementById('fb-reply-'+fbId).style.display='none';
+  toast('✅ 답글이 등록되었습니다');
+  await renderFeedback();
+}
 async function renderFeedback(){
   const con=document.getElementById('fb-list');
   let list;
@@ -367,12 +409,24 @@ async function renderFeedback(){
   if(!list.length){con.innerHTML='<div class="fb-empty">아직 등록된 피드백이 없습니다</div>';return}
   con.innerHTML=list.map(f=>{
     const date=new Date((f.created_at||0)*1000).toLocaleString('ko-KR');
+    const comments=(f.comments||[]);
+    const commentsHtml=comments.length?`<div class="fb-comments">${comments.map(c=>{
+      const cd=new Date((c.created_at||0)*1000).toLocaleString('ko-KR');
+      return `<div class="fb-comment"><div class="fb-comment-head"><span class="fb-comment-label">🛡️ 관리자</span><span class="fb-comment-date">${fbEscape(cd)}</span></div><div class="fb-comment-text">${fbEscape(c.text||'')}</div></div>`;
+    }).join('')}</div>`:'';
     return `<div class="fb-item">
       <div class="fb-item-head">
         <span class="fb-item-name">${fbEscape(f.name||'')}</span>
         <span class="fb-item-date">${fbEscape(date)}</span>
       </div>
       <div class="fb-item-msg">${fbEscape(f.message||'')}</div>
+      ${commentsHtml}
+      <button class="fb-reply-toggle" onclick="toggleReply(${f.id})">💬 관리자 답글</button>
+      <div class="fb-reply-area" id="fb-reply-${f.id}">
+        <input type="password" id="fb-reply-token-${f.id}" class="fb-reply-token" placeholder="관리자 토큰">
+        <textarea id="fb-reply-text-${f.id}" class="fb-reply-input" placeholder="답글을 입력해주세요"></textarea>
+        <button class="fb-reply-submit" onclick="submitComment(${f.id})">등록</button>
+      </div>
     </div>`;
   }).join('');
 }
@@ -734,9 +788,9 @@ function renderResult() {
   renderBets();
   const fbMsg=document.getElementById('fb-message');
   const fbName=document.getElementById('fb-name');
-  const strip=el=>{const c=el.value.replace(/[^가-힣ㄱ-ㅎㅏ-ㅣa-zA-Z0-9 ]/g,'').slice(0,20);if(c!==el.value)el.value=c};
-  if(fbMsg) fbMsg.addEventListener('input',()=>{strip(fbMsg);document.getElementById('fb-count').textContent=fbMsg.value.length});
-  if(fbName) fbName.addEventListener('input',()=>strip(fbName));
+  const stripFn=(el,max)=>{const c=el.value.replace(/[^가-힣ㄱ-ㅎㅏ-ㅣa-zA-Z0-9 ]/g,'').slice(0,max);if(c!==el.value)el.value=c};
+  if(fbMsg) fbMsg.addEventListener('input',()=>{stripFn(fbMsg,100);document.getElementById('fb-count').textContent=fbMsg.value.length});
+  if(fbName) fbName.addEventListener('input',()=>stripFn(fbName,5));
 })();
 </script>
 </body>
