@@ -129,7 +129,7 @@ main{max-width:820px;margin:0 auto;padding:16px 12px 40px}
 .sgd-name-tag{background:#f7f7f7;border:1px solid #e0e0e0;border-radius:20px;padding:5px 13px;font-size:12px;color:#444}
 .sgd-name-tag.paid{border-color:#1db954;color:#14833a;background:#edfaf3}
 .sgd-empty{text-align:center;padding:20px;color:#bbb;font-size:13px}
-.sgd-exp-prize{font-size:11px;color:var(--gold);font-family:var(--mono);margin:3px 0 6px;}
+.sgd-exp-prize{font-size:13px;font-weight:700;color:#c62828;font-family:var(--mono);margin:3px 0 6px;}
 .sgd-viewtoggle{display:flex;gap:6px;margin-bottom:14px}
 .sgd-vt-btn{flex:1;padding:8px 10px;font-size:12px;font-weight:700;font-family:var(--body);border:1px solid #ddd;background:#fff;color:#888;border-radius:8px;cursor:pointer;transition:all .15s}
 .sgd-vt-btn.active{background:#111;color:#fff;border-color:#111}
@@ -483,6 +483,13 @@ async function renderFeedback(){
   try{ list=await fetch(API+'/feedback',{cache:'no-store'}).then(r=>r.json()); }catch(e){ list=null; }
   // 전체 DOM API로 재구성 — innerHTML 일절 사용 안 함 (iOS Safari 파싱 버그 완전 우회)
   while(con.firstChild) con.removeChild(con.firstChild);
+  // ▼ 디버그 배너 (문제 확인 후 제거 예정)
+  const _dbg=document.createElement('div');
+  const _cnt=Array.isArray(list)?list.length:0;
+  const _cmt=Array.isArray(list)?list.reduce((s,f)=>s+((f.comments||[]).length),0):0;
+  _dbg.style.cssText='background:#c62828;color:#fff;padding:8px 12px;border-radius:8px;font-size:12px;margin-bottom:10px;font-family:monospace';
+  _dbg.textContent='[DEBUG] 피드백 '+_cnt+'건 | 총 댓글 '+_cmt+'개';
+  con.appendChild(_dbg);
   if(!Array.isArray(list)) return;
   if(!list.length){
     const empty=document.createElement('div');
