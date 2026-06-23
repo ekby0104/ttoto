@@ -129,6 +129,7 @@ main{max-width:820px;margin:0 auto;padding:16px 12px 40px}
 .sgd-name-tag{background:#f7f7f7;border:1px solid #e0e0e0;border-radius:20px;padding:5px 13px;font-size:12px;color:#444}
 .sgd-name-tag.paid{border-color:#1db954;color:#14833a;background:#edfaf3}
 .sgd-empty{text-align:center;padding:20px;color:#bbb;font-size:13px}
+.sgd-exp-prize{font-size:11px;color:var(--gold);font-family:var(--mono);margin:3px 0 6px;}
 .sgd-viewtoggle{display:flex;gap:6px;margin-bottom:14px}
 .sgd-vt-btn{flex:1;padding:8px 10px;font-size:12px;font-weight:700;font-family:var(--body);border:1px solid #ddd;background:#fff;color:#888;border-radius:8px;cursor:pointer;transition:all .15s}
 .sgd-vt-btn.active{background:#111;color:#fff;border-color:#111}
@@ -480,109 +481,91 @@ async function renderFeedback(){
   const con=document.getElementById('fb-list');
   let list;
   try{ list=await fetch(API+'/feedback',{cache:'no-store'}).then(r=>r.json()); }catch(e){ list=null; }
-  if(!Array.isArray(list)){con.innerHTML='';return}
-  if(!list.length){con.innerHTML='<div class="fb-empty">아직 등록된 피드백이 없습니다</div>';return}
-  let html='';
-  for(let i=0;i<list.length;i++){
-    const f=list[i];
-    const date=new Date((f.created_at||0)*1000).toLocaleString('ko-KR');
-    html+='<div class="fb-item" id="fb-item-'+f.id+'">';
-    html+='<div class="fb-item-head">';
-    html+='<span class="fb-item-name">'+fbEscape(f.name||'')+'</span>';
-    html+='<span class="fb-item-date">'+fbEscape(date)+'</span>';
-    html+='</div>';
-    html+='<div class="fb-item-msg">'+fbEscape(f.message||'')+'</div>';
-    html+='<button class="fb-reply-toggle" id="fb-toggle-'+f.id+'" onclick="toggleReply('+f.id+')">&#128172; 관리자 답글</button>';
-    html+='<div class="fb-reply-area" id="fb-reply-'+f.id+'">';
-    html+='<input type="password" id="fb-reply-token-'+f.id+'" class="fb-reply-token" placeholder="관리자 토큰">';
-    html+='<textarea id="fb-reply-text-'+f.id+'" class="fb-reply-input" placeholder="답글을 입력해주세요"></textarea>';
-    html+='<button class="fb-reply-submit" onclick="submitComment('+f.id+')">등록</button>';
-    html+='</div>';
-    html+='</div>';
+  // 전체 DOM API로 재구성 — innerHTML 일절 사용 안 함 (iOS Safari 파싱 버그 완전 우회)
+  while(con.firstChild) con.removeChild(con.firstChild);
+  if(!Array.isArray(list)) return;
+  if(!list.length){
+    const empty=document.createElement('div');
+    empty.className='fb-empty';
+    empty.textContent='아직 등록된 피드백이 없습니다';
+    con.appendChild(empty);
+    return;
   }
-  con.innerHTML=html;
-  // 댓글은 DOM API로 직접 삽입 (innerHTML HTML 파싱 문제 우회)
+  function mk(tag,cls){const e=document.createElement(tag);if(cls)e.className=cls;return e;}
   for(let i=0;i<list.length;i++){
     const f=list[i];
     const comments=f.comments||[];
-    if(!comments.length) continue;
-    const itemEl=document.getElementById('fb-item-'+f.id);
-    const toggleBtn=document.getElementById('fb-toggle-'+f.id);
-    if(!itemEl||!toggleBtn) continue;
-    const cmtsDiv=document.createElement('div');
-    cmtsDiv.className='fb-comments';
-    for(let j=0;j<comments.length;j++){
-      const c=comments[j];
-      const cmtDiv=document.createElement('div');
-      cmtDiv.className='fb-comment';
-      // 헤더
-      const headDiv=document.createElement('div');
-      headDiv.className='fb-comment-head';
-      const lblSpan=document.createElement('span');
-      lblSpan.className='fb-comment-label';
-      lblSpan.textContent='🛡️ 관리자';
-      const dtSpan=document.createElement('span');
-      dtSpan.className='fb-comment-date';
-      dtSpan.textContent=new Date((c.created_at||0)*1000).toLocaleString('ko-KR');
-      const actDiv=document.createElement('div');
-      actDiv.className='fb-comment-actions';
-      const editBtn=document.createElement('button');
-      editBtn.className='fb-comment-action-btn';
-      editBtn.textContent='✏️';
-      editBtn.onclick=(function(cid){return function(){toggleCmtEdit(cid)};})(c.id);
-      const delBtn=document.createElement('button');
-      delBtn.className='fb-comment-action-btn';
-      delBtn.textContent='🗑️';
-      delBtn.onclick=(function(cid){return function(){toggleCmtDel(cid)};})(c.id);
-      actDiv.appendChild(editBtn);actDiv.appendChild(delBtn);
-      headDiv.appendChild(lblSpan);headDiv.appendChild(dtSpan);headDiv.appendChild(actDiv);
-      cmtDiv.appendChild(headDiv);
-      // 본문
-      const txtDiv=document.createElement('div');
-      txtDiv.className='fb-comment-text';
-      txtDiv.textContent=c.text||'';
-      cmtDiv.appendChild(txtDiv);
-      // 수정 영역
-      const editArea=document.createElement('div');
-      editArea.className='fb-reply-area';
-      editArea.id='fb-cedit-'+c.id;
-      const etInput=document.createElement('input');
-      etInput.type='password';etInput.id='fb-cedit-token-'+c.id;etInput.className='fb-reply-token';etInput.placeholder='관리자 토큰';
-      const etText=document.createElement('textarea');
-      etText.id='fb-cedit-text-'+c.id;etText.className='fb-reply-input';etText.textContent=c.text||'';
-      const eBtnRow=document.createElement('div');
-      eBtnRow.style.cssText='display:flex;gap:6px;margin-top:4px';
-      const eBtn=document.createElement('button');
-      eBtn.className='fb-reply-submit';eBtn.textContent='수정 완료';
-      eBtn.onclick=(function(fid,cid){return function(){doEditComment(fid,cid)};})(f.id,c.id);
-      const eCancelBtn=document.createElement('button');
-      eCancelBtn.className='fb-comment-cancel-btn';eCancelBtn.textContent='취소';
-      eCancelBtn.onclick=(function(cid){return function(){document.getElementById('fb-cedit-'+cid).style.display='none'};})(c.id);
-      eBtnRow.appendChild(eBtn);eBtnRow.appendChild(eCancelBtn);
-      editArea.appendChild(etInput);editArea.appendChild(etText);editArea.appendChild(eBtnRow);
-      cmtDiv.appendChild(editArea);
-      // 삭제 영역
-      const delArea=document.createElement('div');
-      delArea.className='fb-reply-area';
-      delArea.id='fb-cdel-'+c.id;
-      const dp=document.createElement('p');
-      dp.style.cssText='font-size:12px;color:var(--red);margin-bottom:8px';dp.textContent='이 답글을 삭제하시겠습니까?';
-      const dtInput=document.createElement('input');
-      dtInput.type='password';dtInput.id='fb-cdel-token-'+c.id;dtInput.className='fb-reply-token';dtInput.placeholder='관리자 토큰';
-      const dBtnRow=document.createElement('div');
-      dBtnRow.style.cssText='display:flex;gap:6px;margin-top:4px';
-      const dBtn=document.createElement('button');
-      dBtn.className='fb-reply-submit';dBtn.style.background='var(--red)';dBtn.textContent='삭제';
-      dBtn.onclick=(function(fid,cid){return function(){doDeleteComment(fid,cid)};})(f.id,c.id);
-      const dCancelBtn=document.createElement('button');
-      dCancelBtn.className='fb-comment-cancel-btn';dCancelBtn.textContent='취소';
-      dCancelBtn.onclick=(function(cid){return function(){document.getElementById('fb-cdel-'+cid).style.display='none'};})(c.id);
-      dBtnRow.appendChild(dBtn);dBtnRow.appendChild(dCancelBtn);
-      delArea.appendChild(dp);delArea.appendChild(dtInput);delArea.appendChild(dBtnRow);
-      cmtDiv.appendChild(delArea);
-      cmtsDiv.appendChild(cmtDiv);
+    const date=new Date((f.created_at||0)*1000).toLocaleString('ko-KR');
+    const item=mk('div','fb-item');
+    // 헤더
+    const head=mk('div','fb-item-head');
+    const nameSpan=mk('span','fb-item-name'); nameSpan.textContent=f.name||'';
+    const dateSpan=mk('span','fb-item-date'); dateSpan.textContent=date;
+    head.appendChild(nameSpan); head.appendChild(dateSpan);
+    item.appendChild(head);
+    // 본문
+    const msg=mk('div','fb-item-msg'); msg.textContent=f.message||'';
+    item.appendChild(msg);
+    // 댓글 목록
+    if(comments.length){
+      const cmtsDiv=mk('div','fb-comments');
+      for(let j=0;j<comments.length;j++){
+        const c=comments[j];
+        const cmtDiv=mk('div','fb-comment');
+        const hd=mk('div','fb-comment-head');
+        const lbl=mk('span','fb-comment-label'); lbl.textContent='🛡️ 관리자';
+        const dt=mk('span','fb-comment-date'); dt.textContent=new Date((c.created_at||0)*1000).toLocaleString('ko-KR');
+        const act=mk('div','fb-comment-actions');
+        const eb=mk('button','fb-comment-action-btn'); eb.textContent='✏️';
+        eb.onclick=(function(cid){return function(){toggleCmtEdit(cid)};})(c.id);
+        const db=mk('button','fb-comment-action-btn'); db.textContent='🗑️';
+        db.onclick=(function(cid){return function(){toggleCmtDel(cid)};})(c.id);
+        act.appendChild(eb); act.appendChild(db);
+        hd.appendChild(lbl); hd.appendChild(dt); hd.appendChild(act);
+        cmtDiv.appendChild(hd);
+        const txt=mk('div','fb-comment-text'); txt.textContent=c.text||'';
+        cmtDiv.appendChild(txt);
+        // 수정 영역
+        const ea=mk('div','fb-reply-area'); ea.id='fb-cedit-'+c.id;
+        const etok=mk('input','fb-reply-token'); etok.type='password'; etok.id='fb-cedit-token-'+c.id; etok.placeholder='관리자 토큰';
+        const etxt=mk('textarea','fb-reply-input'); etxt.id='fb-cedit-text-'+c.id; etxt.value=c.text||'';
+        const erow=mk('div'); erow.style.cssText='display:flex;gap:6px;margin-top:4px';
+        const esub=mk('button','fb-reply-submit'); esub.textContent='수정 완료';
+        esub.onclick=(function(fid,cid){return function(){doEditComment(fid,cid)};})(f.id,c.id);
+        const ecnl=mk('button','fb-comment-cancel-btn'); ecnl.textContent='취소';
+        ecnl.onclick=(function(cid){return function(){document.getElementById('fb-cedit-'+cid).style.display='none'};})(c.id);
+        erow.appendChild(esub); erow.appendChild(ecnl);
+        ea.appendChild(etok); ea.appendChild(etxt); ea.appendChild(erow);
+        cmtDiv.appendChild(ea);
+        // 삭제 영역
+        const da=mk('div','fb-reply-area'); da.id='fb-cdel-'+c.id;
+        const dp=mk('p'); dp.style.cssText='font-size:12px;color:var(--red);margin-bottom:8px'; dp.textContent='이 답글을 삭제하시겠습니까?';
+        const dtok=mk('input','fb-reply-token'); dtok.type='password'; dtok.id='fb-cdel-token-'+c.id; dtok.placeholder='관리자 토큰';
+        const drow=mk('div'); drow.style.cssText='display:flex;gap:6px;margin-top:4px';
+        const dsub=mk('button','fb-reply-submit'); dsub.style.background='var(--red)'; dsub.textContent='삭제';
+        dsub.onclick=(function(fid,cid){return function(){doDeleteComment(fid,cid)};})(f.id,c.id);
+        const dcnl=mk('button','fb-comment-cancel-btn'); dcnl.textContent='취소';
+        dcnl.onclick=(function(cid){return function(){document.getElementById('fb-cdel-'+cid).style.display='none'};})(c.id);
+        drow.appendChild(dsub); drow.appendChild(dcnl);
+        da.appendChild(dp); da.appendChild(dtok); da.appendChild(drow);
+        cmtDiv.appendChild(da);
+        cmtsDiv.appendChild(cmtDiv);
+      }
+      item.appendChild(cmtsDiv);
     }
-    itemEl.insertBefore(cmtsDiv,toggleBtn);
+    // 답글 달기 토글 버튼
+    const togBtn=mk('button','fb-reply-toggle'); togBtn.id='fb-toggle-'+f.id; togBtn.textContent='💬 관리자 답글';
+    togBtn.onclick=(function(fid){return function(){toggleReply(fid)};})(f.id);
+    item.appendChild(togBtn);
+    // 답글 입력 영역
+    const ra=mk('div','fb-reply-area'); ra.id='fb-reply-'+f.id;
+    const rtok=mk('input','fb-reply-token'); rtok.type='password'; rtok.id='fb-reply-token-'+f.id; rtok.placeholder='관리자 토큰';
+    const rtxt=mk('textarea','fb-reply-input'); rtxt.id='fb-reply-text-'+f.id; rtxt.placeholder='답글을 입력해주세요';
+    const rsub=mk('button','fb-reply-submit'); rsub.textContent='등록';
+    rsub.onclick=(function(fid){return function(){submitComment(fid)};})(f.id);
+    ra.appendChild(rtok); ra.appendChild(rtxt); ra.appendChild(rsub);
+    item.appendChild(ra);
+    con.appendChild(item);
   }
 }
 function openModal(id)  {document.getElementById(id).classList.add('show');   document.body.style.overflow='hidden'}
@@ -762,12 +745,15 @@ function renderStatus() {
         sorted.forEach(([score,players])=>{
           const[sh,sa]=score.split('-');
           const gAmt=players.reduce((s,p)=>s+(p.amount||0),0);
+          const loserPot=totalAmt-gAmt;
+          const expPrize=players.length?Math.floor(loserPot/players.length):0;
           detail+=`<div class="sgd-score-group">
             <div class="sgd-score-head">
               <span class="sgd-score-val">${sh} : ${sa}</span>
               <span class="sgd-score-cnt">${players.length}명</span>
               ${gAmt?`<span class="sgd-score-pot">${Number(gAmt).toLocaleString()}원</span>`:''}
             </div>
+            ${totalAmt&&expPrize>0?`<div class="sgd-exp-prize">💰 당첨시 인당 +${Number(expPrize).toLocaleString()}원 예상</div>`:''}
             <div class="sgd-names">
               ${players.map(p=>`<div class="sgd-name-tag ${p.paid?'paid':''}">${p.name}</div>`).join('')}
             </div>
