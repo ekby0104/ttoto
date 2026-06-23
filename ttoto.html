@@ -479,7 +479,7 @@ async function submitComment(fbId){
 async function renderFeedback(){
   const con=document.getElementById('fb-list');
   let list;
-  try{ list=await fetch(API+'/feedback').then(r=>r.json()); }catch(e){ list=null; }
+  try{ list=await fetch(API+'/feedback',{cache:'no-store'}).then(r=>r.json()); }catch(e){ list=null; }
   if(!Array.isArray(list)){con.innerHTML='';return}
   if(!list.length){con.innerHTML='<div class="fb-empty">아직 등록된 피드백이 없습니다</div>';return}
   con.innerHTML=list.map(f=>{

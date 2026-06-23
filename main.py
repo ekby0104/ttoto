@@ -839,13 +839,15 @@ def update_token(body: TokenUpdate):
 # ── 정적 파일 서빙 ─────────────────────────────────────────────
 STATIC_DIR = os.path.dirname(__file__)
 
+_NO_CACHE = {"Cache-Control": "no-cache, no-store, must-revalidate", "Pragma": "no-cache", "Expires": "0"}
+
 @app.get("/")
 def serve_index():
-    return FileResponse(os.path.join(STATIC_DIR, "ttoto.html"))
+    return FileResponse(os.path.join(STATIC_DIR, "ttoto.html"), headers=_NO_CACHE)
 
 @app.get("/admin")
 def serve_admin():
-    return FileResponse(os.path.join(STATIC_DIR, "admin.html"))
+    return FileResponse(os.path.join(STATIC_DIR, "admin.html"), headers=_NO_CACHE)
 
 @app.get("/favicon.svg")
 def serve_favicon():
