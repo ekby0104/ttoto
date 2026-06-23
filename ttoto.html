@@ -612,7 +612,7 @@ function renderBets() {
       const badgeTxt=ended?'🏁 게임 종료':closed?'마감':'베팅 중';
       const myBetCount=mb.length;
       html+=`
-      <div class="match-card ${myBetCount?'has-bet':''}" id="card-${m.id}">
+      <div class="match-card ${myBetCount&&!betDisabled?'has-bet':''}" id="card-${m.id}">
         <div class="mc-head">
           <span class="mc-meta ${betDisabled?'closed':'open'}">📅 ${m.date} ${m.time}</span>
           <span class="mc-badge ${badgeCls}">${badgeTxt}</span>
