@@ -1065,8 +1065,19 @@ setInterval(updateNoticeBar,1000);
   const fbMsg=document.getElementById('fb-message');
   const fbName=document.getElementById('fb-name');
   const stripFn=(el,max)=>{const c=el.value.replace(/[^가-힣ㄱ-ㅎㅏ-ㅣa-zA-Z0-9 ]/g,'').slice(0,max);if(c!==el.value)el.value=c};
-  if(fbMsg) fbMsg.addEventListener('input',()=>{stripFn(fbMsg,100);document.getElementById('fb-count').textContent=fbMsg.value.length});
-  if(fbName) fbName.addEventListener('input',()=>stripFn(fbName,5));
+  // 천지인·IME 조합 중엔 strip 건너뜀 (조합 완료 후 한 번만 실행)
+  let _composing=false;
+  if(fbMsg){
+    fbMsg.addEventListener('compositionstart',()=>{_composing=true;});
+    fbMsg.addEventListener('compositionend',()=>{_composing=false;stripFn(fbMsg,100);document.getElementById('fb-count').textContent=fbMsg.value.length;});
+    fbMsg.addEventListener('input',()=>{if(_composing)return;stripFn(fbMsg,100);document.getElementById('fb-count').textContent=fbMsg.value.length;});
+  }
+  let _composingName=false;
+  if(fbName){
+    fbName.addEventListener('compositionstart',()=>{_composingName=true;});
+    fbName.addEventListener('compositionend',()=>{_composingName=false;stripFn(fbName,5);});
+    fbName.addEventListener('input',()=>{if(_composingName)return;stripFn(fbName,5);});
+  }
 })();
 </script>
 </body>
