@@ -156,6 +156,8 @@ main{max-width:820px;margin:0 auto;padding:16px 12px 40px}
 .sgd-cell-name.paid{color:#14833a;font-weight:700}
 /* 게임 결과 */
 .result-card{background:var(--card);border:1px solid var(--border);border-radius:14px;margin-bottom:14px;overflow:hidden}
+.result-card.paid-done{cursor:pointer;transition:border-color .2s,box-shadow .2s}
+.result-card.paid-done:hover{border-color:var(--green);box-shadow:0 0 12px rgba(29,185,84,.25)}
 /* 오늘 종료된 게임: 테두리 반짝임 */
 .result-card.soon{animation:cardGlow 1.3s ease-in-out infinite}
 .rc-scoreboard{display:flex;align-items:center;justify-content:center;gap:14px;padding:20px 16px;text-align:center}
@@ -302,8 +304,55 @@ main{max-width:820px;margin:0 auto;padding:16px 12px 40px}
 </div>
 
 <div class="toast" id="toast"></div>
+<canvas id="fw-canvas" style="position:fixed;top:0;left:0;width:100%;height:100%;pointer-events:none;z-index:9999;display:none"></canvas>
 
 <script>
+// ── 폭죽 ─────────────────────────────────────────────────────
+(function(){
+  var _raf, _particles=[];
+  var COLORS=['#1db954','#f5c518','#e05555','#ffffff','#4a9eff','#ff6b9d','#ffa500','#c8ff00','#bf5af2'];
+  function burst(cx,cy,n){
+    for(var i=0;i<n;i++){
+      var a=Math.random()*Math.PI*2, sp=2+Math.random()*11;
+      _particles.push({x:cx,y:cy,vx:Math.cos(a)*sp,vy:Math.sin(a)*sp-3,
+        color:COLORS[Math.floor(Math.random()*COLORS.length)],
+        alpha:1,size:3+Math.random()*5,
+        rect:Math.random()<0.6,rot:Math.random()*Math.PI*2,
+        rotV:(Math.random()-.5)*.35});
+    }
+  }
+  function tick(ctx,cw,ch){
+    var canvas=document.getElementById('fw-canvas');
+    ctx.clearRect(0,0,cw,ch);
+    _particles=_particles.filter(function(p){return p.alpha>0.01;});
+    _particles.forEach(function(p){
+      p.x+=p.vx;p.y+=p.vy;p.vy+=0.28;p.vx*=0.99;
+      p.alpha-=0.013;p.rot+=p.rotV;
+      ctx.save();ctx.globalAlpha=Math.max(0,p.alpha);
+      ctx.fillStyle=p.color;ctx.translate(p.x,p.y);ctx.rotate(p.rot);
+      if(p.rect){ctx.fillRect(-p.size/2,-p.size/4,p.size,p.size/2);}
+      else{ctx.beginPath();ctx.arc(0,0,p.size/2,0,Math.PI*2);ctx.fill();}
+      ctx.restore();
+    });
+    if(_particles.length>0){_raf=requestAnimationFrame(function(){tick(ctx,cw,ch);});}
+    else{if(canvas)canvas.style.display='none';}
+  }
+  window.launchFireworks=function(e){
+    var canvas=document.getElementById('fw-canvas');
+    if(!canvas)return;
+    cancelAnimationFrame(_raf);_particles=[];
+    canvas.width=window.innerWidth;canvas.height=window.innerHeight;
+    canvas.style.display='block';
+    var ctx=canvas.getContext('2d');
+    var cx=e.clientX,cy=e.clientY;
+    burst(cx,cy,120);
+    setTimeout(function(){burst(cx+(-60+Math.random()*120),cy+(-130+Math.random()*60),90);},180);
+    setTimeout(function(){burst(cx+(-60+Math.random()*120),cy+(-130+Math.random()*60),90);},360);
+    setTimeout(function(){burst(cx+(-80+Math.random()*160),cy+(-170+Math.random()*80),70);},540);
+    tick(ctx,canvas.width,canvas.height);
+  };
+})();
+
 // ── 서버 설정 ──────────────────────────────────────────────
 const API = '/api';
 
@@ -904,6 +953,7 @@ function computeCarryover() {
 function renderResult() {
   const con=document.getElementById('result-container');
   let html='';
+  const fireworkIds=[];
   [...MATCHES].filter(m=>m.status!=='pending').sort((a,b)=>(b.date+b.time).localeCompare(a.date+a.time)).forEach(m=>{
     const res=allResults[String(m.id)];
     const mb=gameBets(m.id);
@@ -911,7 +961,7 @@ function renderResult() {
     // 당일 종료된 게임만 반짝임
     const todayStr=new Date(Date.now()+9*3600*1000).toISOString().slice(0,10).replace(/-/g,'.');
     const soon=!!res&&m.date===todayStr;
-    html+=`<div class="result-card ${soon?'soon':''}">
+    html+=`<div class="result-card ${soon?'soon':''}" id="rc-${m.id}">
       <div class="mc-head">
         <span class="mc-meta ${res?'closed':'open'}">📅 ${m.date} ${m.time}</span>
         <span class="mc-badge ${res?'badge-ended':m.status==='open'?'badge-open':'badge-closed'}">${res?'🏁 게임 종료':m.status==='open'?'베팅 중':'마감'}</span>
@@ -937,6 +987,7 @@ function renderResult() {
       const gamePot=mb.reduce((s,b)=>s+(b.amount||0),0);
       // 배당완료 여부: 당첨자 전원 paid_out=true면 완료
       const allPaidOut=winners.length>0&&winners.every(b=>b.paid_out);
+      if(allPaidOut) fireworkIds.push(m.id);
       html+=`<div class="rc-body">
         <div class="rc-section-label">${winners.length
           ? `🏆 ${label} · 판돈 ${Number(gamePot).toLocaleString()}원${carryover?` + 이월 ${Number(carryover).toLocaleString()}원`:''}`
@@ -973,6 +1024,11 @@ function renderResult() {
     html+='</div>';
   });
   con.innerHTML=html;
+  // 배당 완료 카드에 폭죽 onclick 부착
+  fireworkIds.forEach(function(id){
+    const el=document.getElementById('rc-'+id);
+    if(el){el.classList.add('paid-done');el.onclick=function(e){launchFireworks(e);};}
+  });
 }
 
 // ── 베팅 마감 카운트다운 마퀴 (시작 24시간 전) ──
