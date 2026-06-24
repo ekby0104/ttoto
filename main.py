@@ -8,10 +8,34 @@ from fastapi.staticfiles import StaticFiles
 from fastapi.responses import FileResponse
 from pydantic import BaseModel, Field
 from typing import Optional
-import json, os, time, httpx, re
+import json, os, time, httpx, re, asyncio
 from datetime import datetime, timedelta
 
 app = FastAPI(title="사무실 월드컵 토토 API")
+
+@app.on_event("startup")
+async def auto_close_games():
+    async def _loop():
+        while True:
+            try:
+                now_kst = datetime.utcnow() + timedelta(hours=9)
+                games = get_games()
+                changed = False
+                for g in games:
+                    if g.get("status") == "open":
+                        try:
+                            dt = datetime.strptime(f"{g['date']} {g['time']}", "%Y.%m.%d %H:%M")
+                        except Exception:
+                            continue
+                        if now_kst >= dt:
+                            g["status"] = "closed"
+                            changed = True
+                if changed:
+                    write_json(GAMES_FILE, games)
+            except Exception:
+                pass
+            await asyncio.sleep(60)
+    asyncio.create_task(_loop())
 
 app.add_middleware(
     CORSMiddleware,
