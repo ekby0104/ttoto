@@ -414,7 +414,7 @@ async function switchTab(name) {
   if (name==='feedback') { await renderFeedback(); return; }
   await loadAll();
   if (name==='bet')    renderBets();
-  if (name==='status') renderStatus();
+  if (name==='status') { renderStatus(); checkStatusFireworks(); }
   if (name==='result') renderResult();
 }
 
@@ -891,6 +891,29 @@ function toggleExpand(id){
   renderStatus();
 }
 function setStatusView(v){statusView=v;renderStatus()}
+function checkStatusFireworks(){
+  const nowKST=Date.now()+9*3600*1000;
+  const todayKST=new Date(nowKST).toISOString().slice(0,10).replace(/-/g,'.');
+  const TWO_HOURS=2*3600*1000;
+  const fresh=MATCHES.filter(m=>{
+    if(m.date!==todayKST) return false;
+    const res=allResults[String(m.id)];
+    if(!res||!res.registered_at) return false;
+    return (nowKST - res.registered_at*1000) <= TWO_HOURS;
+  });
+  if(!fresh.length) return;
+  // 결과 등록된 경기 수만큼 연속 폭죽
+  var count=Math.min(fresh.length,3);
+  for(var i=0;i<count;i++){
+    (function(delay){
+      setTimeout(function(){
+        var e={clientX:Math.floor(window.innerWidth*(.3+Math.random()*.4)),
+               clientY:Math.floor(window.innerHeight*(.2+Math.random()*.3))};
+        launchFireworks(e);
+      },delay);
+    })(600+i*800);
+  }
+}
 
 // 점수 매트릭스 테이블 (가로: 홈 득점, 세로: 원정 득점)
 // 기본 0~3, 4점 이상 베팅이 있으면 최대 점수까지 확장

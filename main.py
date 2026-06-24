@@ -397,7 +397,7 @@ def admin_delete_bet(bet_id: int, auth=Depends(admin_required)):
 @app.put("/api/admin/results/{game_id}")
 def admin_set_result(game_id: int, body: ResultIn, auth=Depends(admin_required)):
     results = get_results()
-    results[str(game_id)] = {"h": body.h, "a": body.a}
+    results[str(game_id)] = {"h": body.h, "a": body.a, "registered_at": int(time.time())}
     write_json(RESULTS_FILE, results)
     return results[str(game_id)]
 
@@ -828,7 +828,7 @@ async def admin_import_confirm(body: ImportConfirm, korea_only: bool = False, au
         existing.append(g)
         existing_ids.add(gid)
         if p["result"]:
-            results[gid] = p["result"]
+            results[gid] = {**p["result"], "registered_at": int(time.time())}
         added += 1
     write_json(GAMES_FILE, existing)
     write_json(RESULTS_FILE, results)
