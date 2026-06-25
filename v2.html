@@ -499,7 +499,9 @@ function renderFullBracket(visible){
   const standHtml=letters.length?`<div class="stand-col" style="left:0;top:${PADY}px;width:${stW}px">${standTables}</div>`:'';
   H=Math.max(H, PADY*2+letters.length*210);
   if(!ko.length&&!letters.length)return '<div class="empty">경기가 없습니다</div>';
-  const W=colX.F+COLW+PADY;
+  // 오른쪽에 화면 한 칸 여백 → 결승도 왼쪽 끝까지 스크롤 가능 (오른쪽 비움)
+  const vw=Math.min(window.innerWidth,560);
+  const W=colX.F+vw;
   const heads=`<div class="bk-head" style="left:0;width:${stW}px">조 순위</div>`+
     ROUNDS.map(r=>`<div class="bk-head" style="left:${colX[r]}px;width:${CARDW}px">${RLBL[r]}</div>`).join('');
   return `<div class="bk-scroll" id="bk-scroll"><div class="bk-stage" style="width:${W}px">
