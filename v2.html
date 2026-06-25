@@ -83,7 +83,7 @@ body{background:var(--bg);color:var(--text);font-family:var(--sys);min-height:10
 .sheet{background:var(--card);width:100%;max-width:560px;border-radius:20px 20px 0 0;max-height:92vh;overflow-y:auto;transform:translateY(100%);transition:transform .3s cubic-bezier(.32,.72,0,1);padding-bottom:max(20px,env(safe-area-inset-bottom))}
 .sheet-ov.show .sheet{transform:translateY(0)}
 .sheet-grip{width:38px;height:5px;border-radius:3px;background:#48484a;margin:9px auto 4px}
-.sheet-hd{display:flex;align-items:center;justify-content:space-between;padding:6px 18px 12px;border-bottom:1px solid var(--sep)}
+.sheet-hd{display:flex;align-items:center;justify-content:space-between;padding:10px 18px 12px;border-bottom:1px solid var(--sep);position:sticky;top:0;background:var(--card);z-index:3}
 .sheet-ttl{font-size:18px;font-weight:800}
 .x{background:var(--card2);border:none;color:var(--muted2);width:30px;height:30px;border-radius:50%;font-size:18px;cursor:pointer}
 .sheet-bd{padding:16px 18px}
@@ -133,6 +133,8 @@ body{background:var(--bg);color:var(--text);font-family:var(--sys);min-height:10
 .fb-nm{font-weight:700;font-size:14px}
 .fb-dt{font-size:11px;color:var(--muted);font-family:var(--mono)}
 .fb-msg{font-size:14px;color:var(--muted2);line-height:1.5;word-break:break-word}
+.fb-reply{margin-top:8px;padding:8px 10px;background:rgba(10,132,255,.1);border-left:2px solid var(--blue);border-radius:6px;font-size:13px;color:#fff;line-height:1.5;word-break:break-word}
+.fb-reply-h{font-size:11px;color:var(--blue);margin-bottom:2px}.fb-reply-h b{font-weight:700}
 .fb-cnt{text-align:right;font-size:11px;color:var(--muted);font-family:var(--mono);margin-top:4px}
 /* 토스트 */
 .toast{position:fixed;left:0;right:0;bottom:90px;margin:auto;width:max-content;max-width:90%;background:#fff;color:#000;padding:12px 22px;border-radius:30px;font-weight:700;font-size:14px;opacity:0;transition:all .28s;pointer-events:none;z-index:200;transform:translateY(14px)}
@@ -440,7 +442,11 @@ async function renderFeedback(){
   if(!Array.isArray(list)||!list.length){con.innerHTML='<div class="empty">아직 피드백이 없어요</div>';return;}
   con.innerHTML=list.map(f=>{
     const d=new Date((f.created_at||0)*1000).toLocaleString('ko-KR');
-    return `<div class="fb-item"><div class="fb-h"><span class="fb-nm">${esc(f.name||'')}</span><span class="fb-dt">${esc(d)}</span></div><div class="fb-msg">${esc(f.message||'')}</div></div>`;
+    const replies=(f.comments||[]).map(c=>{
+      const cd=new Date((c.created_at||0)*1000).toLocaleString('ko-KR');
+      return `<div class="fb-reply"><div class="fb-reply-h">↳ <b>운영자</b> <span class="fb-dt">${esc(cd)}</span></div><div>${esc(c.text||'')}</div></div>`;
+    }).join('');
+    return `<div class="fb-item"><div class="fb-h"><span class="fb-nm">${esc(f.name||'')}</span><span class="fb-dt">${esc(d)}</span></div><div class="fb-msg">${esc(f.message||'')}</div>${replies}</div>`;
   }).join('');
 }
 async function sendFeedback(){
