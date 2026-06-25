@@ -336,80 +336,80 @@ function teamSide(g,side){
   return{flag:'⚪',name:transLabel(g[side+'_label']),known:false};
 }
 
-const RLBL={R32:'32강',R16:'16강',QF:'8강',SF:'4강',F:'결승'};
+// 전체 스크롤 브래킷 (좌우 이동 가능). 세로 간격 압축 + 카드 확대.
 function renderKnockout(visible,stage){
   const ko=visible.filter(g=>ROUNDS.includes(gStage(g)));
   if(!ko.length)return '<div class="empty">토너먼트 경기가 없습니다</div>';
-  if(!ROUNDS.includes(selStage))selStage='R32';
-  setTimeout(layoutKnockout,30);
-  return `<div class="bk-focus" id="bk-focus"></div>`;
-}
-
-// 선택 라운드 + 다음 라운드 2칸을 화면 폭에 맞춰 렌더 (세로 간격 압축)
-function bkSort(a,b){return String(a.id).localeCompare(String(b.id),undefined,{numeric:true});}
-function bkChildren(g,byId){return [matchRef(g.home_label),matchRef(g.away_label)].filter(x=>x&&byId[x]);}
-function bkPosCard(g,x,y,w,h,big){
-  const st=gState(g),bett=st==='open',res=RESULTS[String(g.id)];
-  const ho=teamSide(g,'home'),a=teamSide(g,'away');
-  const dt=g.date?`${g.date.slice(5)} ${g.time||''}`:'';
-  return `<div class="bk-card ${bett?'bettable':''}" style="left:${x}px;top:${y}px;width:${w}px;height:${h}px" onclick="openGame('${g.id}')">
-    ${big?`<div class="bk-dt">${dt}${bett?' · ⚽':''}</div>`:''}
-    <div class="bk-row"><span class="bk-f">${ho.flag}</span><span class="bk-n ${ho.known?'':'tbd'}">${ho.name}</span><span class="bk-s">${res?res.h:''}</span></div>
-    <div class="bk-row"><span class="bk-f">${a.flag}</span><span class="bk-n ${a.known?'':'tbd'}">${a.name}</span><span class="bk-s">${res?res.a:''}</span></div>
-  </div>`;
-}
-function layoutKnockout(){
-  const host=document.getElementById('bk-focus');if(!host)return;
-  const visible=GAMES.filter(g=>!g.deleted);
-  let idx=ROUNDS.indexOf(selStage);if(idx<0)idx=0;
-  const curR=ROUNDS[idx],nextR=ROUNDS[idx+1];
-  const byId={};visible.forEach(g=>{if(ROUNDS.includes(gStage(g)))byId[String(g.id)]=g;});
-  const cur=visible.filter(g=>gStage(g)===curR).sort(bkSort);
-  const next=nextR?visible.filter(g=>gStage(g)===nextR).sort(bkSort):[];
-  if(!cur.length){host.innerHTML='<div class="empty">경기가 없습니다</div>';host.style.height='';return;}
-  const W=host.clientWidth||340;
-  const GAP=26,CARDH=64,VG=14,step=CARDH+VG,HEADH=24,TOP=HEADH+4;
-
-  // 단일 컬럼 (결승 + 3·4위전)
-  if(!next.length){
-    const third=visible.find(g=>gStage(g)==='3RD');
-    const cw=Math.min(W-4,440),cx=(W-cw)/2;
-    let html=`<div class="bk-rh cur" style="left:${cx}px;top:0;width:${cw}px;text-align:left">${RLBL[curR]||'결승'}</div>`,y=TOP;
-    cur.forEach(g=>{html+=bkPosCard(g,cx,y,cw,CARDH,true);y+=step+8;});
-    if(third){
-      y+=8;html+=`<div class="bk-thirdlbl" style="left:${cx}px;top:${y-22}px;width:${cw}px;text-align:left">🥉 3·4위전</div>`;
-      html+=bkPosCard(third,cx,y,cw,CARDH,true);y+=step;
-    }
-    host.style.height=(y+10)+'px';host.innerHTML=html;return;
+  const byId={};ko.forEach(g=>byId[String(g.id)]=g);
+  const COLW=182,CARDW=164,ROWH=44,CARDH=58,PADX=8,PADY=14;
+  const round={};ROUNDS.forEach((r,i)=>round[r]=i);
+  const yc={};let slot=0;
+  function dfs(id){
+    const g=byId[id];if(!g){const s=slot++;return s;}
+    const c=[matchRef(g.home_label),matchRef(g.away_label)].filter(x=>x&&byId[x]);
+    if(!c.length){const s=slot++;yc[id]=s;return s;}
+    const ys=c.map(dfs);const v=ys.reduce((a,b)=>a+b,0)/ys.length;yc[id]=v;return v;
   }
-
-  // 2컬럼: 좌(선택) 58% + 우(다음) 나머지
-  const leftW=Math.round((W-GAP)*0.58),rightW=W-GAP-leftW,rx=leftW+GAP;
-  const top={};cur.forEach((g,i)=>top[g.id]=TOP+i*step);
-  const ntop={};
-  next.forEach((g,i)=>{
-    let ch=bkChildren(g,byId).filter(id=>top[id]!=null);
-    if(!ch.length){const a=cur[i*2],b=cur[i*2+1];ch=[a&&String(a.id),b&&String(b.id)].filter(id=>id&&top[id]!=null);}
-    if(ch.length){const ys=ch.map(id=>top[id]);ntop[g.id]=ys.reduce((a,b)=>a+b,0)/ys.length;}
-    else ntop[g.id]=TOP+i*step*2;
-  });
-  const H=Math.max(TOP+cur.length*step, Math.max(0,...next.map(g=>ntop[g.id]+CARDH)))+12;
+  let finalG=ko.find(g=>gStage(g)==='F');
+  let usedLabels=!!(finalG&&(finalG.home_label||finalG.away_label));
+  if(usedLabels)dfs(String(finalG.id));
+  if(!usedLabels){
+    slot=0;
+    ko.filter(g=>gStage(g)==='R32').sort(bkSort).forEach(g=>yc[g.id]=slot++);
+    ['R16','QF','SF','F'].forEach((r,idx)=>{
+      const prev=['R32','R16','QF','SF'][idx];
+      const gs=ko.filter(g=>gStage(g)===r).sort(bkSort);
+      const pv=ko.filter(g=>gStage(g)===prev).sort(bkSort);
+      gs.forEach((g,i)=>{const a=pv[i*2],b=pv[i*2+1];const ya=a?yc[a.id]:i*2,yb=b?yc[b.id]:i*2+1;yc[g.id]=(ya+yb)/2;});
+    });
+  }
+  const leafCount=Math.max(slot,16);
+  const W=ROUNDS.length*COLW; let H=leafCount*ROWH+PADY*2;
+  function pos(g){const col=round[gStage(g)];return{x:col*COLW+PADX,top:(yc[g.id]||0)*ROWH+PADY,col};}
   // 연결선
   let lines='';
-  next.forEach((g,i)=>{
-    let ch=bkChildren(g,byId).filter(id=>top[id]!=null);
-    if(!ch.length){const a=cur[i*2],b=cur[i*2+1];ch=[a&&String(a.id),b&&String(b.id)].filter(id=>id&&top[id]!=null);}
-    const px=rx,py=ntop[g.id]+CARDH/2,mx=leftW+GAP/2;
-    ch.forEach(id=>{const cy=top[id]+CARDH/2;lines+=`<path d="M${leftW} ${cy} H${mx} V${py} H${px}" stroke="#48484a" stroke-width="1.5" fill="none"/>`;});
+  ko.forEach(g=>{
+    const refs=[matchRef(g.home_label),matchRef(g.away_label)].filter(x=>x&&byId[x]);
+    const p=pos(g),px=p.x,py=p.top+CARDH/2;
+    refs.forEach(cid=>{const cp=pos(byId[cid]),cx=cp.x+CARDW,cy=cp.top+CARDH/2,mx=(cx+px)/2;
+      lines+=`<path d="M${cx} ${cy} H${mx} V${py} H${px}" stroke="#48484a" stroke-width="1.5" fill="none"/>`;});
   });
-  let html=`<div class="bk-rh cur" style="left:0;top:0;width:${leftW}px">${RLBL[curR]}</div>
-    <div class="bk-rh" style="left:${rx}px;top:0;width:${rightW}px">${RLBL[nextR]}</div>
-    <svg class="bk-svg" width="${W}" height="${H}">${lines}</svg>`;
-  cur.forEach(g=>html+=bkPosCard(g,0,top[g.id],leftW,CARDH,true));
-  next.forEach(g=>html+=bkPosCard(g,rx,ntop[g.id],rightW,CARDH,rightW>120));
-  host.style.height=H+'px';host.innerHTML=html;
+  // 카드
+  function bkCard(g,x,top,w){
+    const st=gState(g),bett=st==='open',res=RESULTS[String(g.id)];
+    const h=teamSide(g,'home'),a=teamSide(g,'away');
+    const dt=g.date?`${g.date.slice(5)} ${g.time||''}`:'';
+    return `<div class="bk-card ${bett?'bettable':''}" style="left:${x}px;top:${top}px;width:${w}px;height:${CARDH}px" onclick="openGame('${g.id}')">
+      <div class="bk-dt">${dt}${bett?' · ⚽':''}</div>
+      <div class="bk-row"><span class="bk-f">${h.flag}</span><span class="bk-n ${h.known?'':'tbd'}">${h.name}</span><span class="bk-s">${res?res.h:''}</span></div>
+      <div class="bk-row"><span class="bk-f">${a.flag}</span><span class="bk-n ${a.known?'':'tbd'}">${a.name}</span><span class="bk-s">${res?res.a:''}</span></div>
+    </div>`;
+  }
+  let cards='';
+  ko.forEach(g=>{const p=pos(g);cards+=bkCard(g,p.x,p.top,CARDW);});
+  // 3·4위전: 결승 카드 아래
+  const third=visible.find(g=>gStage(g)==='3RD');
+  if(third&&finalG){
+    const fp=pos(finalG),tx=fp.x,ttop=fp.top+CARDH+62;
+    H=Math.max(H,ttop+CARDH+PADY);
+    cards+=`<div class="bk-thirdlbl" style="left:${tx}px;top:${ttop-22}px;width:${CARDW}px">🥉 3·4위전</div>`+bkCard(third,tx,ttop,CARDW);
+  }
+  const heads=ROUNDS.map((r,i)=>`<div class="bk-head" style="left:${i*COLW+PADX}px;width:${CARDW}px">${RLBL[r]}</div>`).join('');
+  setTimeout(()=>{
+    const sc=document.getElementById('bk-scroll');if(!sc)return;
+    const col=round[selStage]||0;
+    sc.scrollTo({left:Math.max(0,col*COLW-30),behavior:'smooth'});
+    sc.onscroll=()=>onBracketScroll(sc,COLW,ROUNDS);
+    onBracketScroll(sc,COLW,ROUNDS);
+  },60);
+  return `<div class="bk-scroll" id="bk-scroll"><div class="bk-stage" style="width:${W}px">
+    <div class="bk-heads" style="width:${W}px">${heads}</div>
+    <div class="bk-canvas" style="width:${W}px;height:${H}px">
+      <svg class="bk-svg" width="${W}" height="${H}">${lines}</svg>${cards}
+    </div></div></div>`;
 }
-window.addEventListener('resize',()=>{if(selStage!=='GS'&&document.getElementById('bk-focus'))layoutKnockout();});
+const RLBL={R32:'32강',R16:'16강',QF:'8강',SF:'4강',F:'결승'};
+function bkSort(a,b){return String(a.id).localeCompare(String(b.id),undefined,{numeric:true});}
 
 function cardHtml(g,bettable){
   const st=gState(g);
