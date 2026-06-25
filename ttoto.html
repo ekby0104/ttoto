@@ -899,10 +899,6 @@ function checkStatusFireworks(){
     if(m.date!==todayKST) return false;
     const res=allResults[String(m.id)];
     if(!res) return false;
-    // registered_at 있으면 그걸로, 없으면 경기 시작 시각 기준 2시간 이내
-    if(res.registered_at){
-      return (Date.now()+9*3600*1000 - res.registered_at*1000) <= 4*3600*1000;
-    }
     const parts=(m.time||'00:00').split(':');
     const gameMin=Number(parts[0])*60+Number(parts[1]);
     const diff=nowMin-gameMin;
