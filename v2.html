@@ -315,8 +315,11 @@ function setStage(s){
   const sc=document.getElementById('bk-scroll');
   if(sc){
     const f=s==='GS'?'R32':s;
-    if(f!==bkFocus){bkFocus=f;relayoutBracket(f);}
-    sc.scrollTo({left:Math.max(0,(SECTION_X[s]||0)-6),behavior:'smooth'});
+    bkFocus=f; relayoutBracket(f);
+    // 스크롤 중 onBracketScroll 간섭 방지: 잠시 해제하고 즉시 이동 후 복구
+    sc.onscroll=null;
+    sc.scrollLeft=Math.max(0,(SECTION_X[s]||0)-6);
+    setTimeout(()=>{sc.onscroll=()=>onBracketScroll(sc);},80);
   }else render();
   window.scrollTo({top:0,behavior:'smooth'});
 }
