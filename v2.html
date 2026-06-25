@@ -37,7 +37,8 @@ body{background:var(--bg);color:var(--text);font-family:var(--sys);min-height:10
 .seg.active .seg-tx{color:#1c1c1e}
 .seg-tx.trophy{font-size:18px}
 /* 조 순위표 */
-.stand-col{position:absolute}
+.stand-list{display:flex;flex-direction:column}
+.stand-full{width:100%}
 .stand{background:var(--card);border-radius:12px;overflow:hidden;margin-bottom:12px}
 .st-head{display:flex;align-items:center;justify-content:space-between;padding:8px 10px 7px;border-bottom:1px solid var(--sep)}
 .st-gl{font-weight:800;color:#fff;font-size:13px}
@@ -291,12 +292,17 @@ function render(){
   renderStageBar();
   const visible=GAMES.filter(g=>!g.deleted);
   document.getElementById('hd-sub').textContent=`${visible.filter(g=>gState(g)==='open').length}경기 베팅중`;
-  document.getElementById('wrap').innerHTML=renderFullBracket(visible);
-  setTimeout(()=>{
-    const sc=document.getElementById('bk-scroll');if(!sc)return;
-    sc.scrollLeft=Math.max(0,(SECTION_X[selStage]||0)-6);
-    sc.onscroll=()=>onBracketScroll(sc);
-  },40);
+  const wrap=document.getElementById('wrap');
+  if(selStage==='GS'){          // 조별리그: 일반 흐름 순위표 (iOS 안전)
+    wrap.innerHTML=renderStandingsList(visible);
+  }else{                        // 토너먼트: 절대배치 브래킷 캔버스
+    wrap.innerHTML=renderFullBracket(visible);
+    setTimeout(()=>{
+      const sc=document.getElementById('bk-scroll');if(!sc)return;
+      sc.scrollLeft=Math.max(0,(SECTION_X[selStage]||0)-6);
+      sc.onscroll=()=>onBracketScroll(sc);
+    },40);
+  }
 }
 // 셀렉터: 텍스트 라벨(GS, R32…), 결승만 우승컵
 function renderStageBar(){
@@ -307,16 +313,21 @@ function renderStageBar(){
   }).join('')}</div>`;
 }
 function setStage(s){
+  const wasBracket=selStage!=='GS';
   selStage=s;
-  renderStageBar();
   const sc=document.getElementById('bk-scroll');
-  if(sc)sc.scrollTo({left:Math.max(0,(SECTION_X[s]||0)-6),behavior:'smooth'});
+  if(s!=='GS'&&wasBracket&&sc){   // 브래킷 내 라운드 이동: 부드럽게 스크롤
+    renderStageBar();
+    sc.scrollTo({left:Math.max(0,(SECTION_X[s]||0)-6),behavior:'smooth'});
+  }else{                          // GS↔브래킷 전환: 뷰 재구성
+    render();window.scrollTo({top:0,behavior:'smooth'});
+  }
 }
-// 가로 스크롤 → 현재 보는 단계로 셀렉터 동기화
+// 가로 스크롤 → 현재 보는 라운드로 셀렉터 동기화
 function onBracketScroll(sc){
   const x=sc.scrollLeft+sc.clientWidth*0.25;
-  let cur='GS';
-  STAGES.forEach(([k])=>{if((SECTION_X[k]||0)<=x)cur=k;});
+  let cur='R32';
+  ['R32','R16','QF','SF','F'].forEach(k=>{if((SECTION_X[k]||0)<=x)cur=k;});
   if(cur!==selStage){selStage=cur;renderStageBar();}
 }
 
@@ -363,19 +374,32 @@ function teamSide(g,side){
   return{flag:'⚪',name:transLabel(g[side+'_label']),known:false};
 }
 
-// Apple Sports식 통합 뷰: [조 순위표] + [R32→결승 전체 브래킷], 항상 표시 + 가로 스크롤
+// 조별리그 순위표 (일반 흐름, iOS 안전)
 const RLBL={R32:'32강',R16:'16강',QF:'8강',SF:'4강',F:'결승'};
 function bkSort(a,b){return String(a.id).localeCompare(String(b.id),undefined,{numeric:true});}
+function renderStandingsList(visible){
+  const stand=computeStandings(visible);
+  const letters=Object.keys(stand);
+  if(!letters.length)return '<div class="empty">조별리그 정보가 없습니다</div>';
+  return `<div class="stand-list">`+letters.map(L=>{
+    const arr=stand[L];
+    const rows=arr.map((t,i)=>`<div class="st-row ${i<2?'adv':''}">
+      <span class="st-rk">${i+1}</span><span class="st-fl">${t.flag}</span><span class="st-nm">${t.short}</span>
+      <span class="st-v">${t.gp}</span><span class="st-v">${t.w}</span><span class="st-v">${t.d}</span><span class="st-v">${t.l}</span><span class="st-v">${t.gd>0?'+'+t.gd:t.gd}</span><span class="st-v pts">${t.pts}</span></div>`).join('');
+    return `<div class="stand stand-full">
+      <div class="st-head"><span class="st-gl">Group ${L}</span><span class="st-cols"><span>GP</span><span>W</span><span>D</span><span>L</span><span>GD</span><span>PTS</span></span></div>${rows}</div>`;
+  }).join('')+`</div>`;
+}
+
+// 토너먼트 브래킷 (절대배치 캔버스, 가로 스크롤)
 function renderFullBracket(visible){
   const ko=visible.filter(g=>ROUNDS.includes(gStage(g)));
+  if(!ko.length)return '<div class="empty">토너먼트 경기가 없습니다</div>';
   const byId={};ko.forEach(g=>byId[String(g.id)]=g);
-  const cw=Math.min(window.innerWidth,560)-24;
-  const STANDW=Math.min(cw,360);          // 조 순위표 컬럼 폭
-  const COLW=178,CARDW=158,CARDH=74,ROWH=90,PADY=16,GS_GAP=18;
-  const bx0=STANDW+GS_GAP;                // 브래킷 시작 x
+  const COLW=180,CARDW=160,CARDH=74,ROWH=90,PADY=16,PADX=6;
+  const bx0=PADX;
   const colX={R32:bx0,R16:bx0+COLW,QF:bx0+2*COLW,SF:bx0+3*COLW,F:bx0+4*COLW};
-  // 단계별 스크롤 위치
-  SECTION_X={GS:0,R32:colX.R32-6,R16:colX.R16-6,QF:colX.QF-6,SF:colX.SF-6,F:colX.F-6};
+  SECTION_X={R32:colX.R32-6,R16:colX.R16-6,QF:colX.QF-6,SF:colX.SF-6,F:colX.F-6};
 
   // ── 브래킷 y 좌표 (정통 간격) ──
   const yc={};let slot=0;
@@ -399,21 +423,6 @@ function renderFullBracket(visible){
   const leafCount=Math.max(slot,16);
   function pos(g){return{x:colX[gStage(g)],top:(yc[g.id]||0)*ROWH+PADY};}
 
-  // ── 조 순위표 (왼쪽 컬럼, 정상 흐름) ──
-  const stand=computeStandings(visible);
-  const letters=Object.keys(stand);
-  const stW=STANDW-10;
-  const standTables=letters.map(L=>{
-    const arr=stand[L];
-    const rows=arr.map((t,i)=>`<div class="st-row ${i<2?'adv':''}">
-      <span class="st-rk">${i+1}</span><span class="st-fl">${t.flag}</span><span class="st-nm">${t.short}</span>
-      <span class="st-v">${t.gp}</span><span class="st-v">${t.w}</span><span class="st-v">${t.d}</span><span class="st-v">${t.l}</span><span class="st-v">${t.gd>0?'+'+t.gd:t.gd}</span><span class="st-v pts">${t.pts}</span></div>`).join('');
-    return `<div class="stand">
-      <div class="st-head"><span class="st-gl">Group ${L}</span><span class="st-cols"><span>GP</span><span>W</span><span>D</span><span>L</span><span>GD</span><span>PTS</span></span></div>${rows}</div>`;
-  }).join('');
-  const standHtml=`<div class="stand-col" style="left:0;top:${PADY}px;width:${stW}px">${standTables}</div>`;
-  const standEstH=PADY*2+letters.length*200;
-
   // ── 연결선 + 카드 ──
   let lines='';
   ko.forEach(g=>{
@@ -434,7 +443,7 @@ function renderFullBracket(visible){
   }
   let cards='';
   ko.forEach(g=>{const p=pos(g);cards+=bkCard(g,p.x,p.top);});
-  let H=Math.max(leafCount*ROWH+PADY*2, standEstH);
+  let H=leafCount*ROWH+PADY*2;
   // 3·4위전: 결승 아래
   const third=visible.find(g=>gStage(g)==='3RD');
   if(third&&finalG){
@@ -443,14 +452,11 @@ function renderFullBracket(visible){
     cards+=`<div class="bk-thirdlbl" style="left:${tx}px;top:${ttop-22}px;width:${CARDW}px">🥉 3·4위전</div>`+bkCard(third,tx,ttop);
   }
   const W=colX.F+COLW+PADY;
-  // 컬럼 헤더 (조별 + 라운드)
-  const heads=`<div class="bk-head" style="left:0;width:${stW}px">조 순위</div>`+
-    ROUNDS.map(r=>`<div class="bk-head" style="left:${colX[r]}px;width:${CARDW}px">${RLBL[r]}</div>`).join('');
-  if(!ko.length&&!letters.length)return '<div class="empty">경기가 없습니다</div>';
+  const heads=ROUNDS.map(r=>`<div class="bk-head" style="left:${colX[r]}px;width:${CARDW}px">${RLBL[r]}</div>`).join('');
   return `<div class="bk-scroll" id="bk-scroll"><div class="bk-stage" style="width:${W}px">
     <div class="bk-heads" style="width:${W}px">${heads}</div>
     <div class="bk-canvas" style="width:${W}px;height:${H}px">
-      <svg class="bk-svg" width="${W}" height="${H}">${lines}</svg>${standHtml}${cards}
+      <svg class="bk-svg" width="${W}" height="${H}">${lines}</svg>${cards}
     </div></div></div>`;
 }
 
