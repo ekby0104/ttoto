@@ -414,8 +414,8 @@ async function switchTab(name) {
   if (name==='feedback') { await renderFeedback(); return; }
   await loadAll();
   if (name==='bet')    renderBets();
-  if (name==='status') { renderStatus(); checkStatusFireworks(); }
-  if (name==='result') renderResult();
+  if (name==='status') renderStatus();
+  if (name==='result') { renderResult(); checkStatusFireworks(); }
 }
 
 async function submitFeedback() {
