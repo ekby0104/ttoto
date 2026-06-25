@@ -41,7 +41,8 @@ body{background:var(--bg);color:var(--text);font-family:var(--sys);min-height:10
 .seg.active .seg-ic i{background:#1c1c1e}
 .seg-ic.trophy{font-size:17px;height:auto}
 /* 조 순위표 */
-.stand{position:absolute;background:var(--card);border-radius:12px;overflow:hidden}
+.stand-col{position:absolute}
+.stand{background:var(--card);border-radius:12px;overflow:hidden;margin-bottom:12px}
 .st-head{display:flex;align-items:center;justify-content:space-between;padding:8px 10px 7px;border-bottom:1px solid var(--sep)}
 .st-gl{font-weight:800;color:#fff;font-size:13px}
 .st-cols{display:flex}.st-cols span{width:26px;text-align:center;font-size:10px;color:var(--muted);font-family:var(--mono)}
@@ -77,11 +78,11 @@ body{background:var(--bg);color:var(--text);font-family:var(--sys);min-height:10
 .bk-head.cur{color:var(--green)}
 .bk-canvas{position:relative}
 .bk-svg{position:absolute;top:0;left:0;pointer-events:none}
-.bk-card{position:absolute;background:var(--card);border:1.5px solid transparent;border-radius:10px;padding:4px 8px;display:flex;flex-direction:column;justify-content:center;gap:1px;cursor:pointer;overflow:hidden}
+.bk-card{position:absolute;background:var(--card);border:1.5px solid transparent;border-radius:10px;padding:5px 9px;display:flex;flex-direction:column;justify-content:center;gap:3px;cursor:pointer;overflow:hidden}
 .bk-card.bettable{border-color:var(--green);box-shadow:0 0 10px rgba(48,209,88,.3)}
 .bk-card:active{transform:scale(.97)}
-.bk-dt{font-size:9px;color:var(--muted);font-family:var(--mono);white-space:nowrap;overflow:hidden}
-.bk-row{display:flex;align-items:center;gap:6px}
+.bk-dt{font-size:10px;line-height:15px;height:15px;color:var(--muted);font-family:var(--mono);white-space:nowrap;overflow:hidden}
+.bk-row{display:flex;align-items:center;gap:6px;height:20px}
 .bk-f{font-size:15px;flex-shrink:0}
 .bk-n{flex:1;font-size:13px;font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .bk-n.tbd{color:var(--muted);font-weight:500;font-size:11px}
@@ -376,7 +377,7 @@ function renderFullBracket(visible){
   const byId={};ko.forEach(g=>byId[String(g.id)]=g);
   const cw=Math.min(window.innerWidth,560)-24;
   const STANDW=Math.min(cw,360);          // 조 순위표 컬럼 폭
-  const COLW=176,CARDW=156,CARDH=58,ROWH=74,PADY=16,GS_GAP=18;
+  const COLW=178,CARDW=158,CARDH=74,ROWH=90,PADY=16,GS_GAP=18;
   const bx0=STANDW+GS_GAP;                // 브래킷 시작 x
   const colX={R32:bx0,R16:bx0+COLW,QF:bx0+2*COLW,SF:bx0+3*COLW,F:bx0+4*COLW};
   // 단계별 스크롤 위치
@@ -404,20 +405,20 @@ function renderFullBracket(visible){
   const leafCount=Math.max(slot,16);
   function pos(g){return{x:colX[gStage(g)],top:(yc[g.id]||0)*ROWH+PADY};}
 
-  // ── 조 순위표 (왼쪽 컬럼) ──
+  // ── 조 순위표 (왼쪽 컬럼, 정상 흐름) ──
   const stand=computeStandings(visible);
   const letters=Object.keys(stand);
-  let standHtml='',sy=PADY,stW=STANDW-10;
-  letters.forEach(L=>{
+  const stW=STANDW-10;
+  const standTables=letters.map(L=>{
     const arr=stand[L];
     const rows=arr.map((t,i)=>`<div class="st-row ${i<2?'adv':''}">
       <span class="st-rk">${i+1}</span><span class="st-fl">${t.flag}</span><span class="st-nm">${t.short}</span>
       <span class="st-v">${t.gp}</span><span class="st-v">${t.w}</span><span class="st-v">${t.d}</span><span class="st-v">${t.l}</span><span class="st-v">${t.gd>0?'+'+t.gd:t.gd}</span><span class="st-v pts">${t.pts}</span></div>`).join('');
-    const th=34+arr.length*30+4;
-    standHtml+=`<div class="stand" style="left:0;top:${sy}px;width:${stW}px">
+    return `<div class="stand">
       <div class="st-head"><span class="st-gl">Group ${L}</span><span class="st-cols"><span>GP</span><span>W</span><span>D</span><span>L</span><span>GD</span><span>PTS</span></span></div>${rows}</div>`;
-    sy+=th+12;
-  });
+  }).join('');
+  const standHtml=`<div class="stand-col" style="left:0;top:${PADY}px;width:${stW}px">${standTables}</div>`;
+  const standEstH=PADY*2+letters.length*200;
 
   // ── 연결선 + 카드 ──
   let lines='';
@@ -439,7 +440,7 @@ function renderFullBracket(visible){
   }
   let cards='';
   ko.forEach(g=>{const p=pos(g);cards+=bkCard(g,p.x,p.top);});
-  let H=Math.max(leafCount*ROWH+PADY*2, sy);
+  let H=Math.max(leafCount*ROWH+PADY*2, standEstH);
   // 3·4위전: 결승 아래
   const third=visible.find(g=>gStage(g)==='3RD');
   if(third&&finalG){
