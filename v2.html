@@ -74,9 +74,12 @@ body{background:var(--bg);color:var(--text);font-family:var(--sys);min-height:10
 .bk-head.cur{color:var(--green)}
 .bk-canvas{position:relative}
 .bk-svg{position:absolute;top:0;left:0;pointer-events:none}
-.bk-card{position:absolute;background:var(--card);border:1.5px solid transparent;border-radius:10px;padding:5px 9px;display:flex;flex-direction:column;justify-content:center;gap:3px;cursor:pointer;overflow:hidden}
+.bk-card{position:absolute;background:var(--card);border:1.5px solid transparent;border-radius:10px;padding:5px 9px;display:flex;flex-direction:column;justify-content:center;gap:3px;cursor:pointer;overflow:hidden;transform:scale(.9);opacity:.62;transition:transform .35s cubic-bezier(.32,.72,0,1),opacity .35s ease;will-change:transform}
+.bk-card.focus-col{transform:scale(1.04);opacity:1;z-index:5}
 .bk-card.bettable{border-color:var(--green);box-shadow:0 0 10px rgba(48,209,88,.3)}
-.bk-card:active{transform:scale(.97)}
+.bk-card.focus-col.bettable{box-shadow:0 0 16px rgba(48,209,88,.5)}
+.bk-card:active{transform:scale(.88)}
+.bk-card.focus-col:active{transform:scale(1)}
 .bk-dt{font-size:10px;line-height:15px;height:15px;color:var(--muted);font-family:var(--mono);white-space:nowrap;overflow:hidden}
 .bk-row{display:flex;align-items:center;gap:6px;height:20px}
 .bk-f{font-size:15px;flex-shrink:0}
@@ -300,6 +303,7 @@ function render(){
       const sc=document.getElementById('bk-scroll');if(!sc)return;
       sc.scrollLeft=Math.max(0,(SECTION_X[selStage]||0)-6);
       sc.onscroll=()=>onBracketScroll(sc);
+      applyBracketFocus(selStage);
     },40);
   }
 }
@@ -322,12 +326,21 @@ function setStage(s){
     render();window.scrollTo({top:0,behavior:'smooth'});
   }
 }
-// 가로 스크롤 → 현재 보는 라운드로 셀렉터 동기화
+// 가로 스크롤 → 현재 보는 라운드로 셀렉터 동기화 + 줌 강조
 function onBracketScroll(sc){
   const x=sc.scrollLeft+sc.clientWidth*0.25;
   let cur='R32';
   ['R32','R16','QF','SF','F'].forEach(k=>{if((SECTION_X[k]||0)<=x)cur=k;});
   if(cur!==selStage){selStage=cur;renderStageBar();}
+  applyBracketFocus(cur);
+}
+// 현재 라운드 카드는 확대·선명, 나머지는 축소·흐림 (동적 줌)
+function applyBracketFocus(cur){
+  document.querySelectorAll('.bk-card').forEach(c=>{
+    const r=c.dataset.round;
+    const on = r===cur || (cur==='F'&&r==='3RD');
+    c.classList.toggle('focus-col', on);
+  });
 }
 
 // 조 순위 계산 (결과 기반)
@@ -436,7 +449,7 @@ function renderFullBracket(visible){
     const st=gState(g),bett=st==='open',res=RESULTS[String(g.id)];
     const h=teamSide(g,'home'),a=teamSide(g,'away');
     const dt=g.date?`${g.date.slice(5)} ${g.time||''}`:'';
-    return `<div class="bk-card ${bett?'bettable':''}" style="left:${x}px;top:${top}px;width:${CARDW}px;height:${CARDH}px" onclick="openGame('${g.id}')">
+    return `<div class="bk-card ${bett?'bettable':''}" data-round="${gStage(g)}" style="left:${x}px;top:${top}px;width:${CARDW}px;height:${CARDH}px" onclick="openGame('${g.id}')">
       <div class="bk-dt">${dt}${bett?' · ⚽':''}</div>
       <div class="bk-row"><span class="bk-f">${h.flag}</span><span class="bk-n ${h.known?'':'tbd'}">${h.name}</span><span class="bk-s">${res?res.h:''}</span></div>
       <div class="bk-row"><span class="bk-f">${a.flag}</span><span class="bk-n ${a.known?'':'tbd'}">${a.name}</span><span class="bk-s">${res?res.a:''}</span></div>
