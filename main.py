@@ -752,6 +752,14 @@ async def _fetch_and_parse_games(korea_only: bool):
         group_raw = str(m.get("group", "") or "")
         group_str = f"{group_raw}조" if group_raw and not group_raw.endswith("조") else group_raw
 
+        # 단계(라운드) + 대진 연결 라벨 (브래킷용)
+        type_raw = str(m.get("type", "") or "").lower()
+        STAGE_MAP = {"r32": "R32", "r16": "R16", "qf": "QF", "sf": "SF",
+                     "final": "F", "third": "3RD", "3rd": "3RD", "third_place": "3RD"}
+        stage = STAGE_MAP.get(type_raw, "GS")
+        home_label = str(m.get("home_team_label", "") or "")
+        away_label = str(m.get("away_team_label", "") or "")
+
         finished = str(m.get("finished", "")).upper() == "TRUE"
         h_score = m.get("home_score")
         a_score = m.get("away_score")
@@ -765,6 +773,9 @@ async def _fetch_and_parse_games(korea_only: bool):
         game = {
             "id":    ext_id,
             "group": group_str,
+            "stage": stage,
+            "home_label": home_label,
+            "away_label": away_label,
             "home":  {"name": h_name, "short": h_code, "flag": FLAG_MAP.get(h_name, "🏳️")},
             "away":  {"name": a_name, "short": a_code, "flag": FLAG_MAP.get(a_name, "🏳️")},
             "date":  date_str,
@@ -816,6 +827,29 @@ async def admin_import_confirm(body: ImportConfirm, korea_only: bool = False, au
     write_json(GAMES_FILE, existing)
     write_json(RESULTS_FILE, results)
     return {"ok": True, "added": added, "total": len(existing)}
+
+@app.post("/api/admin/games/enrich-bracket")
+async def admin_enrich_bracket(auth=Depends(admin_required)):
+    """기존 등록 경기에 브래킷 메타데이터(stage·대진 라벨·확정 팀)를 채움. 베팅/상태는 보존."""
+    parsed = await _fetch_and_parse_games(False)
+    by_id = {str(p["game"]["id"]): p["game"] for p in parsed}
+    games = get_games()
+    updated = 0
+    for g in games:
+        src = by_id.get(str(g["id"]))
+        if not src:
+            continue
+        g["stage"]      = src.get("stage", "GS")
+        g["home_label"] = src.get("home_label", "")
+        g["away_label"] = src.get("away_label", "")
+        # 확정된 팀 정보가 새로 생겼으면 갱신 (이름이 비어있던 경기만)
+        if not g["home"].get("name") and src["home"].get("name"):
+            g["home"] = src["home"]
+        if not g["away"].get("name") and src["away"].get("name"):
+            g["away"] = src["away"]
+        updated += 1
+    write_json(GAMES_FILE, games)
+    return {"ok": True, "updated": updated, "total": len(games)}
 
 @app.post("/api/admin/games/to-kst")
 def admin_convert_games_to_kst(auth=Depends(admin_required)):

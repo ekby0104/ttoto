@@ -50,6 +50,23 @@ body{background:var(--bg);color:var(--text);font-family:var(--sys);min-height:10
 .grp-arr{color:var(--muted);transition:transform .2s;font-size:18px}
 /* 라운드 헤더 */
 .round-info{text-align:center;color:var(--muted);font-size:13px;margin:4px 0 14px;line-height:1.5}
+/* 브래킷 */
+.bk-scroll{overflow-x:auto;overflow-y:hidden;-webkit-overflow-scrolling:touch;margin:0 -14px;padding:0 6px}
+.bk-scroll::-webkit-scrollbar{height:5px}.bk-scroll::-webkit-scrollbar-thumb{background:#3a3a3c;border-radius:3px}
+.bk-stage{position:relative}
+.bk-heads{position:relative;height:30px}
+.bk-head{position:absolute;text-align:center;font-size:13px;font-weight:800;color:var(--muted);top:6px}
+.bk-canvas{position:relative}
+.bk-svg{position:absolute;top:0;left:0;pointer-events:none}
+.bk-card{position:absolute;background:var(--card);border:1.5px solid transparent;border-radius:10px;padding:4px 8px;display:flex;flex-direction:column;justify-content:center;gap:1px;cursor:pointer;overflow:hidden}
+.bk-card.bettable{border-color:var(--green);box-shadow:0 0 10px rgba(48,209,88,.3)}
+.bk-card:active{transform:scale(.97)}
+.bk-dt{font-size:9px;color:var(--muted);font-family:var(--mono);white-space:nowrap;overflow:hidden}
+.bk-row{display:flex;align-items:center;gap:6px}
+.bk-f{font-size:15px;flex-shrink:0}
+.bk-n{flex:1;font-size:13px;font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.bk-n.tbd{color:var(--muted);font-weight:500;font-size:11px}
+.bk-s{font-size:14px;font-weight:800;font-variant-numeric:tabular-nums;color:#fff}
 .sec-h{font-size:13px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.5px;margin:18px 6px 8px;display:flex;align-items:center;gap:6px}
 .sec-h .dot{width:7px;height:7px;border-radius:50%;background:var(--green);box-shadow:0 0 6px var(--green)}
 /* 경기 카드 */
@@ -294,13 +311,102 @@ function renderGroupStage(visible){
 }
 function toggleGroup(L){openGroups[L]=!openGroups[L];render();}
 
-// 토너먼트 라운드: 해당 라운드 경기 카드
+// ── 토너먼트 브래킷 ──
+const ROUNDS=['R32','R16','QF','SF','F'];
+function gStage(g){return g.stage||stageOf(g);}
+function matchRef(lb){const m=String(lb||'').match(/Match\s+(\d+)/i);return m?m[1]:null;}
+function transLabel(lb){
+  lb=String(lb||'');let m;
+  if(m=lb.match(/Winner Match (\d+)/i))return m[1]+'경기 승자';
+  if(m=lb.match(/Loser Match (\d+)/i))return m[1]+'경기 패자';
+  if(m=lb.match(/Winner Group ([A-Z])/i))return m[1]+'조 1위';
+  if(m=lb.match(/Runner-?up Group ([A-Z])/i))return m[1]+'조 2위';
+  if(m=lb.match(/3rd Group ([A-Z\/]+)/i))return m[1]+' 3위';
+  return lb||'TBD';
+}
+function teamSide(g,side){
+  const t=g[side];
+  if(t&&t.name)return{flag:t.flag,name:t.short,known:true};
+  return{flag:'⚪',name:transLabel(g[side+'_label']),known:false};
+}
+
 function renderKnockout(visible,stage){
-  const games=visible.filter(g=>stageOf(g)===stage).sort((a,b)=>startMs(a)-startMs(b));
-  if(!games.length)return '<div class="empty">경기가 없습니다</div>';
-  const lbl={R32:'32강 · 16경기',R16:'16강 · 8경기',QF:'8강 · 4경기',SF:'4강 · 2경기',F:'결승 · 3·4위전'}[stage]||'';
-  return `<div class="round-info">🏆 ${lbl}<br><span style="font-size:12px">대진이 확정되면 팀이 표시됩니다</span></div>`+
-    games.map(g=>cardHtml(g,gState(g)==='open')).join('');
+  const ko=visible.filter(g=>ROUNDS.includes(gStage(g)));
+  if(!ko.length)return '<div class="empty">토너먼트 경기가 없습니다</div>';
+  const byId={};ko.forEach(g=>byId[String(g.id)]=g);
+  const COLW=170,CARDW=148,ROWH=62,CARDH=52,PADX=8,PADY=14;
+  const round={};ROUNDS.forEach((r,i)=>round[r]=i);
+  // y 좌표 계산: 최종 → DFS
+  const yc={};let slot=0;
+  function dfs(id){
+    const g=byId[id];
+    if(!g){const s=slot++;return s;}
+    const c=[matchRef(g.home_label),matchRef(g.away_label)].filter(x=>x&&byId[x]);
+    if(!c.length){const s=slot++;yc[id]=s;return s;}
+    const ys=c.map(dfs);
+    const v=ys.reduce((a,b)=>a+b,0)/ys.length;yc[id]=v;return v;
+  }
+  let finalG=ko.find(g=>gStage(g)==='F');
+  let usedLabels=!!(finalG&&(finalG.home_label||finalG.away_label));
+  if(usedLabels){dfs(String(finalG.id));}
+  // 라벨 없으면 위치 기반 fallback
+  if(!usedLabels){
+    slot=0;
+    ROUNDS.forEach(r=>{
+      const gs=ko.filter(g=>gStage(g)===r).sort((a,b)=>String(a.id).localeCompare(String(b.id),undefined,{numeric:true}));
+      if(r==='R32'){gs.forEach(g=>yc[g.id]=slot++);}
+    });
+    // 상위 라운드는 자식 평균으로
+    ['R16','QF','SF','F'].forEach((r,idx)=>{
+      const prev=['R32','R16','QF','SF'][idx];
+      const gs=ko.filter(g=>gStage(g)===r).sort((a,b)=>String(a.id).localeCompare(String(b.id),undefined,{numeric:true}));
+      const pv=ko.filter(g=>gStage(g)===prev).sort((a,b)=>String(a.id).localeCompare(String(b.id),undefined,{numeric:true}));
+      gs.forEach((g,i)=>{const a=pv[i*2],b=pv[i*2+1];const ya=a?yc[a.id]:i*2,yb=b?yc[b.id]:i*2+1;yc[g.id]=(ya+yb)/2;});
+    });
+  }
+  const leafCount=Math.max(slot,16);
+  const W=ROUNDS.length*COLW, H=leafCount*ROWH+PADY*2;
+  // 카드 위치
+  function pos(g){const col=round[gStage(g)];const x=col*COLW+PADX;const top=(yc[g.id]||0)*ROWH+PADY;return{x,top,col};}
+  // 연결선 (SVG)
+  let lines='';
+  ko.forEach(g=>{
+    const refs=[matchRef(g.home_label),matchRef(g.away_label)].filter(x=>x&&byId[x]);
+    const p=pos(g);const px=p.x,py=p.top+CARDH/2;
+    refs.forEach(cid=>{
+      const cg=byId[cid];const cp=pos(cg);const cx=cp.x+CARDW,cyy=cp.top+CARDH/2;
+      const mx=(cx+px)/2;
+      lines+=`<path d="M${cx} ${cyy} H${mx} V${py} H${px}" stroke="#48484a" stroke-width="1.5" fill="none"/>`;
+    });
+  });
+  // 카드 HTML
+  let cards='';
+  ko.forEach(g=>{
+    const p=pos(g);const st=gState(g);const bett=st==='open';const res=RESULTS[String(g.id)];
+    const h=teamSide(g,'home'),a=teamSide(g,'away');
+    const dt=g.date?`${g.date.slice(5)} ${g.time||''}`:'';
+    cards+=`<div class="bk-card ${bett?'bettable':''}" style="left:${p.x}px;top:${p.top}px;width:${CARDW}px;height:${CARDH}px" onclick="openGame('${g.id}')">
+      <div class="bk-dt">${dt}${bett?' · ⚽':''}</div>
+      <div class="bk-row"><span class="bk-f">${h.flag}</span><span class="bk-n ${h.known?'':'tbd'}">${h.name}</span><span class="bk-s">${res?res.h:''}</span></div>
+      <div class="bk-row"><span class="bk-f">${a.flag}</span><span class="bk-n ${a.known?'':'tbd'}">${a.name}</span><span class="bk-s">${res?res.a:''}</span></div>
+    </div>`;
+  });
+  // 3·4위전 별도
+  const third=visible.find(g=>gStage(g)==='3RD');
+  let thirdHtml='';
+  if(third){thirdHtml=`<div style="margin-top:14px">${cardHtml(third,gState(third)==='open')}</div><div class="round-info" style="margin-top:0">🥉 3·4위전</div>`;}
+  // 라운드 헤더
+  const heads=ROUNDS.map((r,i)=>`<div class="bk-head" style="left:${i*COLW+PADX}px;width:${CARDW}px">${({R32:'32강',R16:'16강',QF:'8강',SF:'4강',F:'결승'})[r]}</div>`).join('');
+  setTimeout(()=>{const sc=document.getElementById('bk-scroll');if(sc){const col=round[selStage]||0;sc.scrollTo({left:Math.max(0,col*COLW-40),behavior:'smooth'});}},60);
+  return `<div class="bk-scroll" id="bk-scroll">
+    <div class="bk-stage" style="width:${W}px">
+      <div class="bk-heads" style="width:${W}px">${heads}</div>
+      <div class="bk-canvas" style="width:${W}px;height:${H}px">
+        <svg class="bk-svg" width="${W}" height="${H}">${lines}</svg>
+        ${cards}
+      </div>
+    </div>
+  </div>${thirdHtml}`;
 }
 
 function cardHtml(g,bettable){

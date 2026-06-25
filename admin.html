@@ -322,6 +322,11 @@ main{max-width:960px;margin:0 auto;padding:16px 12px 60px}
           </button>
           <span id="import-result" style="font-size:13px;color:var(--muted);font-family:var(--mono)"></span>
         </div>
+        <div style="margin-top:12px;padding-top:12px;border-top:1px solid var(--border)">
+          <p class="acard-desc" style="margin:0 0 8px">🏆 토너먼트 브래킷 표시용 데이터(단계·대진 연결)를 기존 경기에 채웁니다. (베팅/상태는 보존)</p>
+          <button class="btn btn-ghost btn-sm" onclick="enrichBracket()" id="enrich-btn">🔗 브래킷 데이터 채우기</button>
+          <span id="enrich-result" style="font-size:13px;color:var(--muted);font-family:var(--mono);margin-left:8px"></span>
+        </div>
       </div>
     </div>
 
@@ -1120,6 +1125,17 @@ async function confirmImport() {
   await loadAll();
   document.getElementById('import-result').textContent = `완료: ${res.added}개 추가 (총 ${res.total}경기)`;
   toast(`✅ ${res.added}개 경기가 등록됐습니다`);
+}
+
+async function enrichBracket() {
+  const btn = document.getElementById('enrich-btn');
+  const out = document.getElementById('enrich-result');
+  btn.disabled = true; btn.textContent = '불러오는 중...'; out.textContent = '';
+  const res = await apiFetch('/admin/games/enrich-bracket', {method:'POST'});
+  btn.disabled = false; btn.textContent = '🔗 브래킷 데이터 채우기';
+  if (!res) { toast('❌ 실패 (외부 API 응답 지연일 수 있어요)', true); return }
+  out.textContent = `완료: ${res.updated}개 갱신`;
+  toast(`✅ 브래킷 데이터 ${res.updated}개 갱신됐습니다`);
 }
 
 </script>
