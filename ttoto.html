@@ -892,14 +892,21 @@ function toggleExpand(id){
 }
 function setStatusView(v){statusView=v;renderStatus()}
 function checkStatusFireworks(){
-  const nowKST=Date.now()+9*3600*1000;
-  const todayKST=new Date(nowKST).toISOString().slice(0,10).replace(/-/g,'.');
-  const TWO_HOURS=2*3600*1000;
+  const nowKST=new Date(Date.now()+9*3600*1000);
+  const todayKST=nowKST.toISOString().slice(0,10).replace(/-/g,'.');
+  const nowMin=nowKST.getHours()*60+nowKST.getMinutes();
   const fresh=MATCHES.filter(m=>{
     if(m.date!==todayKST) return false;
     const res=allResults[String(m.id)];
-    if(!res||!res.registered_at) return false;
-    return (nowKST - res.registered_at*1000) <= TWO_HOURS;
+    if(!res) return false;
+    // registered_at 있으면 그걸로, 없으면 경기 시작 시각 기준 2시간 이내
+    if(res.registered_at){
+      return (Date.now()+9*3600*1000 - res.registered_at*1000) <= 2*3600*1000;
+    }
+    const parts=(m.time||'00:00').split(':');
+    const gameMin=Number(parts[0])*60+Number(parts[1]);
+    const diff=nowMin-gameMin;
+    return diff>=0&&diff<=120;
   });
   if(!fresh.length) return;
   // 결과 등록된 경기 수만큼 연속 폭죽
