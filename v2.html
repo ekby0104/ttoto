@@ -394,7 +394,7 @@ function renderKnockout(visible,stage){
   // 3·4위전 별도
   const third=visible.find(g=>gStage(g)==='3RD');
   let thirdHtml='';
-  if(third){thirdHtml=`<div style="margin-top:14px">${cardHtml(third,gState(third)==='open')}</div><div class="round-info" style="margin-top:0">🥉 3·4위전</div>`;}
+  if(third){thirdHtml=`<div class="round-info" style="margin:18px 0 10px">🥉 3·4위전</div>${cardHtml(third,gState(third)==='open')}`;}
   // 라운드 헤더
   const heads=ROUNDS.map((r,i)=>`<div class="bk-head" style="left:${i*COLW+PADX}px;width:${CARDW}px">${({R32:'32강',R16:'16강',QF:'8강',SF:'4강',F:'결승'})[r]}</div>`).join('');
   setTimeout(()=>{const sc=document.getElementById('bk-scroll');if(sc){const col=round[selStage]||0;sc.scrollTo({left:Math.max(0,col*COLW-40),behavior:'smooth'});}},60);
