@@ -419,12 +419,15 @@ function computeSlots(){
   }
   return slot;
 }
-// 포커스 라운드가 SP 간격이 되도록 전체 slot을 스케일 (정통 트리 위치 유지)
+// 포커스 라운드가 SP 간격이 되도록 전체 slot을 스케일 + 포커스 라운드를 항상 위(PADY)에 정렬
 function bracketYc(focus){
-  const {slot,SP,PADY}=BK, fi=Math.max(0,ROUNDS.indexOf(focus));
+  const {slot,SP,PADY,ko}=BK, fi=Math.max(0,ROUNDS.indexOf(focus));
   const scale=SP/Math.pow(2,fi);
   const yc={};
-  for(const id in slot)yc[id]=slot[id]*scale+PADY;
+  for(const id in slot)yc[id]=slot[id]*scale;
+  const ft=ko.filter(g=>gStage(g)===focus).map(g=>yc[g.id]).filter(v=>v!=null);
+  const minTop=ft.length?Math.min(...ft):0;
+  for(const id in yc)yc[id]=yc[id]-minTop+PADY;
   return yc;
 }
 function bracketLines(yc){
