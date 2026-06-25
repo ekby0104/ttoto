@@ -75,12 +75,9 @@ body{background:var(--bg);color:var(--text);font-family:var(--sys);min-height:10
 .bk-head.cur{color:var(--green)}
 .bk-canvas{position:relative}
 .bk-svg{position:absolute;top:0;left:0;pointer-events:none}
-.bk-card{position:absolute;background:var(--card);border:1.5px solid transparent;border-radius:10px;padding:5px 9px;display:flex;flex-direction:column;justify-content:center;gap:3px;cursor:pointer;overflow:hidden;transform:scale(.94);opacity:.78;transition:transform .35s cubic-bezier(.32,.72,0,1),opacity .35s ease;will-change:transform}
-.bk-card.focus-col{transform:scale(1.05);opacity:1;z-index:5}
+.bk-card{position:absolute;background:var(--card);border:1.5px solid transparent;border-radius:10px;padding:5px 9px;display:flex;flex-direction:column;justify-content:center;gap:3px;cursor:pointer;overflow:hidden;transition:top .45s cubic-bezier(.32,.72,0,1);will-change:top}
 .bk-card.bettable{border-color:var(--green);box-shadow:0 0 10px rgba(48,209,88,.3)}
-.bk-card.focus-col.bettable{box-shadow:0 0 16px rgba(48,209,88,.5)}
-.bk-card:active{transform:scale(.88)}
-.bk-card.focus-col:active{transform:scale(1)}
+.bk-card:active{filter:brightness(1.15)}
 .bk-dt{font-size:10px;line-height:15px;height:15px;color:var(--muted);font-family:var(--mono);white-space:nowrap;overflow:hidden}
 .bk-row{display:flex;align-items:center;gap:6px;height:20px}
 .bk-f{font-size:15px;flex-shrink:0}
@@ -300,9 +297,11 @@ function render(){
     const sc=document.getElementById('bk-scroll');if(!sc)return;
     sc.scrollLeft=Math.max(0,(SECTION_X[selStage]||0)-6);
     sc.onscroll=()=>onBracketScroll(sc);
-    applyBracketFocus(selStage==='GS'?'R32':selStage);
+    bkFocus=selStage==='GS'?'R32':selStage;
+    relayoutBracket(bkFocus);
   },40);
 }
+let bkFocus='R32';
 // 셀렉터: 텍스트 라벨(GS, R32…), 결승만 우승컵
 function renderStageBar(){
   const bar=document.getElementById('stagebar');
@@ -315,26 +314,20 @@ function setStage(s){
   selStage=s; renderStageBar();
   const sc=document.getElementById('bk-scroll');
   if(sc){
-    applyBracketFocus(s==='GS'?'R32':s);
+    const f=s==='GS'?'R32':s;
+    if(f!==bkFocus){bkFocus=f;relayoutBracket(f);}
     sc.scrollTo({left:Math.max(0,(SECTION_X[s]||0)-6),behavior:'smooth'});
   }else render();
   window.scrollTo({top:0,behavior:'smooth'});
 }
-// 가로 스크롤 → 현재 보는 단계로 셀렉터 동기화 + 줌 강조
+// 가로 스크롤 → 셀렉터 동기화 + 포커스 라운드 바뀌면 재배치(reflow)
 function onBracketScroll(sc){
   const x=sc.scrollLeft+sc.clientWidth*0.25;
   let cur='GS';
   STAGES.forEach(([k])=>{if((SECTION_X[k]||0)<=x)cur=k;});
   if(cur!==selStage){selStage=cur;renderStageBar();}
-  applyBracketFocus(cur==='GS'?'R32':cur);
-}
-// 현재 라운드 카드는 확대·선명, 나머지는 축소·흐림 (동적 줌)
-function applyBracketFocus(cur){
-  document.querySelectorAll('.bk-card').forEach(c=>{
-    const r=c.dataset.round;
-    const on = r===cur || (cur==='F'&&r==='3RD');
-    c.classList.toggle('focus-col', on);
-  });
+  const f=cur==='GS'?'R32':cur;
+  if(f!==bkFocus){bkFocus=f;relayoutBracket(f);}
 }
 
 // 조 순위 계산 (결과 기반)
@@ -399,67 +392,97 @@ function renderStandingsList(visible){
   }).join('');
 }
 
+// 동적 레이아웃: 보는 라운드를 기준으로 카드 세로 간격 재배치 (포커스 라운드=촘촘)
+let BK=null;
+function bkChildrenG(g){return [matchRef(g.home_label),matchRef(g.away_label)].map(x=>x&&BK.byId[x]).filter(c=>c);}
+function bracketYc(focus){
+  const {ko,byId,SP,PADY}=BK, order=ROUNDS, fi=Math.max(0,order.indexOf(focus));
+  const yc={};
+  ko.filter(g=>gStage(g)===focus).sort(bkSort).forEach((g,i)=>yc[g.id]=i*SP+PADY);
+  // 라벨 없으면: 각 라운드 균등 중앙배치 (포커스 SP, 멀수록 2배/절반)
+  if(BK.noLabels){
+    const cy=ko.filter(g=>gStage(g)===focus).length*SP/2+PADY;
+    order.forEach((r,ri)=>{
+      const gs=ko.filter(g=>gStage(g)===r).sort(bkSort);
+      const sp=SP*Math.pow(2,ri-fi);
+      gs.forEach((g,i)=>yc[g.id]=cy+(i-(gs.length-1)/2)*sp);
+    });
+    return yc;
+  }
+  for(let i=fi+1;i<order.length;i++){            // 이후 라운드: 자식 중점
+    ko.filter(g=>gStage(g)===order[i]).forEach(g=>{
+      const ch=bkChildrenG(g).filter(c=>yc[c.id]!=null);
+      yc[g.id]=ch.length?ch.reduce((s,c)=>s+yc[c.id],0)/ch.length:PADY;
+    });
+  }
+  for(let i=fi-1;i>=0;i--){                       // 이전 라운드: 부모 주변에 배치
+    const childRound=order[i],parentRound=order[i+1],childSP=SP/Math.pow(2,fi-i);
+    ko.filter(g=>gStage(g)===parentRound).forEach(p=>{
+      const ch=bkChildrenG(p).filter(c=>gStage(c)===childRound);
+      const py=yc[p.id]!=null?yc[p.id]:PADY;
+      ch.forEach((c,k)=>{yc[c.id]=py+(k===0?-childSP/2:childSP/2);});
+    });
+  }
+  return yc;
+}
+function bracketLines(yc){
+  const {ko,colX,CARDW,CARDH}=BK; let lines='';
+  ko.forEach(g=>{
+    const px=colX[gStage(g)],py=(yc[g.id]||0)+CARDH/2;
+    bkChildrenG(g).forEach(c=>{const cx=colX[gStage(c)]+CARDW,cy=(yc[c.id]||0)+CARDH/2,mx=(cx+px)/2;
+      lines+=`<path d="M${cx} ${cy} H${mx} V${py} H${px}" stroke="#48484a" stroke-width="1.5" fill="none"/>`;});
+  });
+  return lines;
+}
+function bkCardHtml(g){
+  const {colX,CARDW,CARDH}=BK,st=gState(g),bett=st==='open',res=RESULTS[String(g.id)];
+  const h=teamSide(g,'home'),a=teamSide(g,'away');
+  const dt=g.date?`${g.date.slice(5)} ${g.time||''}`:'';
+  const x=g.stage==='3RD'?colX.F:colX[gStage(g)];
+  const top=(BK.yc&&BK.yc[g.id]!=null)?BK.yc[g.id]:BK.PADY;
+  return `<div class="bk-card ${bett?'bettable':''}" id="bkc-${g.id}" style="left:${x}px;top:${top}px;width:${CARDW}px;height:${CARDH}px" onclick="openGame('${g.id}')">
+    <div class="bk-dt">${dt}${bett?' · ⚽':''}</div>
+    <div class="bk-row"><span class="bk-f">${h.flag}</span><span class="bk-n ${h.known?'':'tbd'}">${h.name}</span><span class="bk-s">${res?res.h:''}</span></div>
+    <div class="bk-row"><span class="bk-f">${a.flag}</span><span class="bk-n ${a.known?'':'tbd'}">${a.name}</span><span class="bk-s">${res?res.a:''}</span></div>
+  </div>`;
+}
+// 포커스 라운드 기준 재배치 (카드 top 애니메이션 + 연결선 재계산)
+function relayoutBracket(focus){
+  if(!BK)return;
+  const yc=bracketYc(focus);
+  BK.ko.forEach(g=>{const el=document.getElementById('bkc-'+g.id);if(el&&yc[g.id]!=null)el.style.top=yc[g.id]+'px';});
+  if(BK.third&&BK.finalG){
+    const ft=yc[BK.finalG.id]!=null?yc[BK.finalG.id]:BK.PADY, tt=ft+BK.CARDH+60;
+    const tc=document.getElementById('bkc-'+BK.third.id);if(tc)tc.style.top=tt+'px';
+    const tl=document.getElementById('bk-thirdlbl');if(tl)tl.style.top=(tt-22)+'px';
+  }
+  const svg=document.getElementById('bk-svg');if(svg)svg.innerHTML=bracketLines(yc);
+}
+
 // Apple식 통합: [조 순위표] + [R32~결승 브래킷] 한 캔버스, 가로 스크롤
 function renderFullBracket(visible){
   const ko=visible.filter(g=>ROUNDS.includes(gStage(g)));
   const byId={};ko.forEach(g=>byId[String(g.id)]=g);
   const cw=Math.min(window.innerWidth,560)-24;
   const STANDW=Math.min(cw,360);
-  const COLW=180,CARDW=160,CARDH=74,ROWH=90,PADY=16,GS_GAP=18;
+  const COLW=180,CARDW=160,CARDH=74,SP=90,PADY=16,GS_GAP=18;
   const bx0=STANDW+GS_GAP;
   const colX={R32:bx0,R16:bx0+COLW,QF:bx0+2*COLW,SF:bx0+3*COLW,F:bx0+4*COLW};
   SECTION_X={GS:0,R32:colX.R32-6,R16:colX.R16-6,QF:colX.QF-6,SF:colX.SF-6,F:colX.F-6};
-
-  // ── 브래킷 y 좌표 (정통 간격) ──
-  const yc={};let slot=0;
-  function dfs(id){
-    const g=byId[id];if(!g)return slot++;
-    const c=[matchRef(g.home_label),matchRef(g.away_label)].filter(x=>x&&byId[x]);
-    if(!c.length){const s=slot++;yc[id]=s;return s;}
-    const ys=c.map(dfs);const v=ys.reduce((a,b)=>a+b,0)/ys.length;yc[id]=v;return v;
-  }
   const finalG=ko.find(g=>gStage(g)==='F');
-  const usedLabels=!!(finalG&&(finalG.home_label||finalG.away_label));
-  if(usedLabels&&finalG)dfs(String(finalG.id));
-  if(!usedLabels){
-    slot=0;ko.filter(g=>gStage(g)==='R32').sort(bkSort).forEach(g=>yc[g.id]=slot++);
-    ['R16','QF','SF','F'].forEach((r,i)=>{
-      const prev=['R32','R16','QF','SF'][i];
-      const gs=ko.filter(g=>gStage(g)===r).sort(bkSort),pv=ko.filter(g=>gStage(g)===prev).sort(bkSort);
-      gs.forEach((g,j)=>{const a=pv[j*2],b=pv[j*2+1];yc[g.id]=((a?yc[a.id]:j*2)+(b?yc[b.id]:j*2+1))/2;});
-    });
-  }
-  const leafCount=Math.max(slot,16);
-  function pos(g){return{x:colX[gStage(g)],top:(yc[g.id]||0)*ROWH+PADY};}
-
-  // ── 연결선 + 카드 ──
-  let lines='';
-  ko.forEach(g=>{
-    const refs=[matchRef(g.home_label),matchRef(g.away_label)].filter(x=>x&&byId[x]);
-    const p=pos(g),px=p.x,py=p.top+CARDH/2;
-    refs.forEach(cid=>{const cp=pos(byId[cid]),cx=cp.x+CARDW,cy=cp.top+CARDH/2,mx=(cx+px)/2;
-      lines+=`<path d="M${cx} ${cy} H${mx} V${py} H${px}" stroke="#48484a" stroke-width="1.5" fill="none"/>`;});
-  });
-  function bkCard(g,x,top){
-    const st=gState(g),bett=st==='open',res=RESULTS[String(g.id)];
-    const h=teamSide(g,'home'),a=teamSide(g,'away');
-    const dt=g.date?`${g.date.slice(5)} ${g.time||''}`:'';
-    return `<div class="bk-card ${bett?'bettable':''}" data-round="${gStage(g)}" style="left:${x}px;top:${top}px;width:${CARDW}px;height:${CARDH}px" onclick="openGame('${g.id}')">
-      <div class="bk-dt">${dt}${bett?' · ⚽':''}</div>
-      <div class="bk-row"><span class="bk-f">${h.flag}</span><span class="bk-n ${h.known?'':'tbd'}">${h.name}</span><span class="bk-s">${res?res.h:''}</span></div>
-      <div class="bk-row"><span class="bk-f">${a.flag}</span><span class="bk-n ${a.known?'':'tbd'}">${a.name}</span><span class="bk-s">${res?res.a:''}</span></div>
-    </div>`;
-  }
-  let cards='';
-  ko.forEach(g=>{const p=pos(g);cards+=bkCard(g,p.x,p.top);});
-  let H=leafCount*ROWH+PADY*2;
-  // 3·4위전: 결승 아래
   const third=visible.find(g=>gStage(g)==='3RD');
-  if(third&&finalG){
-    const fp=pos(finalG),tx=fp.x,ttop=fp.top+CARDH+60;
-    H=Math.max(H,ttop+CARDH+PADY);
-    cards+=`<div class="bk-thirdlbl" style="left:${tx}px;top:${ttop-22}px;width:${CARDW}px">🥉 3·4위전</div>`+bkCard(third,tx,ttop);
-  }
+  const noLabels=!(finalG&&(finalG.home_label||finalG.away_label));
+  const nR32=ko.filter(g=>gStage(g)==='R32').length||16;
+  BK={ko,byId,colX,CARDW,CARDH,SP,PADY,finalG,third,noLabels};
+  const focus0=selStage==='GS'?'R32':selStage;
+  const yc=bracketYc(focus0);
+  if(third&&finalG)yc[third.id]=(yc[finalG.id]||PADY)+CARDH+60;
+  BK.yc=yc;
+  let cards=ko.map(g=>bkCardHtml(g)).join('');
+  let Hbk=nR32*SP+PADY*2;
+  if(third&&finalG){cards+=`<div class="bk-thirdlbl" id="bk-thirdlbl" style="left:${colX.F}px;top:0px;width:${CARDW}px">🥉 3·4위전</div>`+bkCardHtml(third);Hbk+=160;}
+  const lines=bracketLines(yc);
+  let H=Hbk;
   // ── 조 순위표 (왼쪽 컬럼) ──
   const stand=computeStandings(visible);
   const letters=Object.keys(stand);
@@ -482,7 +505,7 @@ function renderFullBracket(visible){
   return `<div class="bk-scroll" id="bk-scroll"><div class="bk-stage" style="width:${W}px">
     <div class="bk-heads" style="width:${W}px">${heads}</div>
     <div class="bk-canvas" style="width:${W}px;height:${H}px">
-      <svg class="bk-svg" width="${W}" height="${H}">${lines}</svg>${standHtml}${cards}
+      <svg class="bk-svg" id="bk-svg" width="${W}" height="${H}">${lines}</svg>${standHtml}${cards}
     </div></div></div>`;
 }
 
