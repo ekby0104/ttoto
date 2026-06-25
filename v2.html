@@ -395,34 +395,33 @@ function renderStandingsList(visible){
 // 동적 레이아웃: 보는 라운드를 기준으로 카드 세로 간격 재배치 (포커스 라운드=촘촘)
 let BK=null;
 function bkChildrenG(g){return [matchRef(g.home_label),matchRef(g.away_label)].map(x=>x&&BK.byId[x]).filter(c=>c);}
+// 트리 위치(slot)를 DFS로 계산 → 형제가 인접 = 연결선 깔끔
+function computeSlots(){
+  const {ko,byId,finalG}=BK;
+  const slot={};let s=0;
+  function dfs(id){
+    const g=byId[id];if(!g)return s++;
+    const c=[matchRef(g.home_label),matchRef(g.away_label)].filter(x=>x&&byId[x]);
+    if(!c.length){const v=s++;slot[id]=v;return v;}
+    const ys=c.map(dfs);const v=ys.reduce((a,b)=>a+b,0)/ys.length;slot[id]=v;return v;
+  }
+  if(finalG&&!BK.noLabels)dfs(String(finalG.id));
+  else{ // 라벨 없음: 위치 기반
+    s=0;ko.filter(g=>gStage(g)==='R32').sort(bkSort).forEach(g=>slot[g.id]=s++);
+    ['R16','QF','SF','F'].forEach((r,i)=>{
+      const prev=['R32','R16','QF','SF'][i];
+      const gs=ko.filter(g=>gStage(g)===r).sort(bkSort),pv=ko.filter(g=>gStage(g)===prev).sort(bkSort);
+      gs.forEach((g,j)=>{const a=pv[j*2],b=pv[j*2+1];slot[g.id]=((a?slot[a.id]:j*2)+(b?slot[b.id]:j*2+1))/2;});
+    });
+  }
+  return slot;
+}
+// 포커스 라운드가 SP 간격이 되도록 전체 slot을 스케일 (정통 트리 위치 유지)
 function bracketYc(focus){
-  const {ko,byId,SP,PADY}=BK, order=ROUNDS, fi=Math.max(0,order.indexOf(focus));
+  const {slot,SP,PADY}=BK, fi=Math.max(0,ROUNDS.indexOf(focus));
+  const scale=SP/Math.pow(2,fi);
   const yc={};
-  ko.filter(g=>gStage(g)===focus).sort(bkSort).forEach((g,i)=>yc[g.id]=i*SP+PADY);
-  // 라벨 없으면: 각 라운드 균등 중앙배치 (포커스 SP, 멀수록 2배/절반)
-  if(BK.noLabels){
-    const cy=ko.filter(g=>gStage(g)===focus).length*SP/2+PADY;
-    order.forEach((r,ri)=>{
-      const gs=ko.filter(g=>gStage(g)===r).sort(bkSort);
-      const sp=SP*Math.pow(2,ri-fi);
-      gs.forEach((g,i)=>yc[g.id]=cy+(i-(gs.length-1)/2)*sp);
-    });
-    return yc;
-  }
-  for(let i=fi+1;i<order.length;i++){            // 이후 라운드: 자식 중점
-    ko.filter(g=>gStage(g)===order[i]).forEach(g=>{
-      const ch=bkChildrenG(g).filter(c=>yc[c.id]!=null);
-      yc[g.id]=ch.length?ch.reduce((s,c)=>s+yc[c.id],0)/ch.length:PADY;
-    });
-  }
-  for(let i=fi-1;i>=0;i--){                       // 이전 라운드: 부모 주변에 배치
-    const childRound=order[i],parentRound=order[i+1],childSP=SP/Math.pow(2,fi-i);
-    ko.filter(g=>gStage(g)===parentRound).forEach(p=>{
-      const ch=bkChildrenG(p).filter(c=>gStage(c)===childRound);
-      const py=yc[p.id]!=null?yc[p.id]:PADY;
-      ch.forEach((c,k)=>{yc[c.id]=py+(k===0?-childSP/2:childSP/2);});
-    });
-  }
+  for(const id in slot)yc[id]=slot[id]*scale+PADY;
   return yc;
 }
 function bracketLines(yc){
@@ -474,6 +473,7 @@ function renderFullBracket(visible){
   const noLabels=!(finalG&&(finalG.home_label||finalG.away_label));
   const nR32=ko.filter(g=>gStage(g)==='R32').length||16;
   BK={ko,byId,colX,CARDW,CARDH,SP,PADY,finalG,third,noLabels};
+  BK.slot=computeSlots();
   const focus0=selStage==='GS'?'R32':selStage;
   const yc=bracketYc(focus0);
   if(third&&finalG)yc[third.id]=(yc[finalG.id]||PADY)+CARDH+60;
