@@ -899,10 +899,6 @@ function checkStatusFireworks(){
     if(m.date!==todayKST) return false;
     const res=allResults[String(m.id)];
     if(!res) return false;
-    // registered_at 있으면 등록 기준 4시간, 없으면 오늘 결과 있으면 바로
-    if(res.registered_at){
-      return (Date.now() - res.registered_at*1000) <= 4*3600*1000;
-    }
     return true;
   });
   if(!fresh.length) return;
