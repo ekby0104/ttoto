@@ -336,45 +336,56 @@ function teamSide(g,side){
   return{flag:'⚪',name:transLabel(g[side+'_label']),known:false};
 }
 
-// 전체 스크롤 브래킷 (좌우 이동 가능). 세로 간격 압축 + 카드 확대.
+// 동적 줌 브래킷: 선택 라운드~결승만 표시. 라운드가 뒤일수록 컬럼↓ → 카드↑ (확대)
+const RLBL={R32:'32강',R16:'16강',QF:'8강',SF:'4강',F:'결승'};
+function bkSort(a,b){return String(a.id).localeCompare(String(b.id),undefined,{numeric:true});}
 function renderKnockout(visible,stage){
   const ko=visible.filter(g=>ROUNDS.includes(gStage(g)));
   if(!ko.length)return '<div class="empty">토너먼트 경기가 없습니다</div>';
+  if(!ROUNDS.includes(selStage))selStage='R32';
   const byId={};ko.forEach(g=>byId[String(g.id)]=g);
-  const COLW=182,CARDW=164,ROWH=44,CARDH=58,PADX=8,PADY=14;
-  const round={};ROUNDS.forEach((r,i)=>round[r]=i);
+  const startIdx=ROUNDS.indexOf(selStage);
+  const shown=ROUNDS.slice(startIdx);          // 표시할 라운드들
+  const shownSet=new Set(shown);
+  const colOf={};shown.forEach((r,i)=>colOf[r]=i);
+  // 화면 폭에 맞춰 컬럼/카드 크기 결정 (컬럼 적을수록 큼 = 확대)
+  const cw=Math.min(window.innerWidth,560)-24;
+  const COLW=shown.length===1?cw:Math.floor(cw/1.82);
+  const PADX=6,GAPX=24,CARDW=COLW-GAPX,CARDH=60,ROWH=CARDH+24,PADY=14;
+  // y 좌표: 결승에서 DFS, 선택 라운드를 잎으로
   const yc={};let slot=0;
   function dfs(id){
-    const g=byId[id];if(!g){const s=slot++;return s;}
-    const c=[matchRef(g.home_label),matchRef(g.away_label)].filter(x=>x&&byId[x]);
+    const g=byId[id];if(!g)return slot++;
+    if(gStage(g)===selStage){const s=slot++;yc[id]=s;return s;}
+    const c=[matchRef(g.home_label),matchRef(g.away_label)].filter(x=>x&&byId[x]&&shownSet.has(gStage(byId[x])));
     if(!c.length){const s=slot++;yc[id]=s;return s;}
     const ys=c.map(dfs);const v=ys.reduce((a,b)=>a+b,0)/ys.length;yc[id]=v;return v;
   }
-  let finalG=ko.find(g=>gStage(g)==='F');
-  let usedLabels=!!(finalG&&(finalG.home_label||finalG.away_label));
-  if(usedLabels)dfs(String(finalG.id));
+  const finalG=ko.find(g=>gStage(g)==='F');
+  const usedLabels=!!(finalG&&(finalG.home_label||finalG.away_label));
+  if(usedLabels&&finalG)dfs(String(finalG.id));
   if(!usedLabels){
     slot=0;
-    ko.filter(g=>gStage(g)==='R32').sort(bkSort).forEach(g=>yc[g.id]=slot++);
-    ['R16','QF','SF','F'].forEach((r,idx)=>{
-      const prev=['R32','R16','QF','SF'][idx];
+    ko.filter(g=>gStage(g)===selStage).sort(bkSort).forEach(g=>yc[g.id]=slot++);
+    shown.slice(1).forEach((r,i)=>{
+      const prev=shown[i];
       const gs=ko.filter(g=>gStage(g)===r).sort(bkSort);
       const pv=ko.filter(g=>gStage(g)===prev).sort(bkSort);
-      gs.forEach((g,i)=>{const a=pv[i*2],b=pv[i*2+1];const ya=a?yc[a.id]:i*2,yb=b?yc[b.id]:i*2+1;yc[g.id]=(ya+yb)/2;});
+      gs.forEach((g,j)=>{const a=pv[j*2],b=pv[j*2+1];const ya=a?yc[a.id]:j*2,yb=b?yc[b.id]:j*2+1;yc[g.id]=(ya+yb)/2;});
     });
   }
-  const leafCount=Math.max(slot,16);
-  const W=ROUNDS.length*COLW; let H=leafCount*ROWH+PADY*2;
-  function pos(g){const col=round[gStage(g)];return{x:col*COLW+PADX,top:(yc[g.id]||0)*ROWH+PADY,col};}
-  // 연결선
+  const leafCount=Math.max(slot,1);
+  const W=shown.length*COLW; let H=leafCount*ROWH+PADY*2;
+  const drawn=ko.filter(g=>shownSet.has(gStage(g)));
+  function pos(g){return{x:colOf[gStage(g)]*COLW+PADX,top:(yc[g.id]||0)*ROWH+PADY};}
+  // 연결선 (표시 라운드 간만)
   let lines='';
-  ko.forEach(g=>{
-    const refs=[matchRef(g.home_label),matchRef(g.away_label)].filter(x=>x&&byId[x]);
+  drawn.forEach(g=>{
+    const refs=[matchRef(g.home_label),matchRef(g.away_label)].filter(x=>x&&byId[x]&&shownSet.has(gStage(byId[x])));
     const p=pos(g),px=p.x,py=p.top+CARDH/2;
     refs.forEach(cid=>{const cp=pos(byId[cid]),cx=cp.x+CARDW,cy=cp.top+CARDH/2,mx=(cx+px)/2;
       lines+=`<path d="M${cx} ${cy} H${mx} V${py} H${px}" stroke="#48484a" stroke-width="1.5" fill="none"/>`;});
   });
-  // 카드
   function bkCard(g,x,top,w){
     const st=gState(g),bett=st==='open',res=RESULTS[String(g.id)];
     const h=teamSide(g,'home'),a=teamSide(g,'away');
@@ -386,7 +397,7 @@ function renderKnockout(visible,stage){
     </div>`;
   }
   let cards='';
-  ko.forEach(g=>{const p=pos(g);cards+=bkCard(g,p.x,p.top,CARDW);});
+  drawn.forEach(g=>{const p=pos(g);cards+=bkCard(g,p.x,p.top,CARDW);});
   // 3·4위전: 결승 카드 아래
   const third=visible.find(g=>gStage(g)==='3RD');
   if(third&&finalG){
@@ -394,22 +405,14 @@ function renderKnockout(visible,stage){
     H=Math.max(H,ttop+CARDH+PADY);
     cards+=`<div class="bk-thirdlbl" style="left:${tx}px;top:${ttop-22}px;width:${CARDW}px">🥉 3·4위전</div>`+bkCard(third,tx,ttop,CARDW);
   }
-  const heads=ROUNDS.map((r,i)=>`<div class="bk-head" style="left:${i*COLW+PADX}px;width:${CARDW}px">${RLBL[r]}</div>`).join('');
-  setTimeout(()=>{
-    const sc=document.getElementById('bk-scroll');if(!sc)return;
-    const col=round[selStage]||0;
-    sc.scrollTo({left:Math.max(0,col*COLW-30),behavior:'smooth'});
-    sc.onscroll=()=>onBracketScroll(sc,COLW,ROUNDS);
-    onBracketScroll(sc,COLW,ROUNDS);
-  },60);
+  const heads=shown.map((r,i)=>`<div class="bk-head ${r===selStage?'cur':''}" style="left:${i*COLW+PADX}px;width:${CARDW}px">${RLBL[r]}</div>`).join('');
+  setTimeout(()=>{const sc=document.getElementById('bk-scroll');if(sc)sc.scrollLeft=0;},30);
   return `<div class="bk-scroll" id="bk-scroll"><div class="bk-stage" style="width:${W}px">
     <div class="bk-heads" style="width:${W}px">${heads}</div>
     <div class="bk-canvas" style="width:${W}px;height:${H}px">
       <svg class="bk-svg" width="${W}" height="${H}">${lines}</svg>${cards}
     </div></div></div>`;
 }
-const RLBL={R32:'32강',R16:'16강',QF:'8강',SF:'4강',F:'결승'};
-function bkSort(a,b){return String(a.id).localeCompare(String(b.id),undefined,{numeric:true});}
 
 function cardHtml(g,bettable){
   const st=gState(g);
