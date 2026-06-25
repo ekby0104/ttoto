@@ -141,7 +141,10 @@ body{background:var(--bg);color:var(--text);font-family:var(--sys);min-height:10
 .toast.show{opacity:1;transform:translateY(0)}
 .toast.err{background:var(--red);color:#fff}
 .loader{text-align:center;color:var(--muted);padding:50px;font-size:14px}
-/* 팝업 */
+/* 팝업 (중앙, 툴바 안전영역 고려) */
+.sheet-ov.popup{align-items:center;justify-content:center;padding:24px}
+.popup-sheet{background:var(--card);width:100%;max-width:340px;border-radius:20px;max-height:78vh;overflow-y:auto;transform:scale(.9);opacity:0;transition:transform .25s,opacity .25s}
+.sheet-ov.popup.show .popup-sheet{transform:scale(1);opacity:1}
 .popup-card{text-align:center;padding:30px 22px 24px}
 .popup-emoji{font-size:52px;margin-bottom:14px}
 .popup-msg{font-size:16px;line-height:1.8}
@@ -187,8 +190,8 @@ body{background:var(--bg);color:var(--text);font-family:var(--sys);min-height:10
 </div>
 
 <!-- 공지 팝업 -->
-<div class="sheet-ov" id="sh-popup" onclick="ovClose(event,'sh-popup')" style="align-items:center">
-  <div class="sheet" style="max-width:360px;border-radius:20px;transform:scale(.9)">
+<div class="sheet-ov popup" id="sh-popup" onclick="ovClose(event,'sh-popup')">
+  <div class="popup-sheet">
     <div class="popup-card">
       <div class="popup-emoji">⚽</div>
       <div class="popup-msg" id="popup-msg"></div>
