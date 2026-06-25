@@ -465,9 +465,11 @@ function relayoutBracket(focus){
 function renderFullBracket(visible){
   const ko=visible.filter(g=>ROUNDS.includes(gStage(g)));
   const byId={};ko.forEach(g=>byId[String(g.id)]=g);
-  const cw=Math.min(window.innerWidth,560)-24;
+  const vw=Math.min(window.innerWidth,560);
+  const cw=vw-24;
   const STANDW=Math.min(cw,360);
-  const COLW=180,CARDW=160,CARDH=74,SP=90,PADY=16,GS_GAP=18;
+  // 컬럼 폭을 화면의 ~66%로 → 한 번에 2개 라운드(선택+다음 일부)만 보임
+  const COLW=Math.round(vw*0.66),CARDW=COLW-22,CARDH=74,SP=90,PADY=16,GS_GAP=18;
   const bx0=STANDW+GS_GAP;
   const colX={R32:bx0,R16:bx0+COLW,QF:bx0+2*COLW,SF:bx0+3*COLW,F:bx0+4*COLW};
   SECTION_X={GS:0,R32:colX.R32-6,R16:colX.R16-6,QF:colX.QF-6,SF:colX.SF-6,F:colX.F-6};
@@ -503,7 +505,6 @@ function renderFullBracket(visible){
   H=Math.max(H, PADY*2+letters.length*210);
   if(!ko.length&&!letters.length)return '<div class="empty">경기가 없습니다</div>';
   // 오른쪽에 화면 한 칸 여백 → 결승도 왼쪽 끝까지 스크롤 가능 (오른쪽 비움)
-  const vw=Math.min(window.innerWidth,560);
   const W=colX.F+vw;
   const heads=`<div class="bk-head" style="left:0;width:${stW}px">조 순위</div>`+
     ROUNDS.map(r=>`<div class="bk-head" style="left:${colX[r]}px;width:${CARDW}px">${RLBL[r]}</div>`).join('');
