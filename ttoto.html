@@ -901,12 +901,12 @@ function checkStatusFireworks(){
     if(!res) return false;
     // registered_at 있으면 그걸로, 없으면 경기 시작 시각 기준 2시간 이내
     if(res.registered_at){
-      return (Date.now()+9*3600*1000 - res.registered_at*1000) <= 2*3600*1000;
+      return (Date.now()+9*3600*1000 - res.registered_at*1000) <= 4*3600*1000;
     }
     const parts=(m.time||'00:00').split(':');
     const gameMin=Number(parts[0])*60+Number(parts[1]);
     const diff=nowMin-gameMin;
-    return diff>=0&&diff<=120;
+    return diff>=0&&diff<=240;
   });
   if(!fresh.length) return;
   // 결과 등록된 경기 수만큼 연속 폭죽
