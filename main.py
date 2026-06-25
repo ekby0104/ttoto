@@ -856,6 +856,10 @@ def serve_index():
 def serve_admin():
     return FileResponse(os.path.join(STATIC_DIR, "admin.html"), headers=_NO_CACHE)
 
+@app.get("/v2")
+def serve_v2():
+    return FileResponse(os.path.join(STATIC_DIR, "v2.html"), headers=_NO_CACHE)
+
 @app.get("/favicon.svg")
 def serve_favicon():
     return FileResponse(os.path.join(STATIC_DIR, "favicon.svg"), media_type="image/svg+xml")
