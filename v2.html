@@ -48,7 +48,7 @@ body{background:var(--bg);color:var(--text);font-family:var(--sys);min-height:10
 .st-table .c-fl{width:24px;font-size:16px}
 .st-table .c-nm{text-align:left;color:#fff;font-weight:700;padding-left:4px}
 .st-table .c-pts{color:#fff;font-weight:800}
-.st-table tr.adv .c-rk{color:var(--green)}
+.st-table tr.qual .c-rk{color:var(--green)}
 /* 섹션 */
 .wrap{max-width:560px;margin:0 auto;padding:8px 14px 20px}
 /* 조별 그룹 박스 */
@@ -380,9 +380,9 @@ function renderStandingsList(visible){
   const stand=computeStandings(visible);
   const letters=Object.keys(stand);
   if(!letters.length)return '<div class="empty">조별리그 정보가 없습니다</div>';
-  return `<div style="text-align:center;font-size:11px;color:var(--green);font-family:var(--mono);padding:0 0 8px">표준 테이블 · build 7</div>`+letters.map(L=>{
+  return letters.map(L=>{
     const arr=stand[L];
-    const rows=arr.map((t,i)=>`<tr class="${i<2?'adv':''}">
+    const rows=arr.map((t,i)=>`<tr class="${i<2?'qual':''}">
       <td class="c-rk">${i+1}</td><td class="c-fl">${t.flag}</td><td class="c-nm">${t.short}</td>
       <td>${t.gp}</td><td>${t.w}</td><td>${t.d}</td><td>${t.l}</td><td>${t.gd>0?'+'+t.gd:t.gd}</td><td class="c-pts">${t.pts}</td></tr>`).join('');
     return `<div class="stand">
