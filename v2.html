@@ -319,8 +319,9 @@ function setStage(s){
   const wasBracket=selStage!=='GS';
   selStage=s;
   const sc=document.getElementById('bk-scroll');
-  if(s!=='GS'&&wasBracket&&sc){   // 브래킷 내 라운드 이동: 부드럽게 스크롤
+  if(s!=='GS'&&wasBracket&&sc){   // 브래킷 내 라운드 이동: 부드럽게 스크롤 + 줌
     renderStageBar();
+    applyBracketFocus(s);
     sc.scrollTo({left:Math.max(0,(SECTION_X[s]||0)-6),behavior:'smooth'});
   }else{                          // GS↔브래킷 전환: 뷰 재구성
     render();window.scrollTo({top:0,behavior:'smooth'});
