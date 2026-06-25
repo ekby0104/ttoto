@@ -899,10 +899,11 @@ function checkStatusFireworks(){
     if(m.date!==todayKST) return false;
     const res=allResults[String(m.id)];
     if(!res) return false;
-    const parts=(m.time||'00:00').split(':');
-    const gameMin=Number(parts[0])*60+Number(parts[1]);
-    const diff=nowMin-gameMin;
-    return diff>=0&&diff<=240;
+    // registered_at 있으면 등록 기준 4시간, 없으면 오늘 결과 있으면 바로
+    if(res.registered_at){
+      return (Date.now()+9*3600*1000 - res.registered_at*1000) <= 4*3600*1000;
+    }
+    return true;
   });
   if(!fresh.length) return;
   // 결과 등록된 경기 수만큼 연속 폭죽
