@@ -68,6 +68,7 @@ body{background:var(--bg);color:var(--text);font-family:var(--sys);min-height:10
 .bk-n{flex:1;font-size:13px;font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .bk-n.tbd{color:var(--muted);font-weight:500;font-size:11px}
 .bk-s{font-size:14px;font-weight:800;font-variant-numeric:tabular-nums;color:#fff}
+.bk-thirdlbl{position:absolute;text-align:center;font-size:12px;font-weight:700;color:var(--gold)}
 .sec-h{font-size:13px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.5px;margin:18px 6px 8px;display:flex;align-items:center;gap:6px}
 .sec-h .dot{width:7px;height:7px;border-radius:50%;background:var(--green);box-shadow:0 0 6px var(--green)}
 /* 경기 카드 */
@@ -366,7 +367,7 @@ function renderKnockout(visible,stage){
     });
   }
   const leafCount=Math.max(slot,16);
-  const W=ROUNDS.length*COLW, H=leafCount*ROWH+PADY*2;
+  const W=ROUNDS.length*COLW; let H=leafCount*ROWH+PADY*2;
   // 카드 위치
   function pos(g){const col=round[gStage(g)];const x=col*COLW+PADX;const top=(yc[g.id]||0)*ROWH+PADY;return{x,top,col};}
   // 연결선 (SVG)
@@ -392,10 +393,21 @@ function renderKnockout(visible,stage){
       <div class="bk-row"><span class="bk-f">${a.flag}</span><span class="bk-n ${a.known?'':'tbd'}">${a.name}</span><span class="bk-s">${res?res.a:''}</span></div>
     </div>`;
   });
-  // 3·4위전 별도
+  // 3·4위전: 결승(F) 컬럼의 파이널 카드 바로 아래 배치
   const third=visible.find(g=>gStage(g)==='3RD');
-  let thirdHtml='';
-  if(third){thirdHtml=`<div class="round-info" style="margin:18px 0 10px">🥉 3·4위전</div>${cardHtml(third,gState(third)==='open')}`;}
+  if(third&&finalG){
+    const fp=pos(finalG);const tx=fp.x,ttop=fp.top+CARDH+66;
+    H=Math.max(H,ttop+CARDH+PADY);
+    const st=gState(third),bett=st==='open',res=RESULTS[String(third.id)];
+    const h=teamSide(third,'home'),a=teamSide(third,'away');
+    const dt=third.date?`${third.date.slice(5)} ${third.time||''}`:'';
+    cards+=`<div class="bk-thirdlbl" style="left:${tx}px;top:${ttop-22}px;width:${CARDW}px">🥉 3·4위전</div>
+      <div class="bk-card ${bett?'bettable':''}" style="left:${tx}px;top:${ttop}px;width:${CARDW}px;height:${CARDH}px" onclick="openGame('${third.id}')">
+        <div class="bk-dt">${dt}${bett?' · ⚽':''}</div>
+        <div class="bk-row"><span class="bk-f">${h.flag}</span><span class="bk-n ${h.known?'':'tbd'}">${h.name}</span><span class="bk-s">${res?res.h:''}</span></div>
+        <div class="bk-row"><span class="bk-f">${a.flag}</span><span class="bk-n ${a.known?'':'tbd'}">${a.name}</span><span class="bk-s">${res?res.a:''}</span></div>
+      </div>`;
+  }
   // 라운드 헤더
   const heads=ROUNDS.map((r,i)=>`<div class="bk-head" style="left:${i*COLW+PADX}px;width:${CARDW}px">${({R32:'32강',R16:'16강',QF:'8강',SF:'4강',F:'결승'})[r]}</div>`).join('');
   setTimeout(()=>{
@@ -413,7 +425,7 @@ function renderKnockout(visible,stage){
         ${cards}
       </div>
     </div>
-  </div>${thirdHtml}`;
+  </div>`;
 }
 
 function cardHtml(g,bettable){
