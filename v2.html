@@ -37,6 +37,7 @@ body{background:var(--bg);color:var(--text);font-family:var(--sys);min-height:10
 .seg.active .seg-tx{color:#1c1c1e}
 .seg-tx.trophy{font-size:18px}
 /* 조 순위표 */
+.stand-col{position:absolute}
 .stand{background:var(--card);border-radius:12px;margin-bottom:12px;border:1px solid var(--sep);padding:4px 8px 8px}
 .st-head{padding:8px 4px 6px}
 .st-gl{font-weight:800;color:#fff;font-size:14px}
@@ -294,18 +295,13 @@ function render(){
   renderStageBar();
   const visible=GAMES.filter(g=>!g.deleted);
   document.getElementById('hd-sub').textContent=`${visible.filter(g=>gState(g)==='open').length}경기 베팅중`;
-  const wrap=document.getElementById('wrap');
-  if(selStage==='GS'){          // 조별리그: 일반 흐름 순위표 (iOS 안전)
-    wrap.innerHTML=renderStandingsList(visible);
-  }else{                        // 토너먼트: 절대배치 브래킷 캔버스
-    wrap.innerHTML=renderFullBracket(visible);
-    setTimeout(()=>{
-      const sc=document.getElementById('bk-scroll');if(!sc)return;
-      sc.scrollLeft=Math.max(0,(SECTION_X[selStage]||0)-6);
-      sc.onscroll=()=>onBracketScroll(sc);
-      applyBracketFocus(selStage);
-    },40);
-  }
+  document.getElementById('wrap').innerHTML=renderFullBracket(visible);  // 조 순위표 + 브래킷 통합
+  setTimeout(()=>{
+    const sc=document.getElementById('bk-scroll');if(!sc)return;
+    sc.scrollLeft=Math.max(0,(SECTION_X[selStage]||0)-6);
+    sc.onscroll=()=>onBracketScroll(sc);
+    applyBracketFocus(selStage==='GS'?'R32':selStage);
+  },40);
 }
 // 셀렉터: 텍스트 라벨(GS, R32…), 결승만 우승컵
 function renderStageBar(){
@@ -316,24 +312,21 @@ function renderStageBar(){
   }).join('')}</div>`;
 }
 function setStage(s){
-  const wasBracket=selStage!=='GS';
-  selStage=s;
+  selStage=s; renderStageBar();
   const sc=document.getElementById('bk-scroll');
-  if(s!=='GS'&&wasBracket&&sc){   // 브래킷 내 라운드 이동: 부드럽게 스크롤 + 줌
-    renderStageBar();
-    applyBracketFocus(s);
+  if(sc){
+    applyBracketFocus(s==='GS'?'R32':s);
     sc.scrollTo({left:Math.max(0,(SECTION_X[s]||0)-6),behavior:'smooth'});
-  }else{                          // GS↔브래킷 전환: 뷰 재구성
-    render();window.scrollTo({top:0,behavior:'smooth'});
-  }
+  }else render();
+  window.scrollTo({top:0,behavior:'smooth'});
 }
-// 가로 스크롤 → 현재 보는 라운드로 셀렉터 동기화 + 줌 강조
+// 가로 스크롤 → 현재 보는 단계로 셀렉터 동기화 + 줌 강조
 function onBracketScroll(sc){
   const x=sc.scrollLeft+sc.clientWidth*0.25;
-  let cur='R32';
-  ['R32','R16','QF','SF','F'].forEach(k=>{if((SECTION_X[k]||0)<=x)cur=k;});
+  let cur='GS';
+  STAGES.forEach(([k])=>{if((SECTION_X[k]||0)<=x)cur=k;});
   if(cur!==selStage){selStage=cur;renderStageBar();}
-  applyBracketFocus(cur);
+  applyBracketFocus(cur==='GS'?'R32':cur);
 }
 // 현재 라운드 카드는 확대·선명, 나머지는 축소·흐림 (동적 줌)
 function applyBracketFocus(cur){
@@ -406,15 +399,16 @@ function renderStandingsList(visible){
   }).join('');
 }
 
-// 토너먼트 브래킷 (절대배치 캔버스, 가로 스크롤)
+// Apple식 통합: [조 순위표] + [R32~결승 브래킷] 한 캔버스, 가로 스크롤
 function renderFullBracket(visible){
   const ko=visible.filter(g=>ROUNDS.includes(gStage(g)));
-  if(!ko.length)return '<div class="empty">토너먼트 경기가 없습니다</div>';
   const byId={};ko.forEach(g=>byId[String(g.id)]=g);
-  const COLW=180,CARDW=160,CARDH=74,ROWH=90,PADY=16,PADX=6;
-  const bx0=PADX;
+  const cw=Math.min(window.innerWidth,560)-24;
+  const STANDW=Math.min(cw,360);
+  const COLW=180,CARDW=160,CARDH=74,ROWH=90,PADY=16,GS_GAP=18;
+  const bx0=STANDW+GS_GAP;
   const colX={R32:bx0,R16:bx0+COLW,QF:bx0+2*COLW,SF:bx0+3*COLW,F:bx0+4*COLW};
-  SECTION_X={R32:colX.R32-6,R16:colX.R16-6,QF:colX.QF-6,SF:colX.SF-6,F:colX.F-6};
+  SECTION_X={GS:0,R32:colX.R32-6,R16:colX.R16-6,QF:colX.QF-6,SF:colX.SF-6,F:colX.F-6};
 
   // ── 브래킷 y 좌표 (정통 간격) ──
   const yc={};let slot=0;
@@ -466,12 +460,29 @@ function renderFullBracket(visible){
     H=Math.max(H,ttop+CARDH+PADY);
     cards+=`<div class="bk-thirdlbl" style="left:${tx}px;top:${ttop-22}px;width:${CARDW}px">🥉 3·4위전</div>`+bkCard(third,tx,ttop);
   }
+  // ── 조 순위표 (왼쪽 컬럼) ──
+  const stand=computeStandings(visible);
+  const letters=Object.keys(stand);
+  const stW=STANDW-10;
+  const standTables=letters.map(L=>{
+    const arr=stand[L];
+    const rows=arr.map((t,i)=>`<tr class="${i<2?'qual':''}">
+      <td class="c-rk">${i+1}</td><td class="c-fl">${t.flag}</td><td class="c-nm">${t.short}</td>
+      <td>${t.gp}</td><td>${t.w}</td><td>${t.d}</td><td>${t.l}</td><td>${t.gd>0?'+'+t.gd:t.gd}</td><td class="c-pts">${t.pts}</td></tr>`).join('');
+    return `<div class="stand"><div class="st-head"><span class="st-gl">Group ${L}</span></div>
+      <table class="st-table"><thead><tr><th class="c-rk"></th><th class="c-fl"></th><th class="c-nm"></th><th>GP</th><th>W</th><th>D</th><th>L</th><th>GD</th><th>PTS</th></tr></thead>
+      <tbody>${rows}</tbody></table></div>`;
+  }).join('');
+  const standHtml=letters.length?`<div class="stand-col" style="left:0;top:${PADY}px;width:${stW}px">${standTables}</div>`:'';
+  H=Math.max(H, PADY*2+letters.length*210);
+  if(!ko.length&&!letters.length)return '<div class="empty">경기가 없습니다</div>';
   const W=colX.F+COLW+PADY;
-  const heads=ROUNDS.map(r=>`<div class="bk-head" style="left:${colX[r]}px;width:${CARDW}px">${RLBL[r]}</div>`).join('');
+  const heads=`<div class="bk-head" style="left:0;width:${stW}px">조 순위</div>`+
+    ROUNDS.map(r=>`<div class="bk-head" style="left:${colX[r]}px;width:${CARDW}px">${RLBL[r]}</div>`).join('');
   return `<div class="bk-scroll" id="bk-scroll"><div class="bk-stage" style="width:${W}px">
     <div class="bk-heads" style="width:${W}px">${heads}</div>
     <div class="bk-canvas" style="width:${W}px;height:${H}px">
-      <svg class="bk-svg" width="${W}" height="${H}">${lines}</svg>${cards}
+      <svg class="bk-svg" width="${W}" height="${H}">${lines}</svg>${standHtml}${cards}
     </div></div></div>`;
 }
 
