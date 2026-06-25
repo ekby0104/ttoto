@@ -380,7 +380,7 @@ function renderStandingsList(visible){
   const stand=computeStandings(visible);
   const letters=Object.keys(stand);
   if(!letters.length)return '<div class="empty">조별리그 정보가 없습니다</div>';
-  return letters.map(L=>{
+  return `<div style="text-align:center;font-size:11px;color:var(--green);font-family:var(--mono);padding:0 0 8px">표준 테이블 · build 7</div>`+letters.map(L=>{
     const arr=stand[L];
     const rows=arr.map((t,i)=>`<tr class="${i<2?'adv':''}">
       <td class="c-rk">${i+1}</td><td class="c-fl">${t.flag}</td><td class="c-nm">${t.short}</td>
