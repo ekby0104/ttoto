@@ -28,18 +28,14 @@ body{background:var(--bg);color:var(--text);font-family:var(--sys);min-height:10
 .notice-trk{display:inline-block;animation:marq 10s linear infinite;will-change:transform}
 @keyframes marq{0%{transform:translateX(0)}100%{transform:translateX(-50%)}}
 .notice-txt{font-family:var(--mono);font-size:13px;font-weight:900;color:#000;text-shadow:-1px -1px 0 #fff,1px -1px 0 #fff,-1px 1px 0 #fff,1px 1px 0 #fff}
-/* Apple식 막대 아이콘 셀렉터 */
+/* 셀렉터: 텍스트 라벨 (결승만 우승컵) */
 .stagebar{max-width:560px;margin:0 auto;padding:4px 14px 6px}
-.seg-labels{display:flex;margin-bottom:7px}
-.seg-labels span{flex:1;text-align:center;font-size:15px;font-weight:800;color:var(--muted);cursor:pointer;transition:color .2s}
-.seg-labels span.on{color:#fff}
 .seg-pill{display:flex;background:#2a2a2c;border-radius:14px;padding:5px;gap:4px}
 .seg{flex:1;background:none;border:none;border-radius:10px;padding:9px 0;cursor:pointer;display:flex;align-items:center;justify-content:center;transition:background .2s}
 .seg.active{background:#fff}
-.seg-ic{display:flex;flex-direction:column;gap:2px;width:24px;align-items:center;justify-content:center;height:18px}
-.seg-ic i{height:2px;width:100%;background:var(--muted2);border-radius:2px}
-.seg.active .seg-ic i{background:#1c1c1e}
-.seg-ic.trophy{font-size:17px;height:auto}
+.seg-tx{font-size:14px;font-weight:800;color:var(--muted2)}
+.seg.active .seg-tx{color:#1c1c1e}
+.seg-tx.trophy{font-size:18px}
 /* 조 순위표 */
 .stand-col{position:absolute}
 .stand{background:var(--card);border-radius:12px;overflow:hidden;margin-bottom:12px}
@@ -302,15 +298,13 @@ function render(){
     sc.onscroll=()=>onBracketScroll(sc);
   },40);
 }
-// Apple Sports식 막대 아이콘 셀렉터
-const SEG_LINES={GS:4,R32:8,R16:6,QF:4,SF:2};
+// 셀렉터: 텍스트 라벨(GS, R32…), 결승만 우승컵
 function renderStageBar(){
   const bar=document.getElementById('stagebar');
-  bar.innerHTML=`<div class="seg-labels">${STAGES.map(([k])=>`<span class="${selStage===k?'on':''}" onclick="setStage('${k}')">${k}</span>`).join('')}</div>
-    <div class="seg-pill">${STAGES.map(([k])=>{
-      const ic=k==='F'?'🏆':Array.from({length:SEG_LINES[k]}).map(()=>'<i></i>').join('');
-      return `<button class="seg ${selStage===k?'active':''}" data-stage="${k}" onclick="setStage('${k}')"><span class="seg-ic ${k==='F'?'trophy':''}">${ic}</span></button>`;
-    }).join('')}</div>`;
+  bar.innerHTML=`<div class="seg-pill">${STAGES.map(([k])=>{
+    const content=k==='F'?'🏆':k;
+    return `<button class="seg ${selStage===k?'active':''}" data-stage="${k}" onclick="setStage('${k}')"><span class="seg-tx ${k==='F'?'trophy':''}">${content}</span></button>`;
+  }).join('')}</div>`;
 }
 function setStage(s){
   selStage=s;
