@@ -28,8 +28,28 @@ body{background:var(--bg);color:var(--text);font-family:var(--sys);min-height:10
 .notice-trk{display:inline-block;animation:marq 10s linear infinite;will-change:transform}
 @keyframes marq{0%{transform:translateX(0)}100%{transform:translateX(-50%)}}
 .notice-txt{font-family:var(--mono);font-size:13px;font-weight:900;color:#000;text-shadow:-1px -1px 0 #fff,1px -1px 0 #fff,-1px 1px 0 #fff,1px 1px 0 #fff}
+/* 단계 선택바 */
+.stagebar{display:flex;gap:6px;overflow-x:auto;padding:6px 14px 4px;max-width:560px;margin:0 auto;-webkit-overflow-scrolling:touch}
+.stagebar::-webkit-scrollbar{display:none}
+.stg{flex-shrink:0;padding:7px 16px;border-radius:20px;background:var(--card);color:var(--muted2);font-size:14px;font-weight:700;border:none;cursor:pointer;white-space:nowrap}
+.stg.active{background:var(--green);color:#000}
+.stg .cnt{font-size:11px;opacity:.7;margin-left:3px}
 /* 섹션 */
 .wrap{max-width:560px;margin:0 auto;padding:8px 14px 20px}
+/* 조별 그룹 박스 */
+.grp{background:var(--card);border-radius:16px;margin-bottom:12px;overflow:hidden}
+.grp-h{display:flex;align-items:center;justify-content:space-between;padding:13px 16px;cursor:pointer}
+.grp-h .gl{font-size:17px;font-weight:800}
+.grp-h .ga{font-size:13px;color:var(--muted);font-family:var(--mono)}
+.grp-teams{display:flex;flex-wrap:wrap;gap:7px;padding:0 16px 13px}
+.grp-team{display:flex;align-items:center;gap:6px;background:var(--card2);border-radius:8px;padding:5px 10px;font-size:14px;font-weight:600}
+.grp-team .f{font-size:17px}
+.grp-games{border-top:1px solid var(--sep);display:none}
+.grp.open .grp-games{display:block}
+.grp.open .grp-arr{transform:rotate(90deg)}
+.grp-arr{color:var(--muted);transition:transform .2s;font-size:18px}
+/* 라운드 헤더 */
+.round-info{text-align:center;color:var(--muted);font-size:13px;margin:4px 0 14px;line-height:1.5}
 .sec-h{font-size:13px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.5px;margin:18px 6px 8px;display:flex;align-items:center;gap:6px}
 .sec-h .dot{width:7px;height:7px;border-radius:50%;background:var(--green);box-shadow:0 0 6px var(--green)}
 /* 경기 카드 */
@@ -134,6 +154,7 @@ body{background:var(--bg);color:var(--text);font-family:var(--sys);min-height:10
 </div>
 <div id="notice" class="notice" style="display:none"><div class="notice-trk"><span class="notice-txt" id="notice-txt"></span></div></div>
 
+<div class="stagebar" id="stagebar"></div>
 <div class="wrap" id="wrap"><div class="loader">불러오는 중...</div></div>
 
 <!-- 플로팅 피드백 버튼 -->
@@ -180,6 +201,20 @@ body{background:var(--bg);color:var(--text);font-family:var(--sys);min-height:10
 const API='/api';
 let CONFIG={},GAMES=[],BETS=[],RESULTS={};
 let curGame=null;
+let selStage='GS';            // GS|R32|R16|QF|SF|F
+let openGroups={};            // 조별 펼침 상태
+const STAGES=[['GS','조별'],['R32','32강'],['R16','16강'],['QF','8강'],['SF','4강'],['F','결승']];
+
+function stageOf(g){
+  const gr=g.group||'';
+  if(gr.startsWith('R32'))return 'R32';
+  if(gr.startsWith('R16'))return 'R16';
+  if(gr.startsWith('QF'))return 'QF';
+  if(gr.startsWith('SF'))return 'SF';
+  if(gr.startsWith('FINAL')||gr.startsWith('3RD'))return 'F';
+  return 'GS';
+}
+function groupLetter(g){const m=(g.group||'').match(/^([A-Z])조$/);return m?m[1]:null;}
 
 async function api(path,opts={}){
   try{const r=await fetch(API+path,{headers:{'Content-Type':'application/json'},...opts});
@@ -209,36 +244,58 @@ async function loadAll(){
 }
 
 function render(){
+  renderStageBar();
   const wrap=document.getElementById('wrap');
   const visible=GAMES.filter(g=>!g.deleted);
-  // 분류
-  const bettable=[],upcoming=[],finished=[];
-  visible.forEach(g=>{
-    const st=gState(g);
-    if(st==='open')bettable.push(g);
-    else if(st==='ended')finished.push(g);
-    else if(st==='closed')upcoming.push(g); // 마감(결과대기)
-    else if(st==='pending')upcoming.push(g);
-  });
-  bettable.sort((a,b)=>startMs(a)-startMs(b));
-  upcoming.sort((a,b)=>startMs(a)-startMs(b));
-  finished.sort((a,b)=>startMs(b)-startMs(a));
+  const bettableTotal=visible.filter(g=>gState(g)==='open').length;
+  document.getElementById('hd-sub').textContent=`${bettableTotal}경기 베팅중`;
+  wrap.innerHTML = selStage==='GS' ? renderGroupStage(visible) : renderKnockout(visible,selStage);
+}
+
+function renderStageBar(){
+  const bar=document.getElementById('stagebar');
+  bar.innerHTML=STAGES.map(([k,lbl])=>{
+    const n=GAMES.filter(g=>!g.deleted&&stageOf(g)===k).length;
+    if(!n)return '';
+    const bett=GAMES.filter(g=>!g.deleted&&stageOf(g)===k&&gState(g)==='open').length;
+    return `<button class="stg ${selStage===k?'active':''}" onclick="setStage('${k}')">${lbl}${bett?`<span class="cnt">⚽${bett}</span>`:''}</button>`;
+  }).join('');
+}
+function setStage(s){selStage=s;render();window.scrollTo({top:0,behavior:'smooth'});}
+
+// 조별리그: 그룹 박스 (A~L)
+function renderGroupStage(visible){
+  const gs=visible.filter(g=>stageOf(g)==='GS');
+  const letters=[...new Set(gs.map(groupLetter).filter(Boolean))].sort();
+  if(!letters.length)return '<div class="empty">조별리그 경기가 없습니다</div>';
   let html='';
-  if(bettable.length){
-    html+=`<div class="sec-h"><span class="dot"></span> 지금 베팅 가능</div>`;
-    html+=bettable.map(g=>cardHtml(g,true)).join('');
-  }
-  if(upcoming.length){
-    html+=`<div class="sec-h">예정 · 마감</div>`;
-    html+=upcoming.map(g=>cardHtml(g,false)).join('');
-  }
-  if(finished.length){
-    html+=`<div class="sec-h">종료된 경기</div>`;
-    html+=finished.map(g=>cardHtml(g,false)).join('');
-  }
-  if(!html)html='<div class="empty">등록된 경기가 없습니다</div>';
-  wrap.innerHTML=html;
-  document.getElementById('hd-sub').textContent=`${bettable.length}경기 베팅중`;
+  letters.forEach(L=>{
+    const games=gs.filter(g=>groupLetter(g)===L).sort((a,b)=>startMs(a)-startMs(b));
+    // 팀 추출 (등장 순서)
+    const teams=[];const seen=new Set();
+    games.forEach(g=>[g.home,g.away].forEach(t=>{if(t.short&&!seen.has(t.short)){seen.add(t.short);teams.push(t);}}));
+    const bett=games.filter(g=>gState(g)==='open').length;
+    const isOpen=openGroups[L];
+    html+=`<div class="grp ${isOpen?'open':''}">
+      <div class="grp-h" onclick="toggleGroup('${L}')">
+        <span class="gl">Group ${L}${bett?` <span style="color:var(--green);font-size:13px">⚽${bett}</span>`:''}</span>
+        <span class="ga">${games.length}경기 <span class="grp-arr">›</span></span>
+      </div>
+      <div class="grp-teams">${teams.map(t=>`<span class="grp-team"><span class="f">${t.flag}</span>${t.short}</span>`).join('')}</div>
+      <div class="grp-games">${games.map(g=>cardHtml(g,gState(g)==='open')).join('')}</div>
+    </div>`;
+  });
+  return html;
+}
+function toggleGroup(L){openGroups[L]=!openGroups[L];render();}
+
+// 토너먼트 라운드: 해당 라운드 경기 카드
+function renderKnockout(visible,stage){
+  const games=visible.filter(g=>stageOf(g)===stage).sort((a,b)=>startMs(a)-startMs(b));
+  if(!games.length)return '<div class="empty">경기가 없습니다</div>';
+  const lbl={R32:'32강 · 16경기',R16:'16강 · 8경기',QF:'8강 · 4경기',SF:'4강 · 2경기',F:'결승 · 3·4위전'}[stage]||'';
+  return `<div class="round-info">🏆 ${lbl}<br><span style="font-size:12px">대진이 확정되면 팀이 표시됩니다</span></div>`+
+    games.map(g=>cardHtml(g,gState(g)==='open')).join('');
 }
 
 function cardHtml(g,bettable){
@@ -265,8 +322,8 @@ function cardHtml(g,bettable){
   return `<div class="card ${bettable?'bettable':''} ${within24h?'glow':''}" onclick="openGame('${g.id}')">
     <div class="card-top"><span>📅 ${g.date||''} ${g.time||''}</span>${pill}</div>
     <div class="card-body">
-      <div class="trow"><span class="flag">${g.home.flag}</span><div class="nm"><b>${g.home.name}</b><s>${g.home.short}</s></div>${homeSc}</div>
-      <div class="trow"><span class="flag">${g.away.flag}</span><div class="nm"><b>${g.away.name}</b><s>${g.away.short}</s></div>${awaySc}</div>
+      <div class="trow"><span class="flag">${g.home.name?g.home.flag:'⚪'}</span><div class="nm"><b>${g.home.name||'TBD'}</b><s>${g.home.short||'미정'}</s></div>${homeSc}</div>
+      <div class="trow"><span class="flag">${g.away.name?g.away.flag:'⚪'}</span><div class="nm"><b>${g.away.name||'TBD'}</b><s>${g.away.short||'미정'}</s></div>${awaySc}</div>
     </div>
     ${foot}
   </div>`;
