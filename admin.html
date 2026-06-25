@@ -210,6 +210,31 @@ main{max-width:960px;margin:0 auto;padding:16px 12px 60px}
       </div>
     </div>
 
+    <!-- 공지 팝업 (아코디언) -->
+    <div class="acc-item" id="acc-popup">
+      <div class="acc-row" onclick="toggleAcc('popup')">
+        <span class="acc-label"><span style="font-size:18px">📢</span> 공지 팝업</span>
+        <span class="acc-arrow">›</span>
+      </div>
+      <div class="acc-body">
+        <p class="acard-desc" style="margin-top:0">메인 페이지 진입 시 표시되는 팝업입니다. 게시일시를 지정하면 그 시각 이후부터 노출됩니다 (비우면 즉시).</p>
+        <div style="display:flex;flex-direction:column;gap:10px">
+          <label style="display:flex;align-items:center;gap:8px;cursor:pointer;font-size:14px;font-weight:700">
+            <input type="checkbox" id="pop-enabled"> 팝업 사용
+          </label>
+          <div class="form-group">
+            <label class="form-label">문구 (줄바꿈 가능, 최대 500자)</label>
+            <textarea class="form-input" id="pop-message" rows="4" placeholder="지금까지 또또를 사랑해주셔서 감사합니다&#10;또 만나요&#10;^_ㅠ" style="resize:vertical"></textarea>
+          </div>
+          <div class="form-group">
+            <label class="form-label">게시일시 (KST, 비우면 즉시 노출)</label>
+            <input class="form-input" id="pop-publish" type="datetime-local">
+          </div>
+          <button class="btn btn-primary" onclick="savePopup()">팝업 저장</button>
+        </div>
+      </div>
+    </div>
+
     <!-- 관리자 토큰 (아코디언) -->
     <div class="acc-item" id="acc-token">
       <div class="acc-row" onclick="toggleAcc('token')">
@@ -625,6 +650,20 @@ function renderSettings() {
   document.getElementById('cfg-title').value  = config.site_title || '';
   document.getElementById('cfg-link').value   = config.kp_link    || '';
   document.getElementById('cfg-amount').value = config.bet_amount || '';
+  document.getElementById('pop-enabled').checked = !!config.popup_enabled;
+  document.getElementById('pop-message').value   = config.popup_message || '';
+  document.getElementById('pop-publish').value    = config.popup_publish_at || '';
+}
+async function savePopup() {
+  const body = {
+    popup_enabled:    document.getElementById('pop-enabled').checked,
+    popup_message:    document.getElementById('pop-message').value,
+    popup_publish_at: document.getElementById('pop-publish').value,
+  };
+  const res = await apiFetch('/admin/config', {method:'PATCH', body:JSON.stringify(body)});
+  if (!res) { toast('❌ 저장 실패', true); return }
+  config = res;
+  toast('✅ 팝업 설정이 저장됐습니다');
 }
 async function saveConfig() {
   const title = document.getElementById('cfg-title').value.trim();

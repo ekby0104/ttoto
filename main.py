@@ -113,10 +113,13 @@ class BetIn(BaseModel):
     a:       int
 
 class ConfigUpdate(BaseModel):
-    bet_amount:  Optional[int] = None
-    kp_link:     Optional[str] = None
-    site_title:  Optional[str] = None
-    carryover:   Optional[int] = None
+    bet_amount:    Optional[int] = None
+    kp_link:       Optional[str] = None
+    site_title:    Optional[str] = None
+    carryover:     Optional[int] = None
+    popup_enabled: Optional[bool] = None
+    popup_message: Optional[str]  = None
+    popup_publish_at: Optional[str] = None   # "2026-06-25T10:00" (KST 기준)
 
 class ResultIn(BaseModel):
     h: int
@@ -163,7 +166,8 @@ class GameIn(BaseModel):
 @app.get("/api/config")
 def public_config():
     cfg = get_config()
-    return {"bet_amount": cfg.get("bet_amount", 3000), "kp_link": cfg.get("kp_link", ""), "site_title": cfg.get("site_title", "토토"), "carryover": cfg.get("carryover", 0)}
+    return {"bet_amount": cfg.get("bet_amount", 3000), "kp_link": cfg.get("kp_link", ""), "site_title": cfg.get("site_title", "토토"), "carryover": cfg.get("carryover", 0),
+            "popup_enabled": cfg.get("popup_enabled", False), "popup_message": cfg.get("popup_message", ""), "popup_publish_at": cfg.get("popup_publish_at", "")}
 
 @app.get("/api/games")
 def list_games(include_deleted: bool = False):
@@ -327,6 +331,9 @@ def admin_update_config(body: ConfigUpdate, auth=Depends(admin_required)):
     if body.kp_link     is not None: cfg["kp_link"]     = body.kp_link
     if body.site_title  is not None: cfg["site_title"]  = body.site_title
     if body.carryover   is not None: cfg["carryover"]   = body.carryover
+    if body.popup_enabled    is not None: cfg["popup_enabled"]    = body.popup_enabled
+    if body.popup_message    is not None: cfg["popup_message"]    = body.popup_message[:500]
+    if body.popup_publish_at is not None: cfg["popup_publish_at"] = body.popup_publish_at
     write_json(CONFIG_FILE, cfg)
     return cfg
 
