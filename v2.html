@@ -37,17 +37,18 @@ body{background:var(--bg);color:var(--text);font-family:var(--sys);min-height:10
 .seg.active .seg-tx{color:#1c1c1e}
 .seg-tx.trophy{font-size:18px}
 /* 조 순위표 */
-.stand-list{display:flex;flex-direction:column}
+.stand-list{display:block}
 .stand-full{width:100%}
-.stand{background:var(--card);border-radius:12px;overflow:hidden;margin-bottom:12px}
-.st-head{display:flex;align-items:center;justify-content:space-between;padding:8px 10px 7px;border-bottom:1px solid var(--sep)}
+.stand{background:var(--card);border-radius:12px;margin-bottom:12px;border:1px solid var(--sep)}
+.st-head{display:flex;align-items:center;justify-content:space-between;padding:9px 10px;border-bottom:1px solid var(--sep)}
 .st-gl{font-weight:800;color:#fff;font-size:13px}
 .st-cols{display:flex}.st-cols span{width:26px;text-align:center;font-size:10px;color:var(--muted);font-family:var(--mono)}
-.st-row{display:flex;align-items:center;gap:6px;padding:6px 10px;height:30px;border-left:2px solid transparent}
-.st-row.adv{border-left-color:var(--green)}
-.st-rk{width:13px;color:var(--muted);font-weight:700;font-size:12px}
+.st-row{display:flex;align-items:center;gap:6px;padding:9px 10px;font-size:13px;color:#fff}
+.st-row+.st-row{border-top:1px solid rgba(255,255,255,.05)}
+.st-rk{width:14px;color:var(--muted);font-weight:700;font-size:12px}
+.st-row.adv .st-rk{color:var(--green)}
 .st-fl{font-size:16px}
-.st-nm{flex:1;font-weight:700;font-size:13px;white-space:nowrap;overflow:hidden}
+.st-nm{flex:1;font-weight:700;font-size:13px;white-space:nowrap;overflow:hidden;color:#fff}
 .st-v{width:26px;text-align:center;font-size:13px;font-variant-numeric:tabular-nums;color:var(--muted2)}
 .st-v.pts{color:#fff;font-weight:800}
 /* 섹션 */
