@@ -37,20 +37,18 @@ body{background:var(--bg);color:var(--text);font-family:var(--sys);min-height:10
 .seg.active .seg-tx{color:#1c1c1e}
 .seg-tx.trophy{font-size:18px}
 /* 조 순위표 */
-.stand-list{display:block}
-.stand-full{width:100%}
-.stand{background:var(--card);border-radius:12px;margin-bottom:12px;border:1px solid var(--sep)}
-.st-head{display:flex;align-items:center;justify-content:space-between;padding:9px 10px;border-bottom:1px solid var(--sep)}
-.st-gl{font-weight:800;color:#fff;font-size:13px}
-.st-cols{display:flex}.st-cols span{width:26px;text-align:center;font-size:10px;color:var(--muted);font-family:var(--mono)}
-.st-row{display:flex;align-items:center;gap:6px;padding:9px 10px;font-size:13px;color:#fff}
-.st-row+.st-row{border-top:1px solid rgba(255,255,255,.05)}
-.st-rk{width:14px;color:var(--muted);font-weight:700;font-size:12px}
-.st-row.adv .st-rk{color:var(--green)}
-.st-fl{font-size:16px}
-.st-nm{flex:1;font-weight:700;font-size:13px;white-space:nowrap;overflow:hidden;color:#fff}
-.st-v{width:26px;text-align:center;font-size:13px;font-variant-numeric:tabular-nums;color:var(--muted2)}
-.st-v.pts{color:#fff;font-weight:800}
+.stand{background:var(--card);border-radius:12px;margin-bottom:12px;border:1px solid var(--sep);padding:4px 8px 8px}
+.st-head{padding:8px 4px 6px}
+.st-gl{font-weight:800;color:#fff;font-size:14px}
+.st-table{width:100%;border-collapse:collapse;font-size:13px}
+.st-table th{font-size:10px;color:var(--muted);font-weight:600;font-family:var(--mono);padding:2px 0 6px;text-align:center}
+.st-table td{padding:9px 2px;text-align:center;color:var(--muted2);font-variant-numeric:tabular-nums}
+.st-table tbody tr+tr td{border-top:1px solid rgba(255,255,255,.06)}
+.st-table .c-rk{width:18px;color:var(--muted);font-weight:700}
+.st-table .c-fl{width:24px;font-size:16px}
+.st-table .c-nm{text-align:left;color:#fff;font-weight:700;padding-left:4px}
+.st-table .c-pts{color:#fff;font-weight:800}
+.st-table tr.adv .c-rk{color:var(--green)}
 /* 섹션 */
 .wrap{max-width:560px;margin:0 auto;padding:8px 14px 20px}
 /* 조별 그룹 박스 */
@@ -382,14 +380,16 @@ function renderStandingsList(visible){
   const stand=computeStandings(visible);
   const letters=Object.keys(stand);
   if(!letters.length)return '<div class="empty">조별리그 정보가 없습니다</div>';
-  return `<div class="stand-list">`+letters.map(L=>{
+  return letters.map(L=>{
     const arr=stand[L];
-    const rows=arr.map((t,i)=>`<div class="st-row ${i<2?'adv':''}">
-      <span class="st-rk">${i+1}</span><span class="st-fl">${t.flag}</span><span class="st-nm">${t.short}</span>
-      <span class="st-v">${t.gp}</span><span class="st-v">${t.w}</span><span class="st-v">${t.d}</span><span class="st-v">${t.l}</span><span class="st-v">${t.gd>0?'+'+t.gd:t.gd}</span><span class="st-v pts">${t.pts}</span></div>`).join('');
-    return `<div class="stand stand-full">
-      <div class="st-head"><span class="st-gl">Group ${L}</span><span class="st-cols"><span>GP</span><span>W</span><span>D</span><span>L</span><span>GD</span><span>PTS</span></span></div>${rows}</div>`;
-  }).join('')+`</div>`;
+    const rows=arr.map((t,i)=>`<tr class="${i<2?'adv':''}">
+      <td class="c-rk">${i+1}</td><td class="c-fl">${t.flag}</td><td class="c-nm">${t.short}</td>
+      <td>${t.gp}</td><td>${t.w}</td><td>${t.d}</td><td>${t.l}</td><td>${t.gd>0?'+'+t.gd:t.gd}</td><td class="c-pts">${t.pts}</td></tr>`).join('');
+    return `<div class="stand">
+      <div class="st-head"><span class="st-gl">Group ${L}</span></div>
+      <table class="st-table"><thead><tr><th class="c-rk"></th><th class="c-fl"></th><th class="c-nm"></th><th>GP</th><th>W</th><th>D</th><th>L</th><th>GD</th><th>PTS</th></tr></thead>
+      <tbody>${rows}</tbody></table></div>`;
+  }).join('');
 }
 
 // 토너먼트 브래킷 (절대배치 캔버스, 가로 스크롤)
