@@ -300,6 +300,11 @@ function render(){
   renderStageBar();
   const visible=GAMES.filter(g=>!g.deleted);
   document.getElementById('hd-sub').textContent=`${visible.filter(g=>gState(g)==='open').length}경기 베팅중`;
+  if(ovvMode){
+    document.getElementById('wrap').innerHTML=renderMiniOverview(visible);
+    const nb=document.getElementById('bk-next');if(nb)nb.classList.remove('show');
+    return;
+  }
   document.getElementById('wrap').innerHTML=renderFullBracket(visible);  // 조 순위표 + 브래킷 통합
   setTimeout(()=>{
     const sc=document.getElementById('bk-scroll');if(!sc)return;
@@ -322,7 +327,6 @@ function setStage(s){
   selStage=s; renderStageBar();
   const sc=document.getElementById('bk-scroll');
   if(sc){
-    if(ovvMode)exitOverview(sc);
     const f=s==='GS'?'R32':s;
     bkFocus=f; relayoutBracket(f);
     // 스크롤 중 onBracketScroll 간섭 방지: 잠시 해제하고 즉시 이동 후 복구
@@ -660,66 +664,109 @@ async function doBet(viaKakao){
   await p;return false;
 }
 
-// ── 토너먼트 오버뷰 (인라인 줌아웃) ──
-let ovvMode=false,ovvSF=1;
-function toggleOverview(){
-  const sc=document.getElementById('bk-scroll');
-  if(!sc||!BK)return;
-  if(ovvMode){exitOverview(sc);}
-  else{enterOverview(sc);}
-  renderStageBar();
-}
-function enterOverview(sc){
-  const stage=sc.querySelector('.bk-stage');
-  if(!stage)return;
-  const sw=sc.clientWidth;
-  const stW=stage.offsetWidth,stH=stage.offsetHeight;
-  ovvSF=sw/stW;
-  // 브래킷을 화면 너비에 맞게 축소
-  stage.style.transformOrigin='0 0';
-  stage.style.transform=`scale(${ovvSF})`;
-  // 컨테이너 높이를 시각적 크기에 맞춤
-  sc._origH=sc.style.height;
-  sc.style.height=Math.ceil(stH*ovvSF)+'px';
-  sc.style.overflowX='hidden';
-  sc.scrollLeft=0;
-  // 탭 감지용 투명 오버레이
-  let ov=sc.querySelector('.bk-ovv-ov');
-  if(!ov){
-    ov=document.createElement('div');
-    ov.className='bk-ovv-ov';
-    ov.style.cssText='position:absolute;inset:0;cursor:pointer;z-index:20;background:transparent';
-    ov.addEventListener('click',onOverviewTap);
-    sc._origPos=sc.style.position;
-    sc.style.position='relative';
-    sc.appendChild(ov);
+// ── 토너먼트 오버뷰 (인라인 미니 브래킷) ──
+let ovvMode=false;
+function toggleOverview(){ovvMode=!ovvMode;render();}
+function exitOvvAndGo(stage){ovvMode=false;setStage(stage);}
+
+function renderMiniOverview(visible){
+  const ko=visible.filter(g=>ROUNDS.includes(gStage(g)));
+  const byId={};ko.forEach(g=>byId[String(g.id)]=g);
+  // 화면 너비에 6컬럼(GS+R32+R16+QF+SF+F) 맞춤
+  const vw=Math.min(window.innerWidth,560)-28;
+  const COLW=Math.floor(vw/6);
+  const CARDW=COLW-4,CARDH=24,SP=18,HDR=22,PADY=HDR+4;
+  // 컬럼 X 위치
+  const colX={};
+  ROUNDS.forEach((r,i)=>{colX[r]=COLW*(i+1);});
+  // 슬롯 계산 (BK 재사용 또는 직접 계산)
+  let slot=BK&&Object.keys(BK.slot||{}).length?{...BK.slot}:{};
+  if(!Object.keys(slot).length){
+    let s=0;
+    ko.filter(g=>gStage(g)==='R32').sort(bkSort).forEach(g=>{slot[g.id]=s++;});
+    ['R16','QF','SF','F'].forEach((r,ri)=>{
+      const prev=['R32','R16','QF','SF'][ri];
+      const gs=ko.filter(g=>gStage(g)===r).sort(bkSort);
+      const pv=ko.filter(g=>gStage(g)===prev).sort(bkSort);
+      gs.forEach((g,j)=>{const a=pv[j*2],b=pv[j*2+1];slot[g.id]=((a?slot[a.id]:j*2)+(b?slot[b.id]:j*2+1))/2;});
+    });
   }
-  ov.style.display='block';
-  // 다음 라운드 버튼 숨김
-  const nb=document.getElementById('bk-next');if(nb)nb.classList.remove('show');
-  ovvMode=true;
-}
-function exitOverview(sc){
-  const stage=sc.querySelector('.bk-stage');
-  if(stage){stage.style.transform='';stage.style.transformOrigin='';}
-  sc.style.height=sc._origH||'';
-  sc.style.overflowX='auto';
-  sc.style.position=sc._origPos||'';
-  const ov=sc.querySelector('.bk-ovv-ov');
-  if(ov)ov.style.display='none';
-  ovvMode=false;
-}
-function onOverviewTap(e){
-  if(!BK)return;
-  const sc=document.getElementById('bk-scroll');
-  const rect=sc.getBoundingClientRect();
-  // 탭 위치를 원래 브래킷 좌표로 변환
-  const tapX=(e.clientX-rect.left)/ovvSF;
-  // 어느 라운드 컬럼인지 판별
-  let tapped='GS';
-  ROUNDS.forEach(r=>{if((BK.colX[r]||0)<=tapX)tapped=r;});
-  exitOverview(sc);
-  setStage(tapped);
+  const yc={};for(const id in slot)yc[id]=slot[id]*SP+PADY;
+  // 3위전
+  const third=visible.find(g=>gStage(g)==='3RD');
+  const finalG=ko.find(g=>gStage(g)==='F');
+  if(third&&finalG)yc[third.id]=(yc[finalG.id]||PADY)+CARDH+SP/2;
+  const allYs=Object.values(yc);
+  const canvasH=(allYs.length?Math.max(...allYs):PADY)+CARDH+PADY;
+  const W=vw;
+  // SVG 연결선
+  let lines='';
+  ko.forEach(g=>{
+    const r=gStage(g);if(r==='3RD')return;
+    const px=colX[r]||0,py=(yc[g.id]||PADY)+CARDH/2;
+    [matchRef(g.home_label),matchRef(g.away_label)].forEach(ref=>{
+      if(!ref)return;const c=byId[ref];if(!c)return;
+      const cx=(colX[gStage(c)]||0)+CARDW,cy=(yc[c.id]||PADY)+CARDH/2,mx=(cx+px)/2;
+      lines+=`<path d="M${cx} ${cy} H${mx} V${py} H${px}" stroke="#3a3a3c" stroke-width="1" fill="none"/>`;
+    });
+  });
+  // KO 미니 카드
+  let cards='';
+  ko.forEach(g=>{
+    const r=gStage(g),st=gState(g),res=RESULTS[String(g.id)];
+    const h=teamSide(g,'home'),a=teamSide(g,'away');
+    const x=(r==='3RD'?colX.F:colX[r]);
+    const top=yc[g.id]!=null?yc[g.id]:PADY;
+    const bdr=st==='open'?'#30d158':'#38383a';
+    cards+=`<div style="position:absolute;left:${x+2}px;top:${top}px;width:${CARDW}px;height:${CARDH}px;background:#1c1c1e;border:1px solid ${bdr};border-radius:4px;overflow:hidden;padding:1px 3px;box-sizing:border-box;cursor:pointer" onclick="exitOvvAndGo('${r==='3RD'?'F':r}')">
+      <div style="display:flex;align-items:center;gap:1px;height:${CARDH/2-1}px">
+        <span style="font-size:9px;flex-shrink:0">${h.flag}</span>
+        <span style="flex:1;font-size:7px;font-weight:700;overflow:hidden;white-space:nowrap;color:${h.known?'#fff':'#666'}">${h.known?h.name.slice(0,3):'?'}</span>
+        <span style="font-size:8px;font-weight:800;color:#fff;min-width:8px;text-align:right">${res!=null?res.h:''}</span>
+      </div>
+      <div style="display:flex;align-items:center;gap:1px;height:${CARDH/2-1}px">
+        <span style="font-size:9px;flex-shrink:0">${a.flag}</span>
+        <span style="flex:1;font-size:7px;font-weight:700;overflow:hidden;white-space:nowrap;color:${a.known?'#fff':'#666'}">${a.known?a.name.slice(0,3):'?'}</span>
+        <span style="font-size:8px;font-weight:800;color:#fff;min-width:8px;text-align:right">${res!=null?res.a:''}</span>
+      </div>
+    </div>`;
+  });
+  // GS 조별 순위 카드
+  const stand=computeStandings(visible);
+  const letters=Object.keys(stand);
+  let gsCards='';
+  const nR32=ko.filter(g=>gStage(g)==='R32').length||16;
+  const slotsPerG=letters.length?nR32/letters.length*2:4;
+  letters.forEach((L,idx)=>{
+    const arr=stand[L];
+    const baseSlot=idx*slotsPerG;
+    const centerY=(baseSlot+(slotsPerG-1)/2)*SP+PADY;
+    const groupH=arr.length*11+14;
+    const topY=Math.max(PADY,centerY-groupH/2);
+    const rows=arr.map((t,i)=>`<div style="display:flex;align-items:center;gap:1px;height:11px">
+        <span style="width:7px;font-size:7px;color:${i<2?'#30d158':'#555'};flex-shrink:0;text-align:center">${i+1}</span>
+        <span style="font-size:9px;flex-shrink:0;line-height:1">${t.flag}</span>
+        <span style="flex:1;font-size:6px;font-weight:700;overflow:hidden;white-space:nowrap;color:${i<2?'#ddd':'#666'}">${t.short.slice(0,3)}</span>
+        <span style="font-size:7px;font-weight:800;color:#fff;min-width:8px;text-align:right">${t.pts}</span>
+      </div>`).join('');
+    gsCards+=`<div style="position:absolute;left:0;top:${topY}px;width:${COLW-2}px;background:#1c1c1e;border:1px solid #38383a;border-radius:4px;padding:2px 2px;box-sizing:border-box;cursor:pointer" onclick="exitOvvAndGo('GS')">
+      <div style="font-size:7px;font-weight:800;color:#666;margin-bottom:1px">G.${L}</div>${rows}
+    </div>`;
+  });
+  // 컬럼 헤더
+  let hdrs=`<div style="position:absolute;left:0;width:${COLW}px;top:3px;text-align:center;font-size:10px;font-weight:800;color:${selStage==='GS'?'#30d158':'#8e8e93'};cursor:pointer" onclick="exitOvvAndGo('GS')">GS</div>`;
+  ROUNDS.forEach(r=>{
+    const isA=(selStage===r)||(selStage==='GS'&&r==='R32');
+    hdrs+=`<div style="position:absolute;left:${colX[r]}px;width:${COLW}px;top:3px;text-align:center;font-size:10px;font-weight:800;color:${isA?'#30d158':'#8e8e93'};cursor:pointer" onclick="exitOvvAndGo('${r}')">${r==='F'?'🏆':r}</div>`;
+  });
+  return `<div style="position:relative;width:${W}px">
+    <div style="position:relative;height:${HDR}px">${hdrs}</div>
+    <div style="position:relative;width:${W}px;height:${canvasH}px">
+      <svg width="${W}" height="${canvasH}" style="position:absolute;top:0;left:0;pointer-events:none">${lines}</svg>
+      ${gsCards}${cards}
+    </div>
+    <p style="text-align:center;font-size:11px;color:#555;padding:8px 0 4px">라운드를 탭해서 이동</p>
+  </div>`;
 }
 // ── 다음 라운드 버튼 ──
 function goNextRound(){
