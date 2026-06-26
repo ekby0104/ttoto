@@ -1066,7 +1066,7 @@ function renderMiniOverview(visible){
         <span style="flex:1;font-size:12px;font-weight:800;overflow:hidden;white-space:nowrap;text-overflow:ellipsis;color:${i<2?'#ddd':'#555'};letter-spacing:.2px">${lbl}</span>
       </div>`;}).join('');
     gsCards+=`<div style="position:absolute;left:${GS_LEFT}px;top:${gsY}px;width:${GS_CARDW}px;overflow:hidden;background:#1c1c1e;border:1px solid ${grpBdr};border-radius:4px;padding:${GS_PADV}px 0;box-sizing:border-box;cursor:pointer" onclick="exitOvvAndGo('GS',null,'${L}')">
-      <div style="font-size:10px;color:#fff;padding:0 4px;margin-bottom:1px">Group ${L}</div>${rows}
+      <div style="font-size:10px;color:#fff;padding:0 4px;margin-bottom:1px">Grp ${L}</div>${rows}
     </div>`;
     gsY+=groupH+GS_GAP;
   });
