@@ -320,10 +320,11 @@ function renderStageBar(){
   const bar=document.getElementById('stagebar');
   bar.innerHTML=`<button class="ovv-btn" onclick="toggleOverview()" title="전체 토너먼트" style="color:${ovvMode?'var(--green)':'var(--muted2)'}">⊞</button><div class="seg-pill">${STAGES.map(([k])=>{
     const content=k==='F'?'🏆':k;
-    return `<button class="seg ${selStage===k?'active':''}" data-stage="${k}" onclick="setStage('${k}')"><span class="seg-tx ${k==='F'?'trophy':''}">${content}</span></button>`;
+    return `<button class="seg ${!ovvMode&&selStage===k?'active':''}" data-stage="${k}" onclick="setStage('${k}')"><span class="seg-tx ${k==='F'?'trophy':''}">${content}</span></button>`;
   }).join('')}</div>`;
 }
 function setStage(s){
+  if(ovvMode)ovvMode=false;
   selStage=s; renderStageBar();
   const sc=document.getElementById('bk-scroll');
   if(sc){
@@ -669,17 +670,58 @@ let ovvMode=false;
 function toggleOverview(){ovvMode=!ovvMode;render();}
 function exitOvvAndGo(stage){ovvMode=false;setStage(stage);}
 
+// 국가코드 → 대표 색상 (피파 앱 스타일 컬러바용)
+const TEAM_CLR={
+  DE:'#000',FR:'#003189',ES:'#c60b1e',PT:'#006600',IT:'#003399',NL:'#e77c29',
+  BE:'#000',CH:'#ff0000',HR:'#cc0000',DK:'#c60c30',SE:'#006aa7',NO:'#ef2b2d',
+  PL:'#dc143c',CZ:'#d7141a',SK:'#0b4ea2',HU:'#ce2939',RO:'#002b7f',RS:'#c6363c',
+  UA:'#005bbb',GR:'#0d5eaf',SI:'#003da5',FI:'#003580',AT:'#ed2939',IS:'#003897',
+  AL:'#e41e20',GB:'#cf142b',ENG:'#cf142b',SCO:'#003399',WAL:'#c8102e',
+  BR:'#009c3b',AR:'#74acdf',MX:'#006847',CO:'#fcd116',US:'#bf0a30',CA:'#ff0000',
+  UY:'#5aaaa8',PY:'#d52b1e',CL:'#d52b1e',PE:'#d91023',EC:'#ffd100',PA:'#005293',
+  JM:'#000',HN:'#0073cf',SV:'#0f47af',CR:'#002b7f',CU:'#ce1126',TT:'#ce1126',
+  CW:'#003da5',
+  JP:'#bc002d',KR:'#003478',IR:'#239f40',SA:'#007a3d',AU:'#00008b',QA:'#8d1b3d',
+  AE:'#00732f',IQ:'#007a3d',JO:'#007a3d',OM:'#db161b',BH:'#ce1126',KW:'#007a3d',
+  UZ:'#1eb53a',KZ:'#00afca',CN:'#de2910',IN:'#ff9933',TH:'#a51931',VN:'#da251d',
+  PH:'#0038a8',ID:'#ce1126',MY:'#cc0001',SG:'#ef3340',
+  NG:'#008751',GH:'#006b3f',SN:'#00853f',CM:'#007a5e',CI:'#f77f00',EG:'#ce1126',
+  MA:'#c1272d',TN:'#e70013',DZ:'#006233',ZA:'#007a4d',ML:'#14b53a',BF:'#ef2b2d',
+  GN:'#ce1126',TG:'#006a4e',BJ:'#008751',NE:'#e05206',TD:'#002664',GA:'#009e60',
+  RW:'#20603d',BI:'#ce1126',SO:'#4189dd',SD:'#d21034',LY:'#000',
+  NZ:'#00247d',FJ:'#68bfe5',
+};
+function flagToClr(emoji){
+  if(!emoji||emoji==='⚪')return'#3a3a3c';
+  try{
+    const pts=[...emoji].map(c=>c.codePointAt(0));
+    if(pts.length>=2&&pts[0]>=0x1F1E6){
+      const iso=pts.slice(0,2).map(cp=>String.fromCharCode(cp-0x1F1E6+65)).join('');
+      return TEAM_CLR[iso]||'#3a3a3c';
+    }
+  }catch(e){}
+  return'#3a3a3c';
+}
+function miniRow(flag,name,known,score,rowH){
+  const clr=flagToClr(flag);
+  const lbl=known?String(name).slice(0,3).toUpperCase():'TBD';
+  const txtClr=known?'#fff':'#555';
+  return `<div style="display:flex;align-items:center;gap:2px;height:${rowH}px;padding:0 2px">
+    <div style="width:3px;height:${rowH-4}px;background:${clr};border-radius:1.5px;flex-shrink:0"></div>
+    <span style="flex:1;font-size:7px;font-weight:800;overflow:hidden;white-space:nowrap;color:${txtClr};letter-spacing:.2px">${lbl}</span>
+    <span style="font-size:8px;font-weight:800;color:#fff;min-width:8px;text-align:right;font-variant-numeric:tabular-nums">${score!=null?score:''}</span>
+  </div>`;
+}
 function renderMiniOverview(visible){
   const ko=visible.filter(g=>ROUNDS.includes(gStage(g)));
   const byId={};ko.forEach(g=>byId[String(g.id)]=g);
-  // 화면 너비에 6컬럼(GS+R32+R16+QF+SF+F) 맞춤
   const vw=Math.min(window.innerWidth,560)-28;
   const COLW=Math.floor(vw/6);
-  const CARDW=COLW-4,CARDH=24,SP=18,HDR=22,PADY=HDR+4;
-  // 컬럼 X 위치
-  const colX={};
-  ROUNDS.forEach((r,i)=>{colX[r]=COLW*(i+1);});
-  // 슬롯 계산 (BK 재사용 또는 직접 계산)
+  // SP > CARDH 필수 (겹침 방지)
+  const CARDW=COLW-4,CARDH=20,SP=22,HDR=22,PADY=HDR+4;
+  const ROW=Math.floor(CARDH/2);
+  const colX={};ROUNDS.forEach((r,i)=>{colX[r]=COLW*(i+1);});
+  // 슬롯 계산
   let slot=BK&&Object.keys(BK.slot||{}).length?{...BK.slot}:{};
   if(!Object.keys(slot).length){
     let s=0;
@@ -692,10 +734,9 @@ function renderMiniOverview(visible){
     });
   }
   const yc={};for(const id in slot)yc[id]=slot[id]*SP+PADY;
-  // 3위전
   const third=visible.find(g=>gStage(g)==='3RD');
   const finalG=ko.find(g=>gStage(g)==='F');
-  if(third&&finalG)yc[third.id]=(yc[finalG.id]||PADY)+CARDH+SP/2;
+  if(third&&finalG)yc[third.id]=(yc[finalG.id]||PADY)+CARDH+4;
   const allYs=Object.values(yc);
   const canvasH=(allYs.length?Math.max(...allYs):PADY)+CARDH+PADY;
   const W=vw;
@@ -710,28 +751,20 @@ function renderMiniOverview(visible){
       lines+=`<path d="M${cx} ${cy} H${mx} V${py} H${px}" stroke="#3a3a3c" stroke-width="1" fill="none"/>`;
     });
   });
-  // KO 미니 카드
+  // KO 미니 카드 (이모지 없음, 컬러바+코드)
   let cards='';
   ko.forEach(g=>{
     const r=gStage(g),st=gState(g),res=RESULTS[String(g.id)];
     const h=teamSide(g,'home'),a=teamSide(g,'away');
-    const x=(r==='3RD'?colX.F:colX[r]);
+    const x=r==='3RD'?colX.F:colX[r];
     const top=yc[g.id]!=null?yc[g.id]:PADY;
     const bdr=st==='open'?'#30d158':'#38383a';
-    cards+=`<div style="position:absolute;left:${x+2}px;top:${top}px;width:${CARDW}px;height:${CARDH}px;background:#1c1c1e;border:1px solid ${bdr};border-radius:4px;overflow:hidden;padding:1px 3px;box-sizing:border-box;cursor:pointer" onclick="exitOvvAndGo('${r==='3RD'?'F':r}')">
-      <div style="display:flex;align-items:center;gap:1px;height:${CARDH/2-1}px">
-        <span style="font-size:9px;flex-shrink:0">${h.flag}</span>
-        <span style="flex:1;font-size:7px;font-weight:700;overflow:hidden;white-space:nowrap;color:${h.known?'#fff':'#666'}">${h.known?h.name.slice(0,3):'?'}</span>
-        <span style="font-size:8px;font-weight:800;color:#fff;min-width:8px;text-align:right">${res!=null?res.h:''}</span>
-      </div>
-      <div style="display:flex;align-items:center;gap:1px;height:${CARDH/2-1}px">
-        <span style="font-size:9px;flex-shrink:0">${a.flag}</span>
-        <span style="flex:1;font-size:7px;font-weight:700;overflow:hidden;white-space:nowrap;color:${a.known?'#fff':'#666'}">${a.known?a.name.slice(0,3):'?'}</span>
-        <span style="font-size:8px;font-weight:800;color:#fff;min-width:8px;text-align:right">${res!=null?res.a:''}</span>
-      </div>
+    cards+=`<div style="position:absolute;left:${x+2}px;top:${top}px;width:${CARDW}px;height:${CARDH}px;background:#1c1c1e;border:1px solid ${bdr};border-radius:4px;overflow:hidden;box-sizing:border-box;cursor:pointer" onclick="exitOvvAndGo('${r==='3RD'?'F':r}')">
+      ${miniRow(h.flag,h.name,h.known,res!=null?res.h:null,ROW)}
+      ${miniRow(a.flag,a.name,a.known,res!=null?res.a:null,ROW)}
     </div>`;
   });
-  // GS 조별 순위 카드
+  // GS 조별 순위 카드 (이모지 없음, 컬러바+코드)
   const stand=computeStandings(visible);
   const letters=Object.keys(stand);
   let gsCards='';
@@ -741,23 +774,25 @@ function renderMiniOverview(visible){
     const arr=stand[L];
     const baseSlot=idx*slotsPerG;
     const centerY=(baseSlot+(slotsPerG-1)/2)*SP+PADY;
-    const groupH=arr.length*11+14;
+    const rowH=10,hdrH=12;
+    const groupH=arr.length*rowH+hdrH+4;
     const topY=Math.max(PADY,centerY-groupH/2);
-    const rows=arr.map((t,i)=>`<div style="display:flex;align-items:center;gap:1px;height:11px">
-        <span style="width:7px;font-size:7px;color:${i<2?'#30d158':'#555'};flex-shrink:0;text-align:center">${i+1}</span>
-        <span style="font-size:9px;flex-shrink:0;line-height:1">${t.flag}</span>
-        <span style="flex:1;font-size:6px;font-weight:700;overflow:hidden;white-space:nowrap;color:${i<2?'#ddd':'#666'}">${t.short.slice(0,3)}</span>
-        <span style="font-size:7px;font-weight:800;color:#fff;min-width:8px;text-align:right">${t.pts}</span>
-      </div>`).join('');
-    gsCards+=`<div style="position:absolute;left:0;top:${topY}px;width:${COLW-2}px;background:#1c1c1e;border:1px solid #38383a;border-radius:4px;padding:2px 2px;box-sizing:border-box;cursor:pointer" onclick="exitOvvAndGo('GS')">
-      <div style="font-size:7px;font-weight:800;color:#666;margin-bottom:1px">G.${L}</div>${rows}
+    const rows=arr.map((t,i)=>{
+      const clr=flagToClr(t.flag);
+      return `<div style="display:flex;align-items:center;gap:2px;height:${rowH}px">
+        <span style="width:6px;font-size:6px;color:${i<2?'#30d158':'#444'};flex-shrink:0;text-align:center;line-height:1">${i+1}</span>
+        <div style="width:3px;height:7px;background:${clr};border-radius:1px;flex-shrink:0"></div>
+        <span style="flex:1;font-size:6px;font-weight:800;overflow:hidden;white-space:nowrap;color:${i<2?'#ddd':'#666'};letter-spacing:.1px">${String(t.short).slice(0,3).toUpperCase()}</span>
+        <span style="font-size:6px;font-weight:800;color:#fff;min-width:7px;text-align:right">${t.pts}</span>
+      </div>`;}).join('');
+    gsCards+=`<div style="position:absolute;left:0;top:${topY}px;width:${COLW-2}px;background:#1c1c1e;border:1px solid #38383a;border-radius:4px;padding:2px 3px;box-sizing:border-box;cursor:pointer" onclick="exitOvvAndGo('GS')">
+      <div style="font-size:7px;font-weight:800;color:#555;margin-bottom:2px">G.${L}</div>${rows}
     </div>`;
   });
   // 컬럼 헤더
-  let hdrs=`<div style="position:absolute;left:0;width:${COLW}px;top:3px;text-align:center;font-size:10px;font-weight:800;color:${selStage==='GS'?'#30d158':'#8e8e93'};cursor:pointer" onclick="exitOvvAndGo('GS')">GS</div>`;
+  let hdrs=`<div style="position:absolute;left:0;width:${COLW}px;top:3px;text-align:center;font-size:10px;font-weight:800;color:#8e8e93;cursor:pointer" onclick="exitOvvAndGo('GS')">GS</div>`;
   ROUNDS.forEach(r=>{
-    const isA=(selStage===r)||(selStage==='GS'&&r==='R32');
-    hdrs+=`<div style="position:absolute;left:${colX[r]}px;width:${COLW}px;top:3px;text-align:center;font-size:10px;font-weight:800;color:${isA?'#30d158':'#8e8e93'};cursor:pointer" onclick="exitOvvAndGo('${r}')">${r==='F'?'🏆':r}</div>`;
+    hdrs+=`<div style="position:absolute;left:${colX[r]}px;width:${COLW}px;top:3px;text-align:center;font-size:10px;font-weight:800;color:#8e8e93;cursor:pointer" onclick="exitOvvAndGo('${r}')">${r==='F'?'🏆':r}</div>`;
   });
   return `<div style="position:relative;width:${W}px">
     <div style="position:relative;height:${HDR}px">${hdrs}</div>
@@ -765,7 +800,7 @@ function renderMiniOverview(visible){
       <svg width="${W}" height="${canvasH}" style="position:absolute;top:0;left:0;pointer-events:none">${lines}</svg>
       ${gsCards}${cards}
     </div>
-    <p style="text-align:center;font-size:11px;color:#555;padding:8px 0 4px">라운드를 탭해서 이동</p>
+    <p style="text-align:center;font-size:11px;color:#444;padding:8px 0 4px">라운드를 탭해서 이동</p>
   </div>`;
 }
 // ── 다음 라운드 버튼 ──
