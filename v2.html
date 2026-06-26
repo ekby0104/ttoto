@@ -664,12 +664,12 @@ function betMatrixHtml(g,mb,res){
   // 행 0: (0,0) 배경 없음 + (0,1~n) 홈팀 병합, 높이 HDR
   let head=`<tr style="height:${HDR}px">
     <th style="background:none;width:${HDR}px"></th>
-    <th colspan="${N+2}" style="${thHd};font-size:14px">${g.home.flag} ${esc(g.home.short)}</th>
+    <th colspan="${N+2}" style="${thHd};font-size:15px">${g.home.flag} ${esc(g.home.short)}</th>
   </tr>`;
   // 행 1: (1~n,0) 원정팀 rowspan 시작 + (1,1) 빈 교차셀 + (1,2~n) 홈 득점 0~N, 높이 CS
   const awayVert=`${g.away.flag}<br>${esc(g.away.short).split('').join('<br>')}`;
   head+=`<tr style="height:${CS}px">
-    <th rowspan="${N+2}" style="${thHd};width:${HDR}px;font-size:13px;line-height:1.5;vertical-align:middle;padding:2px 1px">${awayVert}</th>
+    <th rowspan="${N+2}" style="${thHd};width:${HDR}px;font-size:15px;line-height:1.5;vertical-align:middle;padding:2px 1px">${awayVert}</th>
     <th style="${thHd};width:${CS}px"></th>`;
   for(let hh=0;hh<=N;hh++)head+=`<th style="width:${CS}px;${thSc}">${hh}</th>`;
   head+='</tr>';
