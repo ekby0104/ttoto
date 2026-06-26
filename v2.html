@@ -706,10 +706,10 @@ function miniRow(flag,name,known,score,rowH){
   const clr=flagToClr(flag);
   const lbl=known?String(name).slice(0,3).toUpperCase():'TBD';
   const txtClr=known?'#fff':'#555';
-  return `<div style="display:flex;align-items:center;gap:2px;height:${rowH}px;padding:0 3px">
-    <div style="width:4px;height:${rowH-3}px;background:${clr};border-radius:2px;flex-shrink:0"></div>
-    <span style="flex:1;font-size:9px;font-weight:800;overflow:hidden;white-space:nowrap;color:${txtClr};letter-spacing:.2px">${lbl}</span>
-    <span style="font-size:10px;font-weight:800;color:#fff;min-width:9px;text-align:right;font-variant-numeric:tabular-nums">${score!=null?score:''}</span>
+  return `<div style="display:flex;align-items:center;gap:3px;height:${rowH}px;padding:0 4px">
+    <div style="width:4px;height:${rowH-4}px;background:${clr};border-radius:2px;flex-shrink:0"></div>
+    <span style="flex:1;font-size:11px;font-weight:800;overflow:hidden;white-space:nowrap;color:${txtClr};letter-spacing:.2px">${lbl}</span>
+    <span style="font-size:11px;font-weight:800;color:#fff;min-width:10px;text-align:right;font-variant-numeric:tabular-nums">${score!=null?score:''}</span>
   </div>`;
 }
 function renderMiniOverview(visible){
@@ -721,7 +721,7 @@ function renderMiniOverview(visible){
   const KO_W=Math.floor((vw-GS_W)/5);
   const CARDW=KO_W-4;  // 칼럼 꽉 채움
   // SP = CARDH+2 (2px 갭, 빡빡하게)
-  const CARDH=26,SP=28,HDR=22,PADY=HDR+4;
+  const CARDH=32,SP=34,HDR=22,PADY=HDR+4;
   const ROW=Math.floor(CARDH/2);
   const colX={};ROUNDS.forEach((r,i)=>{colX[r]=GS_W+KO_W*i;});
   // 슬롯 계산
