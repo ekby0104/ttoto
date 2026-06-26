@@ -1181,12 +1181,10 @@ window.addEventListener('resize',()=>{
     const isD=window.innerWidth>=768;
     if(isD===_bkIsDesk)return;
     _bkIsDesk=isD;
-    if(ovvMode){
-      const visible=GAMES.filter(g=>!g.deleted);
-      document.getElementById('wrap').innerHTML=renderMiniOverview(visible);
-    } else {
-      resizeBracketCards();
-    }
+    const sc=document.getElementById('bk-scroll');
+    const savedScroll=sc?sc.scrollLeft:-1;
+    render();
+    if(savedScroll>=0)setTimeout(()=>{const s=document.getElementById('bk-scroll');if(s)s.scrollLeft=savedScroll;},50);
   });
 });
 
