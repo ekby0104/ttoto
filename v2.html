@@ -655,18 +655,25 @@ function betMatrixHtml(g,mb,res){
   const cnt={};let cmax=0;
   mb.forEach(b=>{const bh=Number(b.h),ba=Number(b.a);if(bh>N||ba>N)return;const k=bh+'_'+ba;cnt[k]=(cnt[k]||0)+1;cmax=Math.max(cmax,cnt[k]);});
   const denom=cmax||1;
-  // 셀 크기: 가용폭 2/3 기준으로 N+2 열 균등 분할
+  // 셀 크기: 가용폭 2/3 기준, 높이는 너비의 2/3 (직사각형)
   const avail=Math.floor((Math.min(window.innerWidth,560)-36)*2/3);
-  const hdrW=34;
+  const hdrW=38;
   const cellW=Math.max(24,Math.floor((avail-hdrW)/(N+1)));
-  const cellH=cellW;
-  const cellStyle=(extra='')=>`width:${cellW}px;height:${cellH}px;border-radius:${Math.max(4,cellW/6)|0}px;${extra}`;
-  let head=`<tr><th style="width:${hdrW}px"><div style="width:${hdrW}px;font-size:9px;color:var(--muted);font-family:var(--mono);line-height:1.3;text-align:center">${esc(g.home.short)}<br>↓＼→<br>${esc(g.away.short)}</div></th>`;
-  for(let a=0;a<=N;a++)head+=`<th style="width:${cellW}px;font-size:18px;color:#fff;font-weight:700">${a}</th>`;
+  const cellH=Math.floor(cellW*2/3);
+  const cellStyle=(extra='')=>`width:${cellW}px;height:${cellH}px;border-radius:${Math.max(3,cellW/8)|0}px;${extra}`;
+  const thSc=`font-size:15px;color:#fff;font-weight:700;text-align:center`;
+  // 헤더 행 1: 빈 코너 + away팀 국기+코드
+  let head=`<tr>
+    <th style="width:${hdrW}px"></th>
+    <th colspan="${N+1}" style="font-size:14px;color:#fff;font-weight:800;text-align:center;padding:0 0 4px">${g.away.flag} ${esc(g.away.short)}</th>
+  </tr>`;
+  // 헤더 행 2: home팀 국기+코드 + away 스코어 (0~N)
+  head+=`<tr><th style="width:${hdrW}px;font-size:12px;color:#fff;font-weight:800;text-align:center;line-height:1.3;padding:0 2px 4px">${g.home.flag}<br>${esc(g.home.short)}</th>`;
+  for(let a=0;a<=N;a++)head+=`<th style="width:${cellW}px;${thSc};padding-bottom:4px">${a}</th>`;
   head+='</tr>';
   let rows='';
   for(let hh=0;hh<=N;hh++){
-    rows+=`<tr><th style="font-size:18px;color:#fff;font-weight:700">${hh}</th>`;
+    rows+=`<tr><th style="${thSc}">${hh}</th>`;
     for(let aa=0;aa<=N;aa++){
       const c=cnt[hh+'_'+aa]||0;
       const isRes=res&&Number(res.h)===hh&&Number(res.a)===aa;
