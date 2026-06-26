@@ -972,7 +972,8 @@ _NO_CACHE = {"Cache-Control": "no-cache, no-store, must-revalidate", "Pragma": "
 
 @app.get("/")
 def serve_index():
-    return FileResponse(os.path.join(STATIC_DIR, "ttoto.html"), headers=_NO_CACHE)
+    # 메인: v2(애플 스포츠 스타일). 기존 페이지는 /v2 에 백업
+    return FileResponse(os.path.join(STATIC_DIR, "v2.html"), headers=_NO_CACHE)
 
 @app.get("/admin")
 def serve_admin():
@@ -980,7 +981,8 @@ def serve_admin():
 
 @app.get("/v2")
 def serve_v2():
-    return FileResponse(os.path.join(STATIC_DIR, "v2.html"), headers=_NO_CACHE)
+    # 기존 메인 페이지 백업
+    return FileResponse(os.path.join(STATIC_DIR, "ttoto.html"), headers=_NO_CACHE)
 
 @app.get("/favicon.svg")
 def serve_favicon():
