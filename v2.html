@@ -709,13 +709,15 @@ function openGroupGames(L){
     const res=RESULTS[String(g.id)],nb=gBets(g.id).length;
     const st=gState(g);
     const score=res?`${res.h} : ${res.a}`:'vs';
-    const dtStr=g.date?`${g.date.slice(5)}${g.time?' '+g.time:''}`:'미정';
+    const dtStr=g.date?`${g.date}${g.time?' '+g.time:''}`:'미정';
     const dtClr=st==='ended'?'#fff':'var(--gold)';
     return `<div class="grp-game" onclick="openGame('${g.id}')">
-      <div class="gg-team"><span class="gg-f">${g.home.flag}</span><span class="gg-n">${esc(g.home.short)}</span></div>
+      <div class="gg-team" style="flex-direction:column;align-items:flex-start;gap:3px">
+        <span style="font-size:12px;font-weight:600;color:${dtClr};font-family:var(--mono);white-space:nowrap">${dtStr}</span>
+        <div style="display:flex;align-items:center;gap:7px"><span class="gg-f">${g.home.flag}</span><span class="gg-n">${esc(g.home.short)}</span></div>
+      </div>
       <div class="gg-mid">
         <span class="gg-sc ${res?'':'dt'}">${score}</span>
-        <span style="font-size:10px;font-weight:600;color:${dtClr};font-family:var(--mono);margin-top:1px">${dtStr}</span>
         <span class="gg-cnt">${nb}명 베팅</span>
       </div>
       <div class="gg-team gg-away"><span class="gg-n">${esc(g.away.short)}</span><span class="gg-f">${g.away.flag}</span></div>
