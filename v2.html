@@ -887,20 +887,21 @@ async function doBet(viaKakao){
 let ovvMode=false;
 function toggleOverview(){ovvMode=!ovvMode;render();}
 function exitOvvAndGo(stage,gid){
-  ovvMode=false;setStage(stage,true);   // 전체뷰 이동: 상단 스크롤 건너뜀(이중 점프 방지)
-  if(gid){
-    // 레이아웃 안정화(2 rAF) 후 카드로 한 번에 부드럽게 스크롤
-    requestAnimationFrame(()=>requestAnimationFrame(()=>{
-      const el=document.getElementById('bkc-'+gid);
-      if(!el)return;
-      bkSelect(el);   // 흰색 반짝이는 보더로 선택 표시
-      const canvas=el.closest('.bk-canvas')||el.offsetParent;
-      const cardTop=parseFloat(el.style.top)||0;
-      const pageY=(canvas?canvas.getBoundingClientRect().top+window.scrollY:0)+cardTop;
-      const y=pageY-(window.innerHeight/2-el.offsetHeight/2);
-      window.scrollTo({top:Math.max(0,y),behavior:'smooth'});
-    }));
-  }
+  ovvMode=false;
+  if(gid)selGid=String(gid);     // 선택 id 미리 등록 → 렌더 시 바로 흰색 반짝임(재렌더에도 유지)
+  setStage(stage,true);          // 전체뷰 이동: 상단 스크롤 건너뜀(이중 점프 방지)
+  if(!gid)return;
+  // 카드가 생길 때까지 rAF 폴링 후, 최종 위치로 부드럽게 스크롤
+  let tries=0;
+  (function go(){
+    const el=document.getElementById('bkc-'+gid);
+    if(!el){if(tries++<24)requestAnimationFrame(go);return;}
+    const canvas=el.closest('.bk-canvas')||el.offsetParent;
+    const cardTop=parseFloat(el.style.top)||0;
+    const pageY=(canvas?canvas.getBoundingClientRect().top+window.scrollY:0)+cardTop;
+    const y=pageY-(window.innerHeight/2-el.offsetHeight/2);
+    window.scrollTo({top:Math.max(0,y),behavior:'smooth'});
+  })();
 }
 
 // 국가코드 → 대표 색상 (피파 앱 스타일 컬러바용)
