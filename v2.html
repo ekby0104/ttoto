@@ -339,7 +339,7 @@ function todayStr(){const d=new Date();return `${d.getFullYear()}.${String(d.get
 function gameBorderClr(g){
   const st=gState(g);
   if(st==='ended')return g.date===todayStr()?'var(--gold)':'var(--blue)';
-  if(st==='open')return 'var(--green)';
+  if(st==='open'||g.date)return 'var(--green)';
   return 'transparent';
 }
 function gState(g){
