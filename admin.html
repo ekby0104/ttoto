@@ -478,6 +478,38 @@ main{max-width:960px;margin:0 auto;padding:16px 12px 60px}
   </div>
 </main>
 
+<!-- 팀 편집 모달 -->
+<div id="team-edit-modal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:1000;align-items:center;justify-content:center">
+  <div style="background:#fff;width:100%;max-width:420px;border-radius:16px;overflow:hidden;margin:16px">
+    <div style="padding:16px;border-bottom:1px solid var(--border);display:flex;justify-content:space-between;align-items:center">
+      <strong style="font-size:15px">✏️ 팀 정보 수정</strong>
+      <button onclick="closeTeamEditModal()" style="background:none;border:none;font-size:22px;cursor:pointer;color:var(--muted);line-height:1">×</button>
+    </div>
+    <div style="padding:16px;display:flex;flex-direction:column;gap:12px">
+      <div>
+        <div style="font-size:12px;font-weight:600;color:var(--muted);margin-bottom:6px">홈 팀</div>
+        <div style="display:flex;gap:6px">
+          <input id="te-h-flag"  placeholder="🏳" style="width:52px;padding:6px 8px;border:1px solid var(--border);border-radius:8px;font-size:16px;text-align:center">
+          <input id="te-h-short" placeholder="XXX" style="width:60px;padding:6px 8px;border:1px solid var(--border);border-radius:8px;font-size:13px;font-family:monospace">
+          <input id="te-h-name"  placeholder="국가명 (영문)" style="flex:1;padding:6px 8px;border:1px solid var(--border);border-radius:8px;font-size:13px">
+        </div>
+      </div>
+      <div>
+        <div style="font-size:12px;font-weight:600;color:var(--muted);margin-bottom:6px">원정 팀</div>
+        <div style="display:flex;gap:6px">
+          <input id="te-a-flag"  placeholder="🏳" style="width:52px;padding:6px 8px;border:1px solid var(--border);border-radius:8px;font-size:16px;text-align:center">
+          <input id="te-a-short" placeholder="XXX" style="width:60px;padding:6px 8px;border:1px solid var(--border);border-radius:8px;font-size:13px;font-family:monospace">
+          <input id="te-a-name"  placeholder="국가명 (영문)" style="flex:1;padding:6px 8px;border:1px solid var(--border);border-radius:8px;font-size:13px">
+        </div>
+      </div>
+    </div>
+    <div style="padding:14px 16px;border-top:1px solid var(--border);display:flex;gap:8px">
+      <button class="btn btn-ghost" style="flex:1" onclick="closeTeamEditModal()">취소</button>
+      <button class="btn btn-primary" style="flex:2" onclick="saveTeamEdit()">저장</button>
+    </div>
+  </div>
+</div>
+
 <!-- 경기 불러오기 미리보기 모달 -->
 <div id="import-modal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:1000;align-items:flex-end;justify-content:center">
   <div style="background:#fff;width:100%;max-width:620px;max-height:88vh;border-radius:16px 16px 0 0;display:flex;flex-direction:column;overflow:hidden">
@@ -982,7 +1014,10 @@ function renderGames() {
                <button class="btn btn-sm btn-primary" onclick="restoreGame('${g.id}')">복구</button>
                <button class="btn btn-sm btn-danger" onclick="purgeGame('${g.id}')">영구삭제</button>
              </div>`
-          : `<button class="btn btn-sm btn-danger" onclick="deleteGame('${g.id}')">삭제</button>`}
+          : `<div style="display:flex;flex-direction:column;gap:4px">
+               <button class="btn btn-sm" style="background:#f5f5f5;border:1px solid #ddd" onclick="openTeamEditModal('${g.id}')">✏️ 팀 편집</button>
+               <button class="btn btn-sm btn-danger" onclick="deleteGame('${g.id}')">삭제</button>
+             </div>`}
       </td>
     </tr>`;
   }).join('');
@@ -1054,6 +1089,40 @@ async function bulkSetStatus() {
   }));
   toast(`✅ ${checked.length}개 경기를 "${label}"로 변경했습니다`);
   deselectAll();
+  renderGames();
+}
+
+let _teamEditId = null;
+function openTeamEditModal(id) {
+  const g = allGames.find(x => String(x.id) === String(id));
+  if (!g) return;
+  _teamEditId = id;
+  document.getElementById('te-h-flag').value  = g.home.flag  || '';
+  document.getElementById('te-h-short').value = g.home.short || '';
+  document.getElementById('te-h-name').value  = g.home.name  || '';
+  document.getElementById('te-a-flag').value  = g.away.flag  || '';
+  document.getElementById('te-a-short').value = g.away.short || '';
+  document.getElementById('te-a-name').value  = g.away.name  || '';
+  document.getElementById('team-edit-modal').style.display = 'flex';
+  document.body.style.overflow = 'hidden';
+}
+function closeTeamEditModal() {
+  document.getElementById('team-edit-modal').style.display = 'none';
+  document.body.style.overflow = '';
+  _teamEditId = null;
+}
+async function saveTeamEdit() {
+  if (!_teamEditId) return;
+  const body = {
+    home: { flag: document.getElementById('te-h-flag').value.trim(), short: document.getElementById('te-h-short').value.trim().toUpperCase(), name: document.getElementById('te-h-name').value.trim() },
+    away: { flag: document.getElementById('te-a-flag').value.trim(), short: document.getElementById('te-a-short').value.trim().toUpperCase(), name: document.getElementById('te-a-name').value.trim() }
+  };
+  const res = await apiFetch(`/admin/games/${_teamEditId}/teams`, {method:'PATCH', body:JSON.stringify(body)});
+  if (!res) { toast('❌ 팀 정보 저장 실패', true); return; }
+  const i = allGames.findIndex(g => String(g.id) === String(_teamEditId));
+  if (i > -1) allGames[i] = res;
+  toast(`✅ 팀 정보가 업데이트됐습니다`);
+  closeTeamEditModal();
   renderGames();
 }
 

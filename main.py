@@ -563,6 +563,28 @@ def admin_update_game_datetime(game_id: int, date: str, time: str, auth=Depends(
             return {"ok": True}
     raise HTTPException(404, "게임을 찾을 수 없습니다")
 
+class TeamSide(BaseModel):
+    flag: str = ""
+    short: str = ""
+    name: str = ""
+
+class TeamUpdateRequest(BaseModel):
+    home: TeamSide
+    away: TeamSide
+
+@app.patch("/api/admin/games/{game_id}/teams")
+def admin_update_game_teams(game_id: int, req: TeamUpdateRequest, auth=Depends(admin_required)):
+    games = get_games()
+    for g in games:
+        if str(g["id"]) == str(game_id):
+            if req.home.name:
+                g["home"] = {"flag": req.home.flag, "short": req.home.short, "name": req.home.name}
+            if req.away.name:
+                g["away"] = {"flag": req.away.flag, "short": req.away.short, "name": req.away.name}
+            write_json(GAMES_FILE, games)
+            return g
+    raise HTTPException(404, "게임을 찾을 수 없습니다")
+
 @app.patch("/api/admin/games/{game_id}/status")
 def admin_set_game_status(game_id: int, status: str, auth=Depends(admin_required)):
     games = get_games()
