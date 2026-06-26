@@ -338,8 +338,9 @@ function gBets(id){return BETS.filter(b=>String(b.game_id)===String(id));}
 function todayStr(){const d=new Date();return `${d.getFullYear()}.${String(d.getMonth()+1).padStart(2,'0')}.${String(d.getDate()).padStart(2,'0')}`;}
 function gameBorderClr(g){
   const st=gState(g);
-  if(st==='ended')return g.date===todayStr()?'var(--gold)':'var(--blue)';
-  if(st==='open'||g.date)return 'var(--green)';
+  if(st==='ended')return g.date===todayStr()?'var(--blue)':'var(--gold)';
+  if(st==='closed')return '#fff';
+  if(st==='open'||st==='pending'||g.date)return 'var(--green)';
   return 'transparent';
 }
 function gState(g){
@@ -602,12 +603,19 @@ function renderFullBracket(visible){
   // ── 조 순위표 (왼쪽 컬럼) ──
   const stand=computeStandings(visible);
   const letters=Object.keys(stand);
+  const td=todayStr();
   const standTables=letters.map(L=>{
     const arr=stand[L];
+    const grpGm=visible.filter(g=>gStage(g)==='GS'&&groupLetter(g)===L);
+    const stBdr=grpGm.some(g=>gState(g)==='ended'&&g.date===td)?'var(--blue)'
+      :grpGm.some(g=>gState(g)==='open'||gState(g)==='pending')?'var(--green)'
+      :grpGm.some(g=>gState(g)==='closed')?'#fff'
+      :grpGm.length&&grpGm.every(g=>gState(g)==='ended')?'var(--gold)'
+      :'var(--sep)';
     const rows=arr.map((t,i)=>`<tr class="${i<2?'qual':''}">
       <td class="c-rk">${i+1}</td><td class="c-fl">${t.flag}</td><td class="c-nm">${isDesk?(t.name||t.short):t.short}</td>
       <td>${t.gp}</td><td>${t.w}</td><td>${t.d}</td><td>${t.l}</td><td>${t.gd>0?'+'+t.gd:t.gd}</td><td class="c-pts">${t.pts}</td></tr>`).join('');
-    return `<div class="stand" onclick="bkSelect(this);openGroupGames('${L}')"><div class="st-head"><span class="st-gl">Group ${L}</span></div>
+    return `<div class="stand" style="border-color:${stBdr}" onclick="bkSelect(this);openGroupGames('${L}')"><div class="st-head"><span class="st-gl">Group ${L}</span></div>
       <table class="st-table"><thead><tr><th class="c-rk"></th><th class="c-fl"></th><th class="c-nm"></th><th>GP</th><th>W</th><th>D</th><th>L</th><th>GD</th><th>PTS</th></tr></thead>
       <tbody>${rows}</tbody></table></div>`;
   }).join('');
@@ -978,9 +986,10 @@ function renderMiniOverview(visible){
   letters.forEach((L)=>{
     const arr=stand[L];
     const grpGames=visible.filter(g=>gStage(g)==='GS'&&groupLetter(g)===L);
-    const grpBdr=grpGames.some(g=>gState(g)==='ended'&&g.date===td)?'var(--gold)'
-      :grpGames.some(g=>gState(g)==='open')?'var(--green)'
-      :grpGames.length&&grpGames.every(g=>gState(g)==='ended')?'var(--blue)'
+    const grpBdr=grpGames.some(g=>gState(g)==='ended'&&g.date===td)?'var(--blue)'
+      :grpGames.some(g=>gState(g)==='open'||gState(g)==='pending')?'var(--green)'
+      :grpGames.some(g=>gState(g)==='closed')?'#fff'
+      :grpGames.length&&grpGames.every(g=>gState(g)==='ended')?'var(--gold)'
       :'#38383a';
     const groupH=arr.length*ROW+hdrH+GS_PADV*2;
     const rows=arr.map((t,i)=>{
