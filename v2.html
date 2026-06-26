@@ -346,9 +346,8 @@ function gameBorderClr(g){
 
   if(st==='closed')return 'var(--pink)';
   const ms=startMs(g);
-  if(ms>0&&ms<=Date.now())return 'var(--pink)';
   const h=teamSide(g,'home'),a=teamSide(g,'away');
-  if(ms>0&&h.known&&a.known)return 'var(--green)';
+  if(st==='open'&&ms>0&&h.known&&a.known)return 'var(--green)';
   return 'transparent';
 }
 function gState(g){
