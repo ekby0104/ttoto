@@ -891,16 +891,19 @@ function exitOvvAndGo(stage,gid){
   if(gid)selGid=String(gid);     // 선택 id 미리 등록 → 렌더 시 바로 흰색 반짝임(재렌더에도 유지)
   setStage(stage,true);          // 전체뷰 이동: 상단 스크롤 건너뜀(이중 점프 방지)
   if(!gid)return;
-  // 카드가 생길 때까지 rAF 폴링 후, 최종 위치로 부드럽게 스크롤
+  // 카드 생성 + 문서 높이 확보(reflow 완료) 후 부드럽게 스크롤 (smooth clamp 방지)
   let tries=0;
   (function go(){
     const el=document.getElementById('bkc-'+gid);
-    if(!el){if(tries++<24)requestAnimationFrame(go);return;}
-    const canvas=el.closest('.bk-canvas')||el.offsetParent;
-    const cardTop=parseFloat(el.style.top)||0;
-    const pageY=(canvas?canvas.getBoundingClientRect().top+window.scrollY:0)+cardTop;
-    const y=pageY-(window.innerHeight/2-el.offsetHeight/2);
-    window.scrollTo({top:Math.max(0,y),behavior:'smooth'});
+    if(el&&el.offsetHeight){
+      const canvas=el.closest('.bk-canvas')||el.offsetParent;
+      const cardTop=parseFloat(el.style.top)||0;
+      const pageY=(canvas?canvas.getBoundingClientRect().top+window.scrollY:0)+cardTop;
+      const y=Math.max(0,pageY-(window.innerHeight/2-el.offsetHeight/2));
+      const maxScroll=document.documentElement.scrollHeight-window.innerHeight;
+      if(maxScroll>=y-2||tries>=18){window.scrollTo({top:y,behavior:'smooth'});return;}
+    }
+    if(tries++<30)requestAnimationFrame(go);
   })();
 }
 
