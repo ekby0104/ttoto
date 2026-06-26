@@ -716,11 +716,13 @@ function renderMiniOverview(visible){
   const ko=visible.filter(g=>ROUNDS.includes(gStage(g)));
   const byId={};ko.forEach(g=>byId[String(g.id)]=g);
   const vw=Math.min(window.innerWidth,560)-28;
-  const COLW=Math.floor(vw/6);
-  // SP > CARDH 필수 (겹침 방지)
-  const CARDW=COLW-4,CARDH=20,SP=22,HDR=22,PADY=HDR+4;
+  // GS 칼럼은 넓게, KO 5개 칼럼은 나머지를 균등 분할 (내용에 맞는 폭)
+  const GS_W=Math.floor(vw*0.28);
+  const KO_W=Math.floor((vw-GS_W)/5);
+  // SP > CARDH 필수 (겹침 방지), KO 카드 상하 여백 증가
+  const CARDW=KO_W-4,CARDH=22,SP=30,HDR=22,PADY=HDR+4;
   const ROW=Math.floor(CARDH/2);
-  const colX={};ROUNDS.forEach((r,i)=>{colX[r]=COLW*(i+1);});
+  const colX={};ROUNDS.forEach((r,i)=>{colX[r]=GS_W+KO_W*i;});
   // 슬롯 계산
   let slot=BK&&Object.keys(BK.slot||{}).length?{...BK.slot}:{};
   if(!Object.keys(slot).length){
@@ -781,7 +783,7 @@ function renderMiniOverview(visible){
         <span style="flex:1;font-size:6px;font-weight:800;overflow:hidden;white-space:nowrap;color:${i<2?'#ddd':'#666'};letter-spacing:.1px">${String(t.short).slice(0,3).toUpperCase()}</span>
         <span style="font-size:6px;font-weight:800;color:#fff;min-width:7px;text-align:right">${t.pts}</span>
       </div>`;}).join('');
-    gsCards+=`<div style="position:absolute;left:0;top:${gsY}px;width:${COLW-2}px;overflow:hidden;background:#1c1c1e;border:1px solid #38383a;border-radius:4px;padding:2px 3px;box-sizing:border-box;cursor:pointer" onclick="exitOvvAndGo('GS')">
+    gsCards+=`<div style="position:absolute;left:0;top:${gsY}px;width:${GS_W-2}px;overflow:hidden;background:#1c1c1e;border:1px solid #38383a;border-radius:4px;padding:2px 3px;box-sizing:border-box;cursor:pointer" onclick="exitOvvAndGo('GS')">
       <div style="font-size:7px;font-weight:800;color:#555;margin-bottom:2px">G.${L}</div>${rows}
     </div>`;
     gsY+=groupH+GS_GAP;
@@ -790,9 +792,9 @@ function renderMiniOverview(visible){
   const gsCanvasH=gsY+PADY;
   const totalH=Math.max(canvasH,gsCanvasH);
   // 컬럼 헤더
-  let hdrs=`<div style="position:absolute;left:0;width:${COLW}px;top:3px;text-align:center;font-size:10px;font-weight:800;color:#8e8e93;cursor:pointer" onclick="exitOvvAndGo('GS')">GS</div>`;
+  let hdrs=`<div style="position:absolute;left:0;width:${GS_W}px;top:3px;text-align:center;font-size:10px;font-weight:800;color:#8e8e93;cursor:pointer" onclick="exitOvvAndGo('GS')">GS</div>`;
   ROUNDS.forEach(r=>{
-    hdrs+=`<div style="position:absolute;left:${colX[r]}px;width:${COLW}px;top:3px;text-align:center;font-size:10px;font-weight:800;color:#8e8e93;cursor:pointer" onclick="exitOvvAndGo('${r}')">${r==='F'?'🏆':r}</div>`;
+    hdrs+=`<div style="position:absolute;left:${colX[r]}px;width:${KO_W}px;top:3px;text-align:center;font-size:10px;font-weight:800;color:#8e8e93;cursor:pointer" onclick="exitOvvAndGo('${r}')">${r==='F'?'🏆':r}</div>`;
   });
   return `<div style="position:relative;width:${W}px">
     <div style="position:relative;height:${HDR}px">${hdrs}</div>
