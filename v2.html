@@ -278,8 +278,26 @@ async function api(path,opts={}){
 }
 function toast(m,err){const t=document.getElementById('toast');t.textContent=m;t.className='toast show'+(err?' err':'');clearTimeout(t._t);t._t=setTimeout(()=>t.classList.remove('show'),2600);}
 function esc(s){return String(s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));}
-function openSheet(id){document.getElementById(id).classList.add('show');document.body.style.overflow='hidden';}
-function closeSheet(id){document.getElementById(id).classList.remove('show');document.body.style.overflow='';}
+function openSheet(id){
+  const el=document.getElementById(id);
+  el.classList.add('show');
+  const sh=el.querySelector('.sheet');
+  if(sh){
+    sh.scrollTop=0;
+    sh.style.transform='';
+    // iOS Safari: transform:translateY(0) breaks position:sticky on children.
+    // Remove transform after slide-in animation so sticky header works correctly.
+    setTimeout(()=>{if(el.classList.contains('show'))sh.style.transform='none';},350);
+  }
+  document.body.style.overflow='hidden';
+}
+function closeSheet(id){
+  const el=document.getElementById(id);
+  const sh=el.querySelector('.sheet');
+  if(sh)sh.style.transform='';  // restore CSS animation control before slide-out
+  el.classList.remove('show');
+  document.body.style.overflow='';
+}
 function ovClose(e,id){if(e.target===e.currentTarget)closeSheet(id);}
 
 function startMs(g){const v=Date.parse(`${(g.date||'').replace(/\./g,'-')}T${g.time||'00:00'}:00+09:00`);return isNaN(v)?0:v;}
