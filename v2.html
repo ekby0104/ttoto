@@ -85,7 +85,13 @@ body{background:var(--bg);color:var(--text);font-family:var(--sys);min-height:10
 .bk-canvas{position:relative}
 .bk-svg{position:absolute;top:0;left:0;pointer-events:none}
 .bk-card{position:absolute;background:var(--card);border:1.5px solid transparent;border-radius:10px;padding:5px 9px;display:flex;flex-direction:column;justify-content:center;gap:3px;cursor:pointer;overflow:hidden;transition:top .45s cubic-bezier(.32,.72,0,1),width .35s ease,left .35s ease;will-change:top,width,left}
-.bk-card.bettable{border-color:var(--green);box-shadow:0 0 10px rgba(48,209,88,.3)}
+/* 베팅중 카드: 흰 배경 + 초록 반짝이는 보더 (스크롤뷰 .bk-card / 전체뷰 .ovvbet 공통) */
+@keyframes greenBlink{0%,100%{box-shadow:0 0 0 1.5px var(--green),0 0 14px 2px rgba(48,209,88,.6)}50%{box-shadow:0 0 0 1.5px rgba(48,209,88,.35),0 0 5px 1px rgba(48,209,88,.2)}}
+.bk-card.bettable,.ovvbet{background:#fff!important;border-color:var(--green)!important;animation:greenBlink 1.1s ease-in-out infinite}
+.bk-card.bettable .bk-dt{color:#555}
+.bk-card.bettable .bk-n{color:#111}
+.bk-card.bettable .bk-n.tbd{color:#999}
+.bk-card.bettable .bk-s{color:#111}
 .bk-card.sel{border-color:#fff!important;animation:selBlink 1s ease-in-out infinite;z-index:6}
 @keyframes selBlink{0%,100%{box-shadow:0 0 0 2px #fff,0 0 16px 3px rgba(255,255,255,.65)}50%{box-shadow:0 0 0 2px rgba(255,255,255,.45),0 0 6px 1px rgba(255,255,255,.25)}}
 .bk-card:active{filter:brightness(1.15)}
@@ -928,14 +934,15 @@ function flagToClr(emoji){
   }catch(e){}
   return'#3a3a3c';
 }
-function miniRow(flag,name,known,score,rowH){
+function miniRow(flag,name,known,score,rowH,dark){
   const clr=flagToClr(flag);
   const lbl=known?name:'TBD';
-  const txtClr=known?'#fff':'#555';
+  const txtClr=dark?(known?'#111':'#999'):(known?'#fff':'#555');
+  const scClr=dark?'#111':'#fff';
   return `<div style="display:flex;align-items:center;gap:2px;height:${rowH}px;padding:0 2px">
     <div style="width:4px;height:${rowH-4}px;background:${clr};border-radius:2px;flex-shrink:0"></div>
     <span style="flex:1;font-size:12px;font-weight:800;overflow:hidden;white-space:nowrap;color:${txtClr};letter-spacing:.2px">${lbl}</span>
-    ${score!=null?`<span style="font-size:12px;font-weight:800;color:#fff;text-align:right;font-variant-numeric:tabular-nums;flex-shrink:0">${score}</span>`:''}
+    ${score!=null?`<span style="font-size:12px;font-weight:800;color:${scClr};text-align:right;font-variant-numeric:tabular-nums;flex-shrink:0">${score}</span>`:''}
   </div>`;
 }
 function renderMiniOverview(visible){
@@ -994,10 +1001,11 @@ function renderMiniOverview(visible){
     const x=r==='3RD'?colX.F:colX[r];
     const top=yc[g.id]!=null?yc[g.id]:PADY;
     const bdr=gameBorderClr(g)||'#38383a';
+    const bett=st==='open';
     const hn=_isDesk?h.full:h.name, an=_isDesk?a.full:a.name;
-    cards+=`<div style="position:absolute;left:${x+KO_LEFT}px;top:${top}px;width:${KO_CARDW}px;height:${CARDH}px;background:#1c1c1e;border:1px solid ${bdr};border-radius:4px;overflow:hidden;box-sizing:border-box;cursor:pointer" onclick="exitOvvAndGo('${r==='3RD'?'F':r}','${g.id}')">
-      ${miniRow(h.flag,hn,h.known,res!=null?res.h:null,ROW)}
-      ${miniRow(a.flag,an,a.known,res!=null?res.a:null,ROW)}
+    cards+=`<div class="${bett?'ovvbet':''}" style="position:absolute;left:${x+KO_LEFT}px;top:${top}px;width:${KO_CARDW}px;height:${CARDH}px;background:${bett?'#fff':'#1c1c1e'};border:1px solid ${bdr};border-radius:4px;overflow:hidden;box-sizing:border-box;cursor:pointer" onclick="exitOvvAndGo('${r==='3RD'?'F':r}','${g.id}')">
+      ${miniRow(h.flag,hn,h.known,res!=null?res.h:null,ROW,bett)}
+      ${miniRow(a.flag,an,a.known,res!=null?res.a:null,ROW,bett)}
     </div>`;
   });
   if(third&&finalG){
