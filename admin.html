@@ -827,7 +827,12 @@ async function deleteBet(id) {
 
 // ── ③ 경기 결과 ──────────────────────────────────────────
 function renderResults() {
-  document.getElementById('result-rows').innerHTML = activeGames().map(m => {
+  const sortedGames = [...activeGames()].sort((a, b) => {
+    const da = (a.date || '').replace(/\./g, '') + (a.time || '').replace(':', '');
+    const db = (b.date || '').replace(/\./g, '') + (b.time || '').replace(':', '');
+    return db.localeCompare(da);
+  });
+  document.getElementById('result-rows').innerHTML = sortedGames.map(m => {
     const res = allResults[String(m.id)];
     return `<div class="result-row">
       <div class="result-teams">
@@ -968,7 +973,7 @@ function renderGames() {
   const sorted = [...allGames].sort((a, b) => {
     const da = (a.date || '').replace(/\./g, '') + (a.time || '').replace(':', '');
     const db = (b.date || '').replace(/\./g, '') + (b.time || '').replace(':', '');
-    return da.localeCompare(db);
+    return db.localeCompare(da);
   });
   tbody.innerHTML = sorted.map(g => {
     const dateVal = (g.date || '').replace(/\./g, '-');
