@@ -389,7 +389,7 @@ let bkFocus='R32';
 // 셀렉터: 텍스트 라벨(GS, R32…), 결승만 우승컵
 function renderStageBar(){
   const bar=document.getElementById('stagebar');
-  bar.innerHTML=`<button class="ovv-btn" onclick="toggleOverview()" title="전체 토너먼트" style="color:${ovvMode?'var(--green)':'var(--muted2)'}">A</button><div class="seg-pill">${STAGES.map(([k])=>{
+  bar.innerHTML=`<button class="ovv-btn" onclick="toggleOverview()" title="전체 토너먼트" style="color:${ovvMode?'var(--green)':'var(--muted2)'};font-size:11px;font-weight:800">ALL</button><div class="seg-pill">${STAGES.map(([k])=>{
     const content=k==='F'?'🏆':k;
     return `<button class="seg ${!ovvMode&&selStage===k?'active':''}" data-stage="${k}" onclick="setStage('${k}')"><span class="seg-tx ${k==='F'?'trophy':''}">${content}</span></button>`;
   }).join('')}</div>`;
@@ -1087,7 +1087,7 @@ function updateOvvBtn(){
     btn.classList.add('show');
     if(nav){const sb=document.getElementById('stagebar');if(sb){const r=sb.getBoundingClientRect();nav.style.top=(r.bottom+8)+'px';}}
   }else if(selStage==='GS'){
-    btn.innerHTML=`<span style="font-size:11px;font-weight:800;line-height:1.2">‹</span><span style="font-size:11px;font-weight:800;line-height:1.2">A</span>`;
+    btn.innerHTML=`<span style="font-size:11px;font-weight:800;line-height:1.2">‹</span><span style="font-size:9px;font-weight:800;line-height:1.2">ALL</span>`;
     btn.onclick=toggleOverview;
     btn.classList.add('show');
   }else{
