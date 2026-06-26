@@ -891,25 +891,21 @@ function exitOvvAndGo(stage,gid){
   if(gid)selGid=String(gid);     // 선택 id 미리 등록 → 렌더 시 바로 흰색 반짝임(재렌더에도 유지)
   setStage(stage,true);          // 전체뷰 이동: 상단 스크롤 건너뜀(이중 점프 방지)
   if(!gid)return;
-  // relayout(최종 top 반영) 후 카드 최종 위치로 '즉시' 스크롤.
-  // (behavior:'smooth'는 카드 reflow 애니메이션 중 데스크탑에서 동작하지 않음 → 즉시 스크롤,
-  //  카드는 .45s top 트랜지션으로 중앙으로 부드럽게 슬라이드)
-  const wantFocus=stage==='GS'?'R32':stage;
-  let tries=0;
-  (function go(){
+  // render() 내부 relayout(setTimeout 40ms)로 카드 최종 top이 정해진 뒤 '즉시' 스크롤.
+  // (behavior:'smooth'는 카드 reflow 중 데스크탑에서 미동작 → 즉시 스크롤; 카드는 .45s 트랜지션으로 중앙 슬라이드)
+  // 브라우저 스크롤 복원과 경쟁하므로 2회 재확인(같은 y라 중복돼도 무해).
+  const scrollToCard=()=>{
     const el=document.getElementById('bkc-'+gid);
-    if(el&&el.offsetHeight&&bkFocus===wantFocus){
-      el.classList.add('sel');   // 흰색 반짝임 보강(selGid로도 유지됨)
-      const canvas=el.closest('.bk-canvas')||el.offsetParent;
-      const cardTop=parseFloat(el.style.top)||0;
-      const pageY=(canvas?canvas.getBoundingClientRect().top+window.scrollY:0)+cardTop;
-      const y=Math.max(0,pageY-(window.innerHeight/2-el.offsetHeight/2));
-      // 문서가 충분히 길어진(reflow 완료) 뒤 즉시 스크롤 → 0으로 clamp 방지
-      const maxScroll=document.documentElement.scrollHeight-window.innerHeight;
-      if(maxScroll>=y-2||tries>=20){window.scrollTo(0,y);return;}
-    }
-    if(tries++<45)requestAnimationFrame(go);
-  })();
+    if(!el||!el.offsetHeight)return;
+    el.classList.add('sel');     // 흰색 반짝임 보강(selGid로도 유지됨)
+    const canvas=el.closest('.bk-canvas')||el.offsetParent;
+    const cardTop=parseFloat(el.style.top)||0;
+    const pageY=(canvas?canvas.getBoundingClientRect().top+window.scrollY:0)+cardTop;
+    const y=Math.max(0,pageY-(window.innerHeight/2-el.offsetHeight/2));
+    window.scrollTo(0,y);
+  };
+  setTimeout(scrollToCard,140);
+  setTimeout(scrollToCard,360);
 }
 
 // 국가코드 → 대표 색상 (피파 앱 스타일 컬러바용)
