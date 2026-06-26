@@ -629,7 +629,9 @@ function renderFullBracket(visible){
       <tbody>${rows}</tbody></table></div>`;
   }).join('');
   const standHtml=letters.length?`<div class="stand-col" style="left:0;top:${PADY}px;width:${stW}px">${standTables}</div>`:'';
-  H=Math.max(H, PADY*2+letters.length*210);
+  // stand-col 실제 높이 계산 (border:2 + padding:12 + header:34 + thead:20 + row:36×n + sep:n-1 + margin:12)
+  const standColH=PADY+letters.reduce((sum,L)=>{const n=(stand[L]||[]).length;return sum+2+12+34+20+n*36+Math.max(0,n-1)+12;},0)+PADY;
+  H=Math.max(H,standColH);
   if(!ko.length&&!letters.length)return '<div class="empty">경기가 없습니다</div>';
   const heads=`<div class="bk-head" data-round="GS" style="left:0;width:${stW}px">조 순위</div>`+
     ROUNDS.map(r=>`<div class="bk-head" data-round="${r}" style="left:${colX[r]}px;width:${CARDW}px">${RLBL[r]}</div>`).join('');
