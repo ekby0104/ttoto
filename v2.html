@@ -150,7 +150,8 @@ body{background:var(--bg);color:var(--text);font-family:var(--sys);min-height:10
 /* 점수 분포 */
 .dist-h{font-size:13px;font-weight:700;color:#fff;margin:6px 2px 8px}
 .dist-sc{font-family:var(--mono);font-weight:800;font-size:17px;color:#fff;flex-shrink:0}
-.dist-item{background:var(--card2);border-radius:12px;padding:10px 13px;margin-bottom:8px}
+.dist-item{background:var(--card2);border-radius:12px;padding:10px 13px;margin-bottom:8px;border:1.5px solid transparent;transition:border-color .2s}
+.dist-item.sel{border-color:#fff}
 .dist-top{display:flex;align-items:center;justify-content:space-between;gap:8px}
 .dist-sep{height:1px;background:rgba(255,255,255,.08);margin:8px 0 6px}
 .dist-names{font-size:12px;line-height:1.8}
@@ -629,6 +630,8 @@ function jumpToScore(hh,aa){
   renderGameBody();
   const el=document.getElementById(`dist-${hh}-${aa}`);
   if(!el)return;
+  document.querySelectorAll('.dist-item.sel').forEach(e=>e.classList.remove('sel'));
+  el.classList.add('sel');
   const bd=document.querySelector('#sh-game .sheet-bd');
   if(bd)bd.scrollTo({top:el.offsetTop-bd.offsetTop-8,behavior:'smooth'});
 }
@@ -692,8 +695,9 @@ function betMatrixHtml(g,mb,res){
       const bg=c?`rgba(48,209,88,${op})`:'var(--card2)';
       const col=c?(c/denom>0.55?'#000':'#fff'):'transparent';
       const resBg=isRes?`background:var(--gold);color:#000;`:`background:${bg};color:${col};`;
-      const click=c?`onclick="jumpToScore(${hh},${aa})" style="cursor:pointer"`:'';
-      rows+=`<td><div class="bmx-cell" ${click} style="${cellStyle()}${resBg}">${c||''}</div></td>`;
+      const cursor=c?'cursor:pointer;':'';
+      const onclick=c?`onclick="jumpToScore(${hh},${aa})"`:'';
+      rows+=`<td><div class="bmx-cell" ${onclick} style="${cellStyle()}${resBg}${cursor}">${c||''}</div></td>`;
     }
     rows+='</tr>';
   }
