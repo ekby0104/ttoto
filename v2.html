@@ -896,23 +896,24 @@ function exitOvvAndGo(stage,gid){
   // 카드 top 트랜지션을 꺼서(레이아웃 스래싱 제거) 페이지 스크롤이 부드럽게 흐르게 함
   document.body.classList.add('bk-snap');
   setStage(stage,true);          // 전체뷰 이동: 상단 스크롤 건너뜀(이중 점프 방지)
-  if(!gid){requestAnimationFrame(()=>document.body.classList.remove('bk-snap'));return;}
-  // render() 내부 relayout(setTimeout 40ms)로 카드 최종 top 확정 후 → 카드로 부드럽게(native smooth) 스크롤.
-  // native smooth가 안 먹는 환경 대비: 일정 시간 후 도착 못했으면 즉시 스크롤로 보정.
-  setTimeout(()=>{
+  const done=()=>document.body.classList.remove('bk-snap');
+  if(!gid){setTimeout(done,60);return;}
+  const computeY=()=>{
     const el=document.getElementById('bkc-'+gid);
-    if(!el||!el.offsetHeight){document.body.classList.remove('bk-snap');return;}
-    el.classList.add('sel');     // 흰색 반짝임 보강(selGid로도 유지됨)
+    if(!el||!el.offsetHeight)return null;
     const canvas=el.closest('.bk-canvas')||el.offsetParent;
     const cardTop=parseFloat(el.style.top)||0;
     const pageY=(canvas?canvas.getBoundingClientRect().top+window.scrollY:0)+cardTop;
-    const y=Math.max(0,pageY-(window.innerHeight/2-el.offsetHeight/2));
-    window.scrollTo({top:y,behavior:'smooth'});
-    setTimeout(()=>{
-      if(Math.abs(window.scrollY-y)>24)window.scrollTo(0,y);   // smooth 실패 시 보정
-      document.body.classList.remove('bk-snap');
-    },650);
-  },110);
+    return Math.max(0,pageY-(window.innerHeight/2-el.offsetHeight/2));
+  };
+  // render relayout(40ms) 후 카드로 부드럽게(native smooth) 스크롤
+  setTimeout(()=>{
+    const el=document.getElementById('bkc-'+gid);if(el)el.classList.add('sel');
+    const y=computeY();if(y!=null)window.scrollTo({top:y,behavior:'smooth'});
+    done();
+  },130);
+  // 폴백: native smooth 미동작 환경에서 도착 못했으면 즉시 보정
+  setTimeout(()=>{const y=computeY();if(y!=null&&Math.abs(window.scrollY-y)>24)window.scrollTo(0,y);done();},820);
 }
 
 // 국가코드 → 대표 색상 (피파 앱 스타일 컬러바용)
