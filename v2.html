@@ -314,7 +314,7 @@ let CONFIG={},GAMES=[],BETS=[],RESULTS={};
 let curGame=null;
 let selStage='GS';            // GS|R32|R16|QF|SF|F
 let openGroups={};            // 조별 펼침 상태
-let betView='list';           // 경기 베팅 현황 보기: list | matrix
+let betView='matrix';         // 경기 베팅 현황 보기 기본: matrix | list
 const STAGES=[['GS','조별'],['R32','32강'],['R16','16강'],['QF','8강'],['SF','4강'],['F','결승']];
 
 function stageOf(g){
@@ -695,7 +695,7 @@ function openGame(id){
   const g=GAMES.find(x=>String(x.id)===String(id));
   if(!g)return;
   curGame=g;
-  betView='list';
+  betView='matrix';   // 베팅현황 기본은 매트릭스
   document.getElementById('g-title').textContent=`${g.home.short} vs ${g.away.short}`;
   renderGameBody();
   openSheet('sh-game');
