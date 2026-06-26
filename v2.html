@@ -635,7 +635,7 @@ function renderFullBracket(visible){
     const rows=arr.map((t,i)=>`<tr class="${i<2?'qual':''}">
       <td class="c-rk">${i+1}</td><td class="c-fl">${t.flag}</td><td class="c-nm" data-short="${t.short}" data-full="${t.name||t.short}">${isDesk?(t.name||t.short):t.short}</td>
       <td>${t.gp}</td><td>${t.w}</td><td>${t.d}</td><td>${t.l}</td><td>${t.gd>0?'+'+t.gd:t.gd}</td><td class="c-pts">${t.pts}</td></tr>`).join('');
-    return `<div class="stand" style="border-color:${stBdr}" onclick="bkSelect(this);openGroupGames('${L}')"><div class="st-head"><span class="st-gl">Group ${L}</span></div>
+    return `<div class="stand" id="stand-${L}" style="border-color:${stBdr}" onclick="bkSelect(this);openGroupGames('${L}')"><div class="st-head"><span class="st-gl">Group ${L}</span></div>
       <table class="st-table"><thead><tr><th class="c-rk"></th><th class="c-fl"></th><th class="c-nm"></th><th>GP</th><th>W</th><th>D</th><th>L</th><th>GD</th><th>PTS</th></tr></thead>
       <tbody>${rows}</tbody></table></div>`;
   }).join('');
@@ -890,25 +890,25 @@ async function doBet(viaKakao){
 // ── 토너먼트 오버뷰 (인라인 미니 브래킷) ──
 let ovvMode=false;
 function toggleOverview(){ovvMode=!ovvMode;render();}
-function exitOvvAndGo(stage,gid){
+function exitOvvAndGo(stage,gid,standL){
   ovvMode=false;
-  if(gid)selGid=String(gid);     // 선택 id 미리 등록 → 렌더 시 바로 흰색 반짝임(재렌더에도 유지)
+  // 스크롤/선택 타깃: KO는 카드(bkc-id), GS는 조 순위표(stand-L)
+  const targetId=gid?('bkc-'+gid):(standL?('stand-'+standL):null);
+  selGid=gid?String(gid):null;   // KO 카드면 선택 id 영속(흰 반짝임 유지), GS면 기존 KO선택 해제
   // 카드 top 트랜지션을 꺼서(레이아웃 스래싱 제거) 페이지 스크롤이 부드럽게 흐르게 함
   document.body.classList.add('bk-snap');
   setStage(stage,true);          // 전체뷰 이동: 상단 스크롤 건너뜀(이중 점프 방지)
   const done=()=>document.body.classList.remove('bk-snap');
-  if(!gid){setTimeout(done,60);return;}
+  if(!targetId){setTimeout(done,60);return;}
   const computeY=()=>{
-    const el=document.getElementById('bkc-'+gid);
+    const el=document.getElementById(targetId);
     if(!el||!el.offsetHeight)return null;
-    const canvas=el.closest('.bk-canvas')||el.offsetParent;
-    const cardTop=parseFloat(el.style.top)||0;
-    const pageY=(canvas?canvas.getBoundingClientRect().top+window.scrollY:0)+cardTop;
+    const pageY=el.getBoundingClientRect().top+window.scrollY;   // KO(절대)·GS(흐름) 공통
     return Math.max(0,pageY-(window.innerHeight/2-el.offsetHeight/2));
   };
   // render relayout(40ms) 후 카드로 부드럽게(native smooth) 스크롤
   setTimeout(()=>{
-    const el=document.getElementById('bkc-'+gid);if(el)el.classList.add('sel');
+    const el=document.getElementById(targetId);if(el)el.classList.add('sel');
     const y=computeY();if(y!=null)window.scrollTo({top:y,behavior:'smooth'});
     done();
   },130);
@@ -1060,7 +1060,7 @@ function renderMiniOverview(visible){
         <div style="width:4px;height:${ROW-4}px;background:${clr};border-radius:2px;flex-shrink:0"></div>
         <span style="flex:1;font-size:12px;font-weight:800;overflow:hidden;white-space:nowrap;text-overflow:ellipsis;color:${i<2?'#ddd':'#555'};letter-spacing:.2px">${lbl}</span>
       </div>`;}).join('');
-    gsCards+=`<div style="position:absolute;left:${GS_LEFT}px;top:${gsY}px;width:${GS_CARDW}px;overflow:hidden;background:#1c1c1e;border:1px solid ${grpBdr};border-radius:4px;padding:${GS_PADV}px 0;box-sizing:border-box;cursor:pointer" onclick="exitOvvAndGo('GS')">
+    gsCards+=`<div style="position:absolute;left:${GS_LEFT}px;top:${gsY}px;width:${GS_CARDW}px;overflow:hidden;background:#1c1c1e;border:1px solid ${grpBdr};border-radius:4px;padding:${GS_PADV}px 0;box-sizing:border-box;cursor:pointer" onclick="exitOvvAndGo('GS',null,'${L}')">
       <div style="font-size:10px;color:#fff;padding:0 4px;margin-bottom:1px">G.${L}</div>${rows}
     </div>`;
     gsY+=groupH+GS_GAP;
