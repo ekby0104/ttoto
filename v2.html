@@ -1173,20 +1173,23 @@ function resizeBracketCards(){
   if(svg)svg.innerHTML=bracketLines(BK.yc);
 }
 let _bkIsDesk=window.innerWidth>=768;
-let _resizeRaf=null;
-window.addEventListener('resize',()=>{
-  if(_resizeRaf)cancelAnimationFrame(_resizeRaf);
-  _resizeRaf=requestAnimationFrame(()=>{
-    _resizeRaf=null;
-    const isD=window.innerWidth>=768;
+let _resizeTimer=null;
+function _checkBreakpoint(){
+  clearTimeout(_resizeTimer);
+  _resizeTimer=setTimeout(()=>{
+    const w=(window.visualViewport&&window.visualViewport.width)||window.innerWidth;
+    const isD=w>=768;
     if(isD===_bkIsDesk)return;
     _bkIsDesk=isD;
     const sc=document.getElementById('bk-scroll');
     const savedScroll=sc?sc.scrollLeft:-1;
     render();
     if(savedScroll>=0)setTimeout(()=>{const s=document.getElementById('bk-scroll');if(s)s.scrollLeft=savedScroll;},50);
-  });
-});
+  },150);
+}
+window.addEventListener('resize',_checkBreakpoint);
+window.addEventListener('orientationchange',()=>setTimeout(_checkBreakpoint,300));
+if(window.visualViewport)window.visualViewport.addEventListener('resize',_checkBreakpoint);
 
 // ── 초기화 ──
 (async()=>{
