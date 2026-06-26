@@ -21,10 +21,10 @@ async def auto_enrich_bracket_task():
             try:
                 parsed = await _fetch_and_parse_games(False)
                 games = get_games()
-                _, results_patch = _apply_enrich(games, parsed)
+                results = get_results()
+                _, results_patch = _apply_enrich(games, parsed, results)
                 write_json(GAMES_FILE, games)
                 if results_patch:
-                    results = get_results()
                     now = int(time.time())
                     for gid, res in results_patch.items():
                         if gid not in results:
@@ -873,8 +873,86 @@ async def admin_import_confirm(body: ImportConfirm, korea_only: bool = False, au
     write_json(RESULTS_FILE, results)
     return {"ok": True, "added": added, "total": len(existing)}
 
-def _apply_enrich(games: list, parsed: list) -> tuple[int, dict]:
+def _compute_gs_standings(games: list, results: dict) -> dict:
+    """GS 결과로 그룹별 순위 계산. {그룹알파벳: [팀info...]} 반환."""
+    from collections import defaultdict
+    import re as _re
+
+    def grp_letter(g):
+        m = _re.match(r'^([A-Za-z])', str(g.get("group", "") or ""))
+        return m.group(1).upper() if m else None
+
+    teams: dict = defaultdict(dict)
+    for g in games:
+        if g.get("deleted") or g.get("stage", "GS") != "GS":
+            continue
+        lt = grp_letter(g)
+        if not lt:
+            continue
+        for side in ("home", "away"):
+            t = g.get(side) or {}
+            nm = t.get("name", "")
+            if nm and nm not in teams[lt]:
+                teams[lt][nm] = {"name": nm, "flag": t.get("flag", ""), "short": t.get("short", ""),
+                                 "pts": 0, "gd": 0, "gf": 0}
+
+    for g in games:
+        if g.get("deleted") or g.get("stage", "GS") != "GS":
+            continue
+        lt = grp_letter(g)
+        res = results.get(str(g.get("id", "")))
+        if not lt or not res:
+            continue
+        h_nm = (g.get("home") or {}).get("name", "")
+        a_nm = (g.get("away") or {}).get("name", "")
+        if not h_nm or not a_nm:
+            continue
+        hs = int(res.get("h") or 0)
+        as_ = int(res.get("a") or 0)
+        for nm, gf, ga in [(h_nm, hs, as_), (a_nm, as_, hs)]:
+            if nm not in teams[lt]:
+                continue
+            t = teams[lt][nm]
+            t["gf"] += gf
+            t["gd"] += gf - ga
+            if gf > ga:    t["pts"] += 3
+            elif gf == ga: t["pts"] += 1
+
+    return {lt: sorted(v.values(), key=lambda t: (-t["pts"], -t["gd"], -t["gf"]))
+            for lt, v in teams.items()}
+
+
+def _fill_ko_from_standings(games: list, standings: dict) -> int:
+    """조 순위 기반으로 KO 라운드 TBD 팀 자동 채우기. 채운 수 반환."""
+    import re as _re
+    KO_STAGES = {"R32", "R16", "QF", "SF", "F", "3RD"}
+    filled = 0
+    for g in games:
+        if g.get("stage") not in KO_STAGES:
+            continue
+        for side in ("home", "away"):
+            if (g.get(side) or {}).get("name"):
+                continue
+            lbl = str(g.get(f"{side}_label", "") or "")
+            team = None
+            m = _re.search(r"winner\s+group\s+([A-Z])", lbl, _re.IGNORECASE)
+            if m:
+                ranks = standings.get(m.group(1).upper(), [])
+                if ranks: team = ranks[0]
+            if not team:
+                m = _re.search(r"runner.?up\s+group\s+([A-Z])", lbl, _re.IGNORECASE)
+                if m:
+                    ranks = standings.get(m.group(1).upper(), [])
+                    if len(ranks) > 1: team = ranks[1]
+            if team:
+                g[side] = {"name": team["name"], "flag": team["flag"], "short": team["short"]}
+                filled += 1
+    return filled
+
+
+def _apply_enrich(games: list, parsed: list, results: dict | None = None) -> tuple[int, dict]:
     """enrich-bracket 공통 로직. (updated 수, 신규 결과 패치 dict) 반환."""
+    import re as _re
     by_id        = {str(p["game"]["id"]): p["game"]   for p in parsed}
     by_id_result = {str(p["game"]["id"]): p["result"] for p in parsed if p["result"]}
     results_patch = {}
@@ -896,6 +974,12 @@ def _apply_enrich(games: list, parsed: list) -> tuple[int, dict]:
         if gid in by_id_result:
             results_patch[gid] = by_id_result[gid]
         updated += 1
+
+    # GS 순위 기반으로 남은 TBD 채우기 (외부 API가 팀명 안 채울 경우 대비)
+    if results is not None:
+        standings = _compute_gs_standings(games, results)
+        _fill_ko_from_standings(games, standings)
+
     return updated, results_patch
 
 
@@ -904,10 +988,10 @@ async def admin_enrich_bracket(auth=Depends(admin_required)):
     """기존 등록 경기에 브래킷 메타데이터(stage·대진 라벨·확정 팀·스코어)를 채움. 베팅/상태는 보존."""
     parsed = await _fetch_and_parse_games(False)
     games = get_games()
-    updated, results_patch = _apply_enrich(games, parsed)
+    results = get_results()
+    updated, results_patch = _apply_enrich(games, parsed, results)
     write_json(GAMES_FILE, games)
     if results_patch:
-        results = get_results()
         now = int(time.time())
         for gid, res in results_patch.items():
             if gid not in results:
