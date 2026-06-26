@@ -770,18 +770,21 @@ function renderMiniOverview(visible){
   const stand=computeStandings(visible);
   const letters=Object.keys(stand);
   let gsCards='';
-  const hdrH=10,GS_GAP=4;
+  const hdrH=10,GS_GAP=10;
+  const GS_CARDW=Math.floor(CARDW*0.7);  // 카드 가로 70%
+  const GS_LEFT=6;                        // 가로 간격 3배 (2→6px)
+  const GS_PADV=4;                        // 상하 여백 +2px (2→4px)
   let gsY=PADY;
   letters.forEach((L)=>{
     const arr=stand[L];
-    const groupH=arr.length*ROW+hdrH+4;
+    const groupH=arr.length*ROW+hdrH+GS_PADV*2;
     const rows=arr.map((t,i)=>{
       const clr=flagToClr(t.flag);
       return `<div style="display:flex;align-items:center;gap:3px;height:${ROW}px;padding:0 4px">
         <div style="width:4px;height:${ROW-4}px;background:${clr};border-radius:2px;flex-shrink:0"></div>
         <span style="flex:1;font-size:11px;font-weight:800;overflow:hidden;white-space:nowrap;color:${i<2?'#ddd':'#555'};letter-spacing:.2px">${String(t.short).slice(0,3).toUpperCase()}</span>
       </div>`;}).join('');
-    gsCards+=`<div style="position:absolute;left:2px;top:${gsY}px;width:${CARDW}px;overflow:hidden;background:#1c1c1e;border:1px solid #38383a;border-radius:4px;padding:2px 0;box-sizing:border-box;cursor:pointer" onclick="exitOvvAndGo('GS')">
+    gsCards+=`<div style="position:absolute;left:${GS_LEFT}px;top:${gsY}px;width:${GS_CARDW}px;overflow:hidden;background:#1c1c1e;border:1px solid #38383a;border-radius:4px;padding:${GS_PADV}px 0;box-sizing:border-box;cursor:pointer" onclick="exitOvvAndGo('GS')">
       <div style="font-size:8px;font-weight:800;color:#555;padding:0 4px;margin-bottom:1px">G.${L}</div>${rows}
     </div>`;
     gsY+=groupH+GS_GAP;
