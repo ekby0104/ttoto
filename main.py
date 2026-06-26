@@ -886,17 +886,11 @@ def _apply_enrich(games: list, parsed: list) -> tuple[int, dict]:
         g["stage"]      = src.get("stage", "GS")
         g["home_label"] = src.get("home_label", "")
         g["away_label"] = src.get("away_label", "")
-        # KO 라운드: API 값으로 무조건 덮어씀 (TBD면 클리어, 이전 계산값 제거)
-        # GS: API에 팀명 있을 때만 갱신 (직접 입력한 값 보호)
-        KO = {"R32", "R16", "QF", "SF", "F", "3RD"}
-        if g["stage"] in KO:
+        # API에 팀명이 있을 때만 갱신 (TBD/빈값이면 기존 데이터 보존)
+        if src.get("home") and src["home"].get("name"):
             g["home"] = src["home"]
+        if src.get("away") and src["away"].get("name"):
             g["away"] = src["away"]
-        else:
-            if src["home"].get("name"):
-                g["home"] = src["home"]
-            if src["away"].get("name"):
-                g["away"] = src["away"]
         # 종료된 경기 스코어 패치
         gid = str(g["id"])
         if gid in by_id_result:
