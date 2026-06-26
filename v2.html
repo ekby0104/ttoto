@@ -29,8 +29,13 @@ body{background:var(--bg);color:var(--text);font-family:var(--sys);min-height:10
 @keyframes marq{0%{transform:translateX(0)}100%{transform:translateX(-50%)}}
 .notice-txt{font-family:var(--mono);font-size:13px;font-weight:900;color:#000;text-shadow:-1px -1px 0 #fff,1px -1px 0 #fff,-1px 1px 0 #fff,1px 1px 0 #fff}
 /* 셀렉터: 텍스트 라벨 (결승만 우승컵) */
-.stagebar{max-width:560px;margin:0 auto;padding:4px 14px 6px}
-.seg-pill{display:flex;background:#2a2a2c;border-radius:14px;padding:5px;gap:4px}
+.stagebar{max-width:560px;margin:0 auto;padding:4px 10px 6px;display:flex;align-items:center;gap:6px}
+.seg-pill{flex:1;display:flex;background:#2a2a2c;border-radius:14px;padding:5px;gap:4px}
+.ovv-btn{width:32px;height:32px;border-radius:9px;background:#2a2a2c;border:none;color:var(--muted2);font-size:15px;cursor:pointer;flex-shrink:0;display:flex;align-items:center;justify-content:center}
+.ovv-btn:active{filter:brightness(.7)}
+.bk-next-float{position:fixed;right:8px;display:none;flex-direction:column;align-items:center;justify-content:center;gap:1px;background:rgba(28,28,30,.96);border:1px solid #48484a;border-radius:12px;color:var(--green);width:34px;padding:7px 3px;cursor:pointer;z-index:50;box-shadow:0 2px 10px rgba(0,0,0,.7);transition:top .4s cubic-bezier(.32,.72,0,1)}
+.bk-next-float.show{display:flex}
+.bk-next-float:active{filter:brightness(.8)}
 .seg{flex:1;background:none;border:none;border-radius:10px;padding:9px 0;cursor:pointer;display:flex;align-items:center;justify-content:center;transition:background .2s}
 .seg.active{background:#fff}
 .seg-tx{font-size:14px;font-weight:800;color:var(--muted2)}
@@ -204,6 +209,18 @@ body{background:var(--bg);color:var(--text);font-family:var(--sys);min-height:10
 <!-- 플로팅 피드백 버튼 -->
 <button class="fab" onclick="openFeedback()" aria-label="피드백">💬</button>
 
+<!-- 다음 라운드 플로팅 버튼 -->
+<button class="bk-next-float" id="bk-next" onclick="goNextRound()"></button>
+
+<!-- 전체 토너먼트 오버뷰 시트 -->
+<div class="sheet-ov" id="sh-ovv" onclick="ovClose(event,'sh-ovv')">
+  <div class="sheet">
+    <div class="sheet-grip"></div>
+    <div class="sheet-hd"><span class="sheet-ttl">⊞ 전체 토너먼트</span><button class="x" onclick="closeSheet('sh-ovv')">×</button></div>
+    <div class="sheet-bd" id="ovv-body"></div>
+  </div>
+</div>
+
 <!-- 경기 상세/베팅 시트 -->
 <div class="sheet-ov" id="sh-game" onclick="ovClose(event,'sh-game')">
   <div class="sheet">
@@ -305,7 +322,7 @@ let bkFocus='R32';
 // 셀렉터: 텍스트 라벨(GS, R32…), 결승만 우승컵
 function renderStageBar(){
   const bar=document.getElementById('stagebar');
-  bar.innerHTML=`<div class="seg-pill">${STAGES.map(([k])=>{
+  bar.innerHTML=`<button class="ovv-btn" onclick="openOverview()" title="전체 토너먼트">⊞</button><div class="seg-pill">${STAGES.map(([k])=>{
     const content=k==='F'?'🏆':k;
     return `<button class="seg ${selStage===k?'active':''}" data-stage="${k}" onclick="setStage('${k}')"><span class="seg-tx ${k==='F'?'trophy':''}">${content}</span></button>`;
   }).join('')}</div>`;
@@ -462,6 +479,7 @@ function relayoutBracket(focus){
     const tl=document.getElementById('bk-thirdlbl');if(tl)tl.style.top=(tt-22)+'px';
   }
   const svg=document.getElementById('bk-svg');if(svg)svg.innerHTML=bracketLines(yc);
+  updateNextBtn(focus,yc);
 }
 
 // Apple식 통합: [조 순위표] + [R32~결승 브래킷] 한 캔버스, 가로 스크롤
@@ -648,6 +666,107 @@ async function doBet(viaKakao){
     }).catch(()=>toast('❌ 서버 연결 실패',true));
   if(viaKakao)return true;       // 링크 열기 허용
   await p;return false;
+}
+
+// ── 토너먼트 오버뷰 ──
+function openOverview(){
+  document.getElementById('ovv-body').innerHTML=renderOverview();
+  openSheet('sh-ovv');
+}
+function renderOverview(){
+  const visible=GAMES.filter(g=>!g.deleted);
+  const ko=visible.filter(g=>ROUNDS.includes(gStage(g)));
+  if(!ko.length)return'<div class="empty">토너먼트 경기가 없습니다</div>';
+  const byId={};ko.forEach(g=>byId[String(g.id)]=g);
+  const shW=Math.min(window.innerWidth,560)-36;
+  const MINI_COLW=Math.floor(shW/ROUNDS.length);
+  const MINI_CARDW=MINI_COLW-6,MINI_CARDH=26,MINI_SP=14,HDR_H=30;
+  // 슬롯 재사용 (BK에서) 또는 재계산
+  let slot=BK&&Object.keys(BK.slot||{}).length?{...BK.slot}:{};
+  if(!Object.keys(slot).length){
+    let s=0;
+    ko.filter(g=>gStage(g)==='R32').sort(bkSort).forEach(g=>{slot[g.id]=s++;});
+    ['R16','QF','SF','F'].forEach((r,ri)=>{
+      const prev=['R32','R16','QF','SF'][ri];
+      const gs=ko.filter(g=>gStage(g)===r).sort(bkSort),pv=ko.filter(g=>gStage(g)===prev).sort(bkSort);
+      gs.forEach((g,j)=>{const a=pv[j*2],b=pv[j*2+1];slot[g.id]=((a?slot[a.id]:j*2)+(b?slot[b.id]:j*2+1))/2;});
+    });
+  }
+  const yc={};for(const id in slot)yc[id]=slot[id]*MINI_SP;
+  const miniColX={};ROUNDS.forEach((r,i)=>{miniColX[r]=i*MINI_COLW;});
+  const vals=Object.values(yc);
+  const H=(vals.length?Math.max(...vals):0)+MINI_CARDH+8;
+  const W=shW;
+  // SVG 연결선
+  let lines='';
+  ko.forEach(g=>{
+    const px=miniColX[gStage(g)],py=(yc[g.id]||0)+MINI_CARDH/2;
+    [matchRef(g.home_label),matchRef(g.away_label)].forEach(ref=>{
+      if(!ref)return;const c=byId[ref];if(!c)return;
+      const cx=miniColX[gStage(c)]+MINI_CARDW,cy=(yc[c.id]||0)+MINI_CARDH/2,mx=(cx+px)/2;
+      lines+=`<path d="M${cx} ${cy} H${mx} V${py} H${px}" stroke="#48484a" stroke-width="1" fill="none"/>`;
+    });
+  });
+  // 미니 카드
+  let cards='';
+  ko.forEach(g=>{
+    const st=gState(g),res=RESULTS[String(g.id)];
+    const h=teamSide(g,'home'),a=teamSide(g,'away');
+    const x=miniColX[gStage(g)],top=yc[g.id]!=null?yc[g.id]:0;
+    const bdr=st==='open'?'#30d158':'#38383a';
+    const rnd=gStage(g);
+    cards+=`<div style="position:absolute;left:${x}px;top:${top}px;width:${MINI_CARDW}px;height:${MINI_CARDH}px;background:#1c1c1e;border:1.5px solid ${bdr};border-radius:4px;overflow:hidden;padding:1px 3px;cursor:pointer;box-sizing:border-box" onclick="navigateToStage('${rnd}')">
+      <div style="display:flex;align-items:center;gap:2px;height:12px"><span style="font-size:10px;flex-shrink:0">${h.flag}</span><span style="flex:1;font-size:7px;overflow:hidden;white-space:nowrap;color:${h.known?'#fff':'#8e8e93'}">${h.known?h.name:''}</span><span style="font-size:9px;font-weight:800;color:#fff;min-width:8px;text-align:right">${res!=null?res.h:''}</span></div>
+      <div style="display:flex;align-items:center;gap:2px;height:12px"><span style="font-size:10px;flex-shrink:0">${a.flag}</span><span style="flex:1;font-size:7px;overflow:hidden;white-space:nowrap;color:${a.known?'#fff':'#8e8e93'}">${a.known?a.name:''}</span><span style="font-size:9px;font-weight:800;color:#fff;min-width:8px;text-align:right">${res!=null?res.a:''}</span></div>
+    </div>`;
+  });
+  // 라운드 헤더 (클릭 가능)
+  let headers='';
+  ROUNDS.forEach((r,i)=>{
+    const x=miniColX[r],isActive=(selStage===r)||(selStage==='GS'&&r==='R32');
+    headers+=`<div style="position:absolute;left:${x}px;width:${MINI_COLW}px;text-align:center;top:4px;cursor:pointer" onclick="navigateToStage('${r}')">
+      <span style="font-size:11px;font-weight:800;color:${isActive?'#30d158':'#8e8e93'}">${r==='F'?'🏆':RLBL[r]}</span>
+    </div>`;
+  });
+  return `<p style="font-size:12px;color:#8e8e93;text-align:center;margin-bottom:10px">라운드를 탭해서 해당 라운드로 이동</p>
+    <div style="overflow-x:auto;-webkit-overflow-scrolling:touch"><div style="position:relative;width:${W}px">
+      <div style="position:relative;height:${HDR_H}px">${headers}</div>
+      <div style="position:relative;width:${W}px;height:${H}px">
+        <svg width="${W}" height="${H}" style="position:absolute;top:0;left:0;pointer-events:none">${lines}</svg>${cards}
+      </div>
+    </div></div>`;
+}
+function navigateToStage(stage){closeSheet('sh-ovv');setTimeout(()=>setStage(stage),200);}
+// ── 다음 라운드 버튼 ──
+function goNextRound(){
+  const idx=STAGES.findIndex(([k])=>k===selStage);
+  if(idx<STAGES.length-1)setStage(STAGES[idx+1][0]);
+}
+function updateNextBtn(focus,yc){
+  const btn=document.getElementById('bk-next');if(!btn)return;
+  const idx=STAGES.findIndex(([k])=>k===selStage);
+  if(idx>=STAGES.length-1){btn.classList.remove('show');return;}
+  const[nextKey]=STAGES[idx+1];
+  const nextLabel=nextKey==='F'?'🏆':nextKey;
+  btn.innerHTML=`<span style="font-size:10px;font-weight:800;line-height:1.3">${nextLabel}</span><span style="font-size:15px;line-height:1">›</span>`;
+  btn.classList.add('show');
+  // 세로 위치: 현재 라운드 카드 범위 중앙에 맞춤
+  if(BK&&focus&&yc){
+    const cur=BK.ko.filter(g=>gStage(g)===focus);
+    if(cur.length){
+      const ys=cur.map(g=>yc[g.id]).filter(v=>v!=null);
+      if(ys.length){
+        const minY=Math.min(...ys),maxY=Math.max(...ys)+BK.CARDH;
+        const sc=document.getElementById('bk-scroll');
+        if(sc){
+          const rect=sc.getBoundingClientRect();
+          const centerDoc=rect.top+(minY+maxY)/2;
+          const topPx=Math.max(rect.top+10,Math.min(window.innerHeight-60,centerDoc-20));
+          btn.style.top=topPx+'px';
+        }
+      }
+    }
+  }
 }
 
 // ── 피드백 ──
