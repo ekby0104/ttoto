@@ -656,10 +656,10 @@ function betMatrixHtml(g,mb,res){
   mb.forEach(b=>{const bh=Number(b.h),ba=Number(b.a);if(bh>N||ba>N)return;const k=bh+'_'+ba;cnt[k]=(cnt[k]||0)+1;cmax=Math.max(cmax,cnt[k]);});
   const denom=cmax||1;
   const avail=Math.floor((Math.min(window.innerWidth,560)-36)*2/3);
-  const hdrW=50;  // col 0: (1~n,0) 원정팀 병합
-  const scW=24;   // col 1: (2~n,1) 원정 득점
+  const hdrW=25;  // col 0: (1~n,0) 원정팀 병합
+  const scW=25;   // col 1: (2~n,1) 원정 득점
   const cellW=Math.max(20,Math.floor((avail-hdrW-scW)/(N+1)));
-  const cellH=Math.floor(cellW*2/3);
+  const cellH=25;
   const cellStyle=(extra='')=>`width:${cellW}px;height:${cellH}px;border-radius:${Math.max(3,cellW/8)|0}px;${extra}`;
   const thHd=`background:#fff;color:#000;font-weight:800;text-align:center`;
   const thSc=`${thHd};font-family:var(--mono);font-size:14px`;
