@@ -8,10 +8,34 @@ from fastapi.staticfiles import StaticFiles
 from fastapi.responses import FileResponse
 from pydantic import BaseModel, Field
 from typing import Optional
-import json, os, time, httpx, re
+import json, os, time, httpx, re, asyncio
 from datetime import datetime, timedelta
 
 app = FastAPI(title="사무실 월드컵 토토 API")
+
+@app.on_event("startup")
+async def auto_close_games():
+    async def _loop():
+        while True:
+            try:
+                now_kst = datetime.utcnow() + timedelta(hours=9)
+                games = get_games()
+                changed = False
+                for g in games:
+                    if g.get("status") == "open":
+                        try:
+                            dt = datetime.strptime(f"{g['date']} {g['time']}", "%Y.%m.%d %H:%M")
+                        except Exception:
+                            continue
+                        if now_kst >= dt:
+                            g["status"] = "closed"
+                            changed = True
+                if changed:
+                    write_json(GAMES_FILE, games)
+            except Exception:
+                pass
+            await asyncio.sleep(60)
+    asyncio.create_task(_loop())
 
 app.add_middleware(
     CORSMiddleware,
@@ -380,7 +404,7 @@ def admin_delete_bet(bet_id: int, auth=Depends(admin_required)):
 @app.put("/api/admin/results/{game_id}")
 def admin_set_result(game_id: int, body: ResultIn, auth=Depends(admin_required)):
     results = get_results()
-    results[str(game_id)] = {"h": body.h, "a": body.a}
+    results[str(game_id)] = {"h": body.h, "a": body.a, "registered_at": int(time.time())}
     write_json(RESULTS_FILE, results)
     return results[str(game_id)]
 
@@ -822,7 +846,7 @@ async def admin_import_confirm(body: ImportConfirm, korea_only: bool = False, au
         existing.append(g)
         existing_ids.add(gid)
         if p["result"]:
-            results[gid] = p["result"]
+            results[gid] = {**p["result"], "registered_at": int(time.time())}
         added += 1
     write_json(GAMES_FILE, existing)
     write_json(RESULTS_FILE, results)
