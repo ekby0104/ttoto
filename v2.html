@@ -708,8 +708,8 @@ function miniRow(flag,name,known,score,rowH){
   const txtClr=known?'#fff':'#555';
   return `<div style="display:flex;align-items:center;gap:2px;height:${rowH}px;padding:0 2px">
     <div style="width:4px;height:${rowH-4}px;background:${clr};border-radius:2px;flex-shrink:0"></div>
-    <span style="flex:1;font-size:11px;font-weight:800;overflow:hidden;white-space:nowrap;color:${txtClr};letter-spacing:.2px">${lbl}</span>
-    ${score!=null?`<span style="font-size:11px;font-weight:800;color:#fff;text-align:right;font-variant-numeric:tabular-nums;flex-shrink:0">${score}</span>`:''}
+    <span style="flex:1;font-size:12px;font-weight:800;overflow:hidden;white-space:nowrap;color:${txtClr};letter-spacing:.2px">${lbl}</span>
+    ${score!=null?`<span style="font-size:12px;font-weight:800;color:#fff;text-align:right;font-variant-numeric:tabular-nums;flex-shrink:0">${score}</span>`:''}
   </div>`;
 }
 function renderMiniOverview(visible){
@@ -721,8 +721,8 @@ function renderMiniOverview(visible){
   const CARDW=COLW-4;
   const KO_CARDW=Math.floor(CARDW*0.85);  // 카드 가로 85%
   const KO_LEFT=4;                        // 카드 왼쪽 오프셋
-  // CARDH 36: 상하 여백 +2px 반영 / SP = CARDH+10: 10px 갭
-  const CARDH=36,SP=46,HDR=22,PADY=HDR+4;
+  // CARDH 40: 12px 폰트 기준 재조정 (ROW=20) / SP = CARDH+10: 10px 갭
+  const CARDH=40,SP=50,HDR=22,PADY=HDR+4;
   const ROW=Math.floor(CARDH/2);
   const colX={};ROUNDS.forEach((r,i)=>{colX[r]=COLW*(i+1);});
   // 슬롯 계산
@@ -772,7 +772,7 @@ function renderMiniOverview(visible){
   const stand=computeStandings(visible);
   const letters=Object.keys(stand);
   let gsCards='';
-  const hdrH=10,GS_GAP=10;
+  const hdrH=14,GS_GAP=10;
   const GS_CARDW=Math.floor(CARDW*0.85);  // 카드 가로 85%
   const GS_LEFT=4;                        // 카드 왼쪽 오프셋
   const GS_PADV=4;                        // 상하 여백 +2px (2→4px)
@@ -784,10 +784,10 @@ function renderMiniOverview(visible){
       const clr=flagToClr(t.flag);
       return `<div style="display:flex;align-items:center;gap:3px;height:${ROW}px;padding:0 4px">
         <div style="width:4px;height:${ROW-4}px;background:${clr};border-radius:2px;flex-shrink:0"></div>
-        <span style="flex:1;font-size:11px;font-weight:800;overflow:hidden;white-space:nowrap;color:${i<2?'#ddd':'#555'};letter-spacing:.2px">${String(t.short).slice(0,3).toUpperCase()}</span>
+        <span style="flex:1;font-size:12px;font-weight:800;overflow:hidden;white-space:nowrap;color:${i<2?'#ddd':'#555'};letter-spacing:.2px">${String(t.short).slice(0,3).toUpperCase()}</span>
       </div>`;}).join('');
     gsCards+=`<div style="position:absolute;left:${GS_LEFT}px;top:${gsY}px;width:${GS_CARDW}px;overflow:hidden;background:#1c1c1e;border:1px solid #38383a;border-radius:4px;padding:${GS_PADV}px 0;box-sizing:border-box;cursor:pointer" onclick="exitOvvAndGo('GS')">
-      <div style="font-size:8px;font-weight:800;color:#555;padding:0 4px;margin-bottom:1px">G.${L}</div>${rows}
+      <div style="font-size:10px;font-weight:800;color:#fff;padding:0 4px;margin-bottom:1px">G.${L}</div>${rows}
     </div>`;
     gsY+=groupH+GS_GAP;
   });
