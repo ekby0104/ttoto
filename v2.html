@@ -269,7 +269,7 @@ function stageOf(g){
 function groupLetter(g){const m=(g.group||'').match(/^([A-Z])조$/);return m?m[1]:null;}
 
 async function api(path,opts={}){
-  try{const r=await fetch(API+path,{headers:{'Content-Type':'application/json'},...opts});
+  try{const r=await fetch(API+path,{cache:'no-store',headers:{'Content-Type':'application/json'},...opts});
     if(!r.ok)throw 0;return await r.json();}catch(e){return null;}
 }
 function toast(m,err){const t=document.getElementById('toast');t.textContent=m;t.className='toast show'+(err?' err':'');clearTimeout(t._t);t._t=setTimeout(()=>t.classList.remove('show'),2600);}
@@ -877,7 +877,15 @@ function maybePopup(){
   openSheet('sh-popup');
 }
 
-async function refresh(){await loadAll();render();}
+async function refresh(){
+  // 현재 스크롤 위치 저장 (갱신 후 복원)
+  const sc=document.getElementById('bk-scroll');
+  const savedScroll=sc?sc.scrollLeft:-1;
+  await loadAll();
+  render();
+  // render() 내부 setTimeout(40ms) 이후 스크롤 복원
+  if(savedScroll>=0)setTimeout(()=>{const s=document.getElementById('bk-scroll');if(s)s.scrollLeft=savedScroll;},60);
+}
 
 // ── 초기화 ──
 (async()=>{
@@ -886,7 +894,7 @@ async function refresh(){await loadAll();render();}
   updateNotice();
   maybePopup();
   setInterval(updateNotice,1000);
-  setInterval(refresh,30000);   // 30초마다 자동 갱신
+  setInterval(refresh,600000);  // 10분마다 자동 갱신
   const fbMsg=document.getElementById('fb-msg');
   fbMsg.addEventListener('input',()=>document.getElementById('fb-c').textContent=fbMsg.value.length);
 })();
