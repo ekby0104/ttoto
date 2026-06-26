@@ -587,8 +587,7 @@ function calcBkLayout(vw,isDesk){
     CARDW=Math.round((baseC-22)*1.5);  // 데스크탑: 1.5배 넓은 카드
     COLW=CARDW+22;
   }else{
-    const PEEK=30;   // R32 카드 왼쪽이 살짝 보이도록 우측 여백 확보(조 순위표 카드 가로 축소)
-    STANDW=Math.min(vw-GS_GAP-PEEK,360);
+    STANDW=Math.min(310,vw-GS_GAP-20);   // 조 순위표 카드 가로 ≈300px(stW=STANDW-10), R32 왼쪽이 더 보이게
     COLW=Math.round(vw*0.66);
     CARDW=COLW-22;
   }
