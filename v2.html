@@ -212,15 +212,6 @@ body{background:var(--bg);color:var(--text);font-family:var(--sys);min-height:10
 <!-- 다음 라운드 플로팅 버튼 -->
 <button class="bk-next-float" id="bk-next" onclick="goNextRound()"></button>
 
-<!-- 전체 토너먼트 오버뷰 시트 -->
-<div class="sheet-ov" id="sh-ovv" onclick="ovClose(event,'sh-ovv')">
-  <div class="sheet">
-    <div class="sheet-grip"></div>
-    <div class="sheet-hd"><span class="sheet-ttl">⊞ 전체 토너먼트</span><button class="x" onclick="closeSheet('sh-ovv')">×</button></div>
-    <div class="sheet-bd" id="ovv-body"></div>
-  </div>
-</div>
-
 <!-- 경기 상세/베팅 시트 -->
 <div class="sheet-ov" id="sh-game" onclick="ovClose(event,'sh-game')">
   <div class="sheet">
@@ -322,7 +313,7 @@ let bkFocus='R32';
 // 셀렉터: 텍스트 라벨(GS, R32…), 결승만 우승컵
 function renderStageBar(){
   const bar=document.getElementById('stagebar');
-  bar.innerHTML=`<button class="ovv-btn" onclick="openOverview()" title="전체 토너먼트">⊞</button><div class="seg-pill">${STAGES.map(([k])=>{
+  bar.innerHTML=`<button class="ovv-btn" onclick="toggleOverview()" title="전체 토너먼트" style="color:${ovvMode?'var(--green)':'var(--muted2)'}">⊞</button><div class="seg-pill">${STAGES.map(([k])=>{
     const content=k==='F'?'🏆':k;
     return `<button class="seg ${selStage===k?'active':''}" data-stage="${k}" onclick="setStage('${k}')"><span class="seg-tx ${k==='F'?'trophy':''}">${content}</span></button>`;
   }).join('')}</div>`;
@@ -331,6 +322,7 @@ function setStage(s){
   selStage=s; renderStageBar();
   const sc=document.getElementById('bk-scroll');
   if(sc){
+    if(ovvMode)exitOverview(sc);
     const f=s==='GS'?'R32':s;
     bkFocus=f; relayoutBracket(f);
     // 스크롤 중 onBracketScroll 간섭 방지: 잠시 해제하고 즉시 이동 후 복구
@@ -668,75 +660,67 @@ async function doBet(viaKakao){
   await p;return false;
 }
 
-// ── 토너먼트 오버뷰 ──
-function openOverview(){
-  document.getElementById('ovv-body').innerHTML=renderOverview();
-  openSheet('sh-ovv');
+// ── 토너먼트 오버뷰 (인라인 줌아웃) ──
+let ovvMode=false,ovvSF=1;
+function toggleOverview(){
+  const sc=document.getElementById('bk-scroll');
+  if(!sc||!BK)return;
+  if(ovvMode){exitOverview(sc);}
+  else{enterOverview(sc);}
+  renderStageBar();
 }
-function renderOverview(){
-  const visible=GAMES.filter(g=>!g.deleted);
-  const ko=visible.filter(g=>ROUNDS.includes(gStage(g)));
-  if(!ko.length)return'<div class="empty">토너먼트 경기가 없습니다</div>';
-  const byId={};ko.forEach(g=>byId[String(g.id)]=g);
-  const shW=Math.min(window.innerWidth,560)-36;
-  const MINI_COLW=Math.floor(shW/ROUNDS.length);
-  const MINI_CARDW=MINI_COLW-6,MINI_CARDH=26,MINI_SP=14,HDR_H=30;
-  // 슬롯 재사용 (BK에서) 또는 재계산
-  let slot=BK&&Object.keys(BK.slot||{}).length?{...BK.slot}:{};
-  if(!Object.keys(slot).length){
-    let s=0;
-    ko.filter(g=>gStage(g)==='R32').sort(bkSort).forEach(g=>{slot[g.id]=s++;});
-    ['R16','QF','SF','F'].forEach((r,ri)=>{
-      const prev=['R32','R16','QF','SF'][ri];
-      const gs=ko.filter(g=>gStage(g)===r).sort(bkSort),pv=ko.filter(g=>gStage(g)===prev).sort(bkSort);
-      gs.forEach((g,j)=>{const a=pv[j*2],b=pv[j*2+1];slot[g.id]=((a?slot[a.id]:j*2)+(b?slot[b.id]:j*2+1))/2;});
-    });
+function enterOverview(sc){
+  const stage=sc.querySelector('.bk-stage');
+  if(!stage)return;
+  const sw=sc.clientWidth;
+  const stW=stage.offsetWidth,stH=stage.offsetHeight;
+  ovvSF=sw/stW;
+  // 브래킷을 화면 너비에 맞게 축소
+  stage.style.transformOrigin='0 0';
+  stage.style.transform=`scale(${ovvSF})`;
+  // 컨테이너 높이를 시각적 크기에 맞춤
+  sc._origH=sc.style.height;
+  sc.style.height=Math.ceil(stH*ovvSF)+'px';
+  sc.style.overflowX='hidden';
+  sc.scrollLeft=0;
+  // 탭 감지용 투명 오버레이
+  let ov=sc.querySelector('.bk-ovv-ov');
+  if(!ov){
+    ov=document.createElement('div');
+    ov.className='bk-ovv-ov';
+    ov.style.cssText='position:absolute;inset:0;cursor:pointer;z-index:20;background:transparent';
+    ov.addEventListener('click',onOverviewTap);
+    sc._origPos=sc.style.position;
+    sc.style.position='relative';
+    sc.appendChild(ov);
   }
-  const yc={};for(const id in slot)yc[id]=slot[id]*MINI_SP;
-  const miniColX={};ROUNDS.forEach((r,i)=>{miniColX[r]=i*MINI_COLW;});
-  const vals=Object.values(yc);
-  const H=(vals.length?Math.max(...vals):0)+MINI_CARDH+8;
-  const W=shW;
-  // SVG 연결선
-  let lines='';
-  ko.forEach(g=>{
-    const px=miniColX[gStage(g)],py=(yc[g.id]||0)+MINI_CARDH/2;
-    [matchRef(g.home_label),matchRef(g.away_label)].forEach(ref=>{
-      if(!ref)return;const c=byId[ref];if(!c)return;
-      const cx=miniColX[gStage(c)]+MINI_CARDW,cy=(yc[c.id]||0)+MINI_CARDH/2,mx=(cx+px)/2;
-      lines+=`<path d="M${cx} ${cy} H${mx} V${py} H${px}" stroke="#48484a" stroke-width="1" fill="none"/>`;
-    });
-  });
-  // 미니 카드
-  let cards='';
-  ko.forEach(g=>{
-    const st=gState(g),res=RESULTS[String(g.id)];
-    const h=teamSide(g,'home'),a=teamSide(g,'away');
-    const x=miniColX[gStage(g)],top=yc[g.id]!=null?yc[g.id]:0;
-    const bdr=st==='open'?'#30d158':'#38383a';
-    const rnd=gStage(g);
-    cards+=`<div style="position:absolute;left:${x}px;top:${top}px;width:${MINI_CARDW}px;height:${MINI_CARDH}px;background:#1c1c1e;border:1.5px solid ${bdr};border-radius:4px;overflow:hidden;padding:1px 3px;cursor:pointer;box-sizing:border-box" onclick="navigateToStage('${rnd}')">
-      <div style="display:flex;align-items:center;gap:2px;height:12px"><span style="font-size:10px;flex-shrink:0">${h.flag}</span><span style="flex:1;font-size:7px;overflow:hidden;white-space:nowrap;color:${h.known?'#fff':'#8e8e93'}">${h.known?h.name:''}</span><span style="font-size:9px;font-weight:800;color:#fff;min-width:8px;text-align:right">${res!=null?res.h:''}</span></div>
-      <div style="display:flex;align-items:center;gap:2px;height:12px"><span style="font-size:10px;flex-shrink:0">${a.flag}</span><span style="flex:1;font-size:7px;overflow:hidden;white-space:nowrap;color:${a.known?'#fff':'#8e8e93'}">${a.known?a.name:''}</span><span style="font-size:9px;font-weight:800;color:#fff;min-width:8px;text-align:right">${res!=null?res.a:''}</span></div>
-    </div>`;
-  });
-  // 라운드 헤더 (클릭 가능)
-  let headers='';
-  ROUNDS.forEach((r,i)=>{
-    const x=miniColX[r],isActive=(selStage===r)||(selStage==='GS'&&r==='R32');
-    headers+=`<div style="position:absolute;left:${x}px;width:${MINI_COLW}px;text-align:center;top:4px;cursor:pointer" onclick="navigateToStage('${r}')">
-      <span style="font-size:11px;font-weight:800;color:${isActive?'#30d158':'#8e8e93'}">${r==='F'?'🏆':RLBL[r]}</span>
-    </div>`;
-  });
-  return `<p style="font-size:12px;color:#8e8e93;text-align:center;margin-bottom:10px">라운드를 탭해서 해당 라운드로 이동</p>
-    <div style="overflow-x:auto;-webkit-overflow-scrolling:touch"><div style="position:relative;width:${W}px">
-      <div style="position:relative;height:${HDR_H}px">${headers}</div>
-      <div style="position:relative;width:${W}px;height:${H}px">
-        <svg width="${W}" height="${H}" style="position:absolute;top:0;left:0;pointer-events:none">${lines}</svg>${cards}
-      </div>
-    </div></div>`;
+  ov.style.display='block';
+  // 다음 라운드 버튼 숨김
+  const nb=document.getElementById('bk-next');if(nb)nb.classList.remove('show');
+  ovvMode=true;
 }
-function navigateToStage(stage){closeSheet('sh-ovv');setTimeout(()=>setStage(stage),200);}
+function exitOverview(sc){
+  const stage=sc.querySelector('.bk-stage');
+  if(stage){stage.style.transform='';stage.style.transformOrigin='';}
+  sc.style.height=sc._origH||'';
+  sc.style.overflowX='auto';
+  sc.style.position=sc._origPos||'';
+  const ov=sc.querySelector('.bk-ovv-ov');
+  if(ov)ov.style.display='none';
+  ovvMode=false;
+}
+function onOverviewTap(e){
+  if(!BK)return;
+  const sc=document.getElementById('bk-scroll');
+  const rect=sc.getBoundingClientRect();
+  // 탭 위치를 원래 브래킷 좌표로 변환
+  const tapX=(e.clientX-rect.left)/ovvSF;
+  // 어느 라운드 컬럼인지 판별
+  let tapped='GS';
+  ROUNDS.forEach(r=>{if((BK.colX[r]||0)<=tapX)tapped=r;});
+  exitOverview(sc);
+  setStage(tapped);
+}
 // ── 다음 라운드 버튼 ──
 function goNextRound(){
   const idx=STAGES.findIndex(([k])=>k===selStage);
