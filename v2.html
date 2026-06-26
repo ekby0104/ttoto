@@ -618,9 +618,9 @@ function renderFullBracket(visible){
     const now=Date.now();
     const stBdr=grpGm.some(g=>gState(g)==='ended'&&endedDateStr(g)===td)?'var(--blue)'
       :grpGm.length&&grpGm.every(g=>gState(g)==='ended')?'var(--gold)'
-      :grpGm.some(g=>gState(g)!=='ended'&&(gState(g)==='closed'||(startMs(g)>0&&startMs(g)<=now)))?'#fff'
+      :grpGm.some(g=>gState(g)!=='ended'&&(gState(g)==='closed'||(startMs(g)>0&&startMs(g)<=now)))?'var(--pink)'
       :grpGm.some(g=>gState(g)!=='ended'&&startMs(g)>now)?'var(--green)'
-      :'var(--sep)';
+      :'#38383a';
     const rows=arr.map((t,i)=>`<tr class="${i<2?'qual':''}">
       <td class="c-rk">${i+1}</td><td class="c-fl">${t.flag}</td><td class="c-nm" data-short="${t.short}" data-full="${t.name||t.short}">${isDesk?(t.name||t.short):t.short}</td>
       <td>${t.gp}</td><td>${t.w}</td><td>${t.d}</td><td>${t.l}</td><td>${t.gd>0?'+'+t.gd:t.gd}</td><td class="c-pts">${t.pts}</td></tr>`).join('');
