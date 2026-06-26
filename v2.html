@@ -410,7 +410,7 @@ function computeStandings(visible){
   const out={};
   Object.keys(groups).sort().forEach(L=>{
     const tm={};
-    const ens=t=>{if(!tm[t.short])tm[t.short]={short:t.short,flag:t.flag,gp:0,w:0,d:0,l:0,gf:0,ga:0};return tm[t.short];};
+    const ens=t=>{if(!tm[t.short])tm[t.short]={short:t.short,name:t.name||t.short,flag:t.flag,gp:0,w:0,d:0,l:0,gf:0,ga:0};return tm[t.short];};
     groups[L].forEach(g=>{
       if(!g.home.short||!g.away.short)return;
       ens(g.home);ens(g.away);
@@ -880,15 +880,17 @@ function renderMiniOverview(visible){
   const byId={};ko.forEach(g=>byId[String(g.id)]=g);
   const _isDesk=window.innerWidth>=768;
   const vw=Math.min(window.innerWidth,_isDesk?1200:560)-(_isDesk?48:28);
-  // 6개 칼럼(GS+5KO) 균등 분할
-  const COLW=Math.floor(vw/6);
-  const CARDW=COLW-4;
-  const KO_CARDW=Math.floor(CARDW*0.90);  // 카드 가로 90%
-  const KO_LEFT=4;                        // 카드 왼쪽 오프셋
+  // 6개 칼럼(GS+5KO) 분할 — 데스크탑은 GS 칼럼을 1.5배로
+  const BASE_COLW=Math.floor(vw/6);
+  const GS_COLW=_isDesk?Math.floor(BASE_COLW*1.5):BASE_COLW;
+  const KO_COLW=_isDesk?Math.floor((vw-GS_COLW)/ROUNDS.length):BASE_COLW;
+  const COLW=BASE_COLW; // 하위 호환용
+  const KO_CARDW=Math.floor((KO_COLW-4)*0.90);
+  const KO_LEFT=4;
   // CARDH 40: 12px 폰트 기준 재조정 (ROW=20) / SP = CARDH+10: 10px 갭
   const CARDH=40,SP=50,HDR=22,PADY=HDR+4;
   const ROW=Math.floor(CARDH/2);
-  const colX={};ROUNDS.forEach((r,i)=>{colX[r]=COLW*(i+1);});
+  const colX={};ROUNDS.forEach((r,i)=>{colX[r]=GS_COLW+KO_COLW*i;});
   // 슬롯 계산
   let slot=BK&&Object.keys(BK.slot||{}).length?{...BK.slot}:{};
   if(!Object.keys(slot).length){
@@ -907,7 +909,7 @@ function renderMiniOverview(visible){
   if(third&&finalG)yc[third.id]=(yc[finalG.id]||PADY)+CARDH+4;
   const allYs=Object.values(yc);
   const canvasH=(allYs.length?Math.max(...allYs):PADY)+CARDH+PADY;
-  const W=vw;
+  const W=GS_COLW+KO_COLW*ROUNDS.length;
   // SVG 연결선
   let lines='';
   ko.forEach(g=>{
@@ -938,18 +940,19 @@ function renderMiniOverview(visible){
   const letters=Object.keys(stand);
   let gsCards='';
   const hdrH=14,GS_GAP=10;
-  const GS_CARDW=Math.floor(CARDW*0.90);  // 카드 가로 90%
-  const GS_LEFT=4;                        // 카드 왼쪽 오프셋
-  const GS_PADV=4;                        // 상하 여백 +2px (2→4px)
+  const GS_LEFT=4;
+  const GS_CARDW=GS_COLW-GS_LEFT-2;      // GS 컬럼 꽉 채우기
+  const GS_PADV=4;
   let gsY=PADY;
   letters.forEach((L)=>{
     const arr=stand[L];
     const groupH=arr.length*ROW+hdrH+GS_PADV*2;
     const rows=arr.map((t,i)=>{
       const clr=flagToClr(t.flag);
+      const lbl=_isDesk?(t.name||t.short):t.short;
       return `<div style="display:flex;align-items:center;gap:3px;height:${ROW}px;padding:0 4px">
         <div style="width:4px;height:${ROW-4}px;background:${clr};border-radius:2px;flex-shrink:0"></div>
-        <span style="flex:1;font-size:12px;font-weight:800;overflow:hidden;white-space:nowrap;color:${i<2?'#ddd':'#555'};letter-spacing:.2px">${String(t.short).slice(0,3).toUpperCase()}</span>
+        <span style="flex:1;font-size:12px;font-weight:800;overflow:hidden;white-space:nowrap;text-overflow:ellipsis;color:${i<2?'#ddd':'#555'};letter-spacing:.2px">${lbl}</span>
       </div>`;}).join('');
     gsCards+=`<div style="position:absolute;left:${GS_LEFT}px;top:${gsY}px;width:${GS_CARDW}px;overflow:hidden;background:#1c1c1e;border:1px solid #38383a;border-radius:4px;padding:${GS_PADV}px 0;box-sizing:border-box;cursor:pointer" onclick="exitOvvAndGo('GS')">
       <div style="font-size:10px;color:#fff;padding:0 4px;margin-bottom:1px">G.${L}</div>${rows}
@@ -958,10 +961,10 @@ function renderMiniOverview(visible){
   });
   const gsCanvasH=gsY+PADY;
   const totalH=Math.max(canvasH,gsCanvasH);
-  // 컬럼 헤더 — 6개 균등
-  let hdrs=`<div style="position:absolute;left:0;width:${COLW}px;top:3px;text-align:center;font-size:10px;font-weight:800;color:#8e8e93;cursor:pointer" onclick="exitOvvAndGo('GS')">GS</div>`;
+  // 컬럼 헤더
+  let hdrs=`<div style="position:absolute;left:0;width:${GS_COLW}px;top:3px;text-align:center;font-size:10px;font-weight:800;color:#8e8e93;cursor:pointer" onclick="exitOvvAndGo('GS')">GS</div>`;
   ROUNDS.forEach(r=>{
-    hdrs+=`<div style="position:absolute;left:${colX[r]}px;width:${COLW}px;top:3px;text-align:center;font-size:10px;font-weight:800;color:#8e8e93;cursor:pointer" onclick="exitOvvAndGo('${r}')">${r==='F'?'🏆':r}</div>`;
+    hdrs+=`<div style="position:absolute;left:${colX[r]}px;width:${KO_COLW}px;top:3px;text-align:center;font-size:10px;font-weight:800;color:#8e8e93;cursor:pointer" onclick="exitOvvAndGo('${r}')">${r==='F'?'🏆':r}</div>`;
   });
   return `<div style="position:relative;width:${W}px">
     <div style="position:relative;height:${HDR}px">${hdrs}</div>
