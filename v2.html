@@ -16,6 +16,7 @@
   --sys:-apple-system,BlinkMacSystemFont,'SF Pro Display','SF Pro Text','Segoe UI',Roboto,'Noto Sans KR',sans-serif;
 }
 *{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent}
+html,body{overflow-anchor:none}   /* 뷰 전환 시 스크롤 앵커링이 위치를 고정해 스무스 스크롤을 막는 것 방지 */
 body{background:var(--bg);color:var(--text);font-family:var(--sys);min-height:100vh;-webkit-text-size-adjust:100%;padding-bottom:90px}
 /* 헤더 */
 .sticky-top{position:sticky;top:0;z-index:40;background:#000;backdrop-filter:blur(8px)}
@@ -913,10 +914,12 @@ function exitOvvAndGo(stage,gid){
 // (이 페이지에선 native behavior:'smooth'가 미동작 → 즉시 스크롤만 신뢰 가능)
 let _ssTok=0;
 function smoothScrollY(targetFn,dur){
-  const tok=++_ssTok, startY=window.scrollY, D=dur||440, steps=Math.max(1,Math.round(D/16));
+  const tok=++_ssTok, D=dur||440, steps=Math.max(1,Math.round(D/16));
+  let startY=null;
   for(let i=1;i<=steps;i++){
     setTimeout(()=>{
       if(tok!==_ssTok)return;                       // 새 스크롤 시작되면 취소
+      if(startY==null)startY=window.scrollY;        // 첫 실행 시점 위치 기준(전환 정착 후)
       const p=i/steps, e=p<.5?2*p*p:1-Math.pow(-2*p+2,2)/2;   // easeInOutQuad
       const ty=typeof targetFn==='function'?targetFn():targetFn;
       window.scrollTo(0,Math.round(startY+(ty-startY)*e));
@@ -1273,6 +1276,7 @@ window.addEventListener('orientationchange',()=>setTimeout(_checkBreakpoint,300)
 if(window.visualViewport)window.visualViewport.addEventListener('resize',_checkBreakpoint);
 
 // ── 초기화 ──
+if('scrollRestoration' in history)history.scrollRestoration='manual';   // 브라우저 스크롤 복원 끔(뷰 전환 시 위치 고정 방지)
 (async()=>{
   await loadAll();
   render();
