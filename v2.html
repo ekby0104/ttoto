@@ -657,8 +657,14 @@ function betMatrixHtml(g,mb,res){
   const cnt={};let cmax=0;
   mb.forEach(b=>{const bh=Number(b.h),ba=Number(b.a);if(bh>N||ba>N)return;const k=bh+'_'+ba;cnt[k]=(cnt[k]||0)+1;cmax=Math.max(cmax,cnt[k]);});
   const denom=cmax||1;
-  let head=`<tr><th><div class="bmx-corner">${esc(g.home.short)}＼${esc(g.away.short)}</div></th>`;
-  for(let a=0;a<=N;a++)head+=`<th>${a}</th>`;
+  // 셀 크기: sheet-bd 가로(= vw - 36px 패딩)를 N+2 열로 균등 분할
+  const avail=Math.min(window.innerWidth,560)-36;
+  const hdrW=34;
+  const cellW=Math.max(24,Math.floor((avail-hdrW)/(N+1)));
+  const cellH=cellW;
+  const cellStyle=(extra='')=>`width:${cellW}px;height:${cellH}px;border-radius:${Math.max(4,cellW/6)|0}px;${extra}`;
+  let head=`<tr><th style="width:${hdrW}px"><div style="width:${hdrW}px;font-size:9px;color:var(--muted);font-family:var(--mono);line-height:1.3;text-align:center">${esc(g.home.short)}<br>↓＼→<br>${esc(g.away.short)}</div></th>`;
+  for(let a=0;a<=N;a++)head+=`<th style="width:${cellW}px">${a}</th>`;
   head+='</tr>';
   let rows='';
   for(let hh=0;hh<=N;hh++){
@@ -669,13 +675,13 @@ function betMatrixHtml(g,mb,res){
       const op=c?(0.16+0.84*(c/denom)).toFixed(2):0;
       const bg=c?`rgba(48,209,88,${op})`:'var(--card2)';
       const col=c?(c/denom>0.55?'#000':'#fff'):'transparent';
-      const ring=isRes?'box-shadow:inset 0 0 0 2px var(--gold)':'';
-      rows+=`<td><div class="bmx-cell" style="background:${bg};color:${col};${ring}">${c||''}</div></td>`;
+      const ring=isRes?`box-shadow:inset 0 0 0 2px var(--gold);`:'';
+      rows+=`<td><div class="bmx-cell" style="${cellStyle(ring)}background:${bg};color:${col}">${c||''}</div></td>`;
     }
     rows+='</tr>';
   }
-  return `<div style="overflow-x:auto;padding:2px 0"><table class="bmx">${head}${rows}</table></div>
-    <div class="bmx-cap">세로 = ${esc(g.home.short)} 스코어 · 가로 = ${esc(g.away.short)} 스코어 · 칸 = 예측 인원${res?'<br>🟡 실제 결과':''}</div>`;
+  return `<div style="padding:2px 0"><table class="bmx" style="width:100%">${head}${rows}</table></div>
+    <div class="bmx-cap">↓ ${esc(g.home.short)} 스코어 · → ${esc(g.away.short)} 스코어 · 칸 = 예측 인원${res?'<br>🟡 실제 결과':''}</div>`;
 }
 function renderGameBody(){
   const g=curGame,res=RESULTS[String(g.id)],st=gState(g),mb=gBets(g.id);
@@ -692,6 +698,7 @@ function renderGameBody(){
     <div class="stat"><div class="v" style="color:var(--green)">${paid}</div><div class="l">입금확인</div></div>
   </div>`;
   // 점수 분포
+  const paidPot=mb.filter(b=>b.paid).reduce((s,b)=>s+(b.amount||0),0);
   const groups={};
   mb.forEach(b=>{const k=`${b.h}-${b.a}`;(groups[k]=groups[k]||[]).push(b);});
   const sorted=Object.entries(groups).sort((a,b)=>b[1].length-a[1].length);
@@ -709,12 +716,15 @@ function renderGameBody(){
   }else{
     sorted.forEach(([sc,arr])=>{
       const[hh,aa]=sc.split('-');
-      const names=arr.map(b=>esc(b.name)+(b.paid?' ✅':'')).join(', ');
+      const names=arr.map(b=>`<span style="color:${b.paid?'var(--gold)':'var(--muted2)'}">${esc(b.name)}</span>`).join(' ');
+      const paidWinners=arr.filter(b=>b.paid).length;
+      const payout=paidWinners>0&&paidPot>0?Math.floor(paidPot/paidWinners):null;
+      const payoutHtml=payout!=null?`<span style="color:var(--red);font-size:11px;font-weight:700">당첨시 인당 : ${payout.toLocaleString()}원</span>`:'';
       h+=`<div class="dist-row">
         <span class="dist-sc">${hh} : ${aa}</span>
         <span class="dist-bar"><i style="width:${maxN?arr.length/maxN*100:0}%"></i></span>
         <span class="dist-n">${arr.length}명</span>
-      </div><div class="dist-names">${names}</div>`;
+      </div><div class="dist-names" style="display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:4px">${names}${payoutHtml}</div>`;
     });
   }
   // CTA
