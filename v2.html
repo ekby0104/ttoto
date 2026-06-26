@@ -629,8 +629,8 @@ function renderFullBracket(visible){
       <tbody>${rows}</tbody></table></div>`;
   }).join('');
   const standHtml=letters.length?`<div class="stand-col" style="left:0;top:${PADY}px;width:${stW}px">${standTables}</div>`:'';
-  // stand-col 실제 높이 계산 (border:2 + padding:12 + header:34 + thead:20 + row:36×n + sep:n-1 + margin:12)
-  const standColH=PADY+letters.reduce((sum,L)=>{const n=(stand[L]||[]).length;return sum+2+12+34+20+n*36+Math.max(0,n-1)+12;},0)+PADY;
+  // stand-col 높이: 여유 있게 계산 (헤더44 + 행44×n + 여백 60)
+  const standColH=PADY+letters.reduce((sum,L)=>{const n=(stand[L]||[]).length;return sum+44+n*44+60;},0)+PADY;
   H=Math.max(H,standColH);
   if(!ko.length&&!letters.length)return '<div class="empty">경기가 없습니다</div>';
   const heads=`<div class="bk-head" data-round="GS" style="left:0;width:${stW}px">조 순위</div>`+
@@ -1087,7 +1087,7 @@ function updateOvvBtn(){
     btn.classList.add('show');
     if(nav){const sb=document.getElementById('stagebar');if(sb){const r=sb.getBoundingClientRect();nav.style.top=(r.bottom+8)+'px';}}
   }else if(selStage==='GS'){
-    btn.innerHTML=`<span style="font-size:10px;font-weight:800;line-height:1.3">‹A</span>`;
+    btn.innerHTML=`<span style="font-size:11px;font-weight:800;line-height:1.2">‹</span><span style="font-size:11px;font-weight:800;line-height:1.2">A</span>`;
     btn.onclick=toggleOverview;
     btn.classList.add('show');
   }else{
