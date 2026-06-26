@@ -617,7 +617,7 @@ function renderFullBracket(visible){
       :grpGm.some(g=>gState(g)!=='ended'&&startMs(g)>now)?'var(--green)'
       :'var(--sep)';
     const rows=arr.map((t,i)=>`<tr class="${i<2?'qual':''}">
-      <td class="c-rk">${i+1}</td><td class="c-fl">${t.flag}</td><td class="c-nm">${isDesk?(t.name||t.short):t.short}</td>
+      <td class="c-rk">${i+1}</td><td class="c-fl">${t.flag}</td><td class="c-nm" data-short="${t.short}" data-full="${t.name||t.short}">${isDesk?(t.name||t.short):t.short}</td>
       <td>${t.gp}</td><td>${t.w}</td><td>${t.d}</td><td>${t.l}</td><td>${t.gd>0?'+'+t.gd:t.gd}</td><td class="c-pts">${t.pts}</td></tr>`).join('');
     return `<div class="stand" style="border-color:${stBdr}" onclick="bkSelect(this);openGroupGames('${L}')"><div class="st-head"><span class="st-gl">Group ${L}</span></div>
       <table class="st-table"><thead><tr><th class="c-rk"></th><th class="c-fl"></th><th class="c-nm"></th><th>GP</th><th>W</th><th>D</th><th>L</th><th>GD</th><th>PTS</th></tr></thead>
@@ -1164,16 +1164,30 @@ function resizeBracketCards(){
   if(tl){tl.style.left=colX.F+'px';tl.style.width=CARDW+'px';}
   const fl=document.getElementById('bk-finallbl');
   if(fl){fl.style.left=colX.F+'px';fl.style.width=CARDW+'px';}
+  // GS 순위표 국가명 업데이트
+  sc.querySelectorAll('.c-nm[data-short]').forEach(td=>{
+    td.textContent=isD?(td.dataset.full||td.dataset.short):td.dataset.short;
+  });
   BK.colX=colX;BK.CARDW=CARDW;
   SECTION_X={GS:0,R32:colX.R32-6,R16:colX.R16-6,QF:colX.QF-6,SF:colX.SF-6,F:colX.F-6};
   if(svg)svg.innerHTML=bracketLines(BK.yc);
 }
 let _bkIsDesk=window.innerWidth>=768;
+let _resizeRaf=null;
 window.addEventListener('resize',()=>{
-  const isD=window.innerWidth>=768;
-  if(isD===_bkIsDesk)return;
-  _bkIsDesk=isD;
-  resizeBracketCards();
+  if(_resizeRaf)cancelAnimationFrame(_resizeRaf);
+  _resizeRaf=requestAnimationFrame(()=>{
+    _resizeRaf=null;
+    const isD=window.innerWidth>=768;
+    if(isD===_bkIsDesk)return;
+    _bkIsDesk=isD;
+    if(ovvMode){
+      const visible=GAMES.filter(g=>!g.deleted);
+      document.getElementById('wrap').innerHTML=renderMiniOverview(visible);
+    } else {
+      resizeBracketCards();
+    }
+  });
 });
 
 // ── 초기화 ──
