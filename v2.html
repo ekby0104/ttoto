@@ -245,6 +245,7 @@ body{background:var(--bg);color:var(--text);font-family:var(--sys);min-height:10
 <div class="bk-round-nav" id="bk-round-nav">
   <button class="bk-round-btn" id="bk-prev" onclick="goPrevRound()"></button>
   <button class="bk-round-btn" id="bk-next" onclick="goNextRound()"></button>
+  <button class="bk-round-btn" id="bk-ovv"></button>
 </div>
 
 <!-- 경기 상세/베팅 시트 -->
@@ -372,6 +373,7 @@ function render(){
   if(ovvMode){
     document.getElementById('wrap').innerHTML=renderMiniOverview(visible);
     ['bk-next','bk-prev'].forEach(id=>{const b=document.getElementById(id);if(b)b.classList.remove('show');});
+    updateOvvBtn();
     return;
   }
   document.getElementById('wrap').innerHTML=renderFullBracket(visible);  // 조 순위표 + 브래킷 통합
@@ -1063,6 +1065,23 @@ function updateNextBtn(focus,yc){
   }
   // 세로 위치: stagebar 바로 아래 고정
   if(nav){const sb=document.getElementById('stagebar');if(sb){const r=sb.getBoundingClientRect();nav.style.top=(r.bottom+8)+'px';}}
+  updateOvvBtn();
+}
+function updateOvvBtn(){
+  const btn=document.getElementById('bk-ovv');if(!btn)return;
+  const nav=document.getElementById('bk-round-nav');
+  if(ovvMode){
+    btn.innerHTML=`<span style="font-size:10px;font-weight:800;line-height:1.3">GS</span><span style="font-size:15px;line-height:1">›</span>`;
+    btn.onclick=()=>exitOvvAndGo('GS');
+    btn.classList.add('show');
+    if(nav){const sb=document.getElementById('stagebar');if(sb){const r=sb.getBoundingClientRect();nav.style.top=(r.bottom+8)+'px';}}
+  }else if(selStage==='GS'){
+    btn.innerHTML=`<span style="font-size:10px;font-weight:800;line-height:1.3">A</span>`;
+    btn.onclick=toggleOverview;
+    btn.classList.add('show');
+  }else{
+    btn.classList.remove('show');
+  }
 }
 
 // ── 피드백 ──
