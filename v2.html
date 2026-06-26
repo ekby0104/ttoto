@@ -340,7 +340,10 @@ function gameBorderClr(g){
   const st=gState(g);
   if(st==='ended')return g.date===todayStr()?'var(--blue)':'var(--gold)';
   if(st==='closed')return '#fff';
-  if(st==='open'||st==='pending'||g.date)return 'var(--green)';
+  const ms=startMs(g);
+  if(ms>0&&ms<=Date.now())return '#fff';
+  const h=teamSide(g,'home'),a=teamSide(g,'away');
+  if(ms>0&&h.known&&a.known)return 'var(--green)';
   return 'transparent';
 }
 function gState(g){
@@ -607,10 +610,11 @@ function renderFullBracket(visible){
   const standTables=letters.map(L=>{
     const arr=stand[L];
     const grpGm=visible.filter(g=>gStage(g)==='GS'&&groupLetter(g)===L);
+    const now=Date.now();
     const stBdr=grpGm.some(g=>gState(g)==='ended'&&g.date===td)?'var(--blue)'
-      :grpGm.some(g=>gState(g)==='open'||gState(g)==='pending')?'var(--green)'
-      :grpGm.some(g=>gState(g)==='closed')?'#fff'
       :grpGm.length&&grpGm.every(g=>gState(g)==='ended')?'var(--gold)'
+      :grpGm.some(g=>gState(g)!=='ended'&&(gState(g)==='closed'||(startMs(g)>0&&startMs(g)<=now)))?'#fff'
+      :grpGm.some(g=>gState(g)!=='ended'&&startMs(g)>now)?'var(--green)'
       :'var(--sep)';
     const rows=arr.map((t,i)=>`<tr class="${i<2?'qual':''}">
       <td class="c-rk">${i+1}</td><td class="c-fl">${t.flag}</td><td class="c-nm">${isDesk?(t.name||t.short):t.short}</td>
@@ -986,10 +990,11 @@ function renderMiniOverview(visible){
   letters.forEach((L)=>{
     const arr=stand[L];
     const grpGames=visible.filter(g=>gStage(g)==='GS'&&groupLetter(g)===L);
+    const now=Date.now();
     const grpBdr=grpGames.some(g=>gState(g)==='ended'&&g.date===td)?'var(--blue)'
-      :grpGames.some(g=>gState(g)==='open'||gState(g)==='pending')?'var(--green)'
-      :grpGames.some(g=>gState(g)==='closed')?'#fff'
       :grpGames.length&&grpGames.every(g=>gState(g)==='ended')?'var(--gold)'
+      :grpGames.some(g=>gState(g)!=='ended'&&(gState(g)==='closed'||(startMs(g)>0&&startMs(g)<=now)))?'#fff'
+      :grpGames.some(g=>gState(g)!=='ended'&&startMs(g)>now)?'var(--green)'
       :'#38383a';
     const groupH=arr.length*ROW+hdrH+GS_PADV*2;
     const rows=arr.map((t,i)=>{
