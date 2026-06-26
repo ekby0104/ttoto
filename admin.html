@@ -392,10 +392,21 @@ main{max-width:960px;margin:0 auto;padding:16px 12px 60px}
         <span><span class="icon">📋</span> 등록된 경기 목록</span>
         <button class="btn btn-sm btn-danger" onclick="deleteAllGames()">🗑 전체 삭제</button>
       </div>
+      <div id="bulk-bar" style="display:none;margin:0 0 8px;padding:8px 12px;background:#e3f2fd;border-radius:8px;align-items:center;gap:8px;flex-wrap:wrap">
+        <span id="bulk-count" style="font-weight:600;font-size:13px;color:#1565c0">0개 선택됨</span>
+        <select id="bulk-status" style="padding:4px 8px;font-size:12px;border:1px solid #90caf9;border-radius:4px">
+          <option value="pending">미등록</option>
+          <option value="open">베팅 중</option>
+          <option value="closed">마감</option>
+          <option value="ended">게임 종료</option>
+        </select>
+        <button onclick="bulkSetStatus()" style="padding:4px 12px;background:#1565c0;color:#fff;border:none;border-radius:4px;font-size:12px;cursor:pointer;font-weight:600">✅ 상태 적용</button>
+        <button onclick="deselectAll()" style="padding:4px 10px;background:#90a4ae;color:#fff;border:none;border-radius:4px;font-size:12px;cursor:pointer">취소</button>
+      </div>
       <div style="overflow-x:auto;-webkit-overflow-scrolling:touch">
         <table class="atable">
           <thead>
-            <tr><th>#</th><th>홈</th><th>원정</th><th>날짜/시간</th><th>베팅 방식</th><th>상태</th><th>삭제 여부</th><th>관리</th></tr>
+            <tr><th><input type="checkbox" id="chk-all" onchange="toggleSelectAll(this)" style="cursor:pointer;width:15px;height:15px"></th><th>#</th><th>홈</th><th>원정</th><th>날짜/시간</th><th>베팅 방식</th><th>상태</th><th>삭제 여부</th><th>관리</th></tr>
           </thead>
           <tbody id="games-body"></tbody>
         </table>
@@ -471,6 +482,38 @@ main{max-width:960px;margin:0 auto;padding:16px 12px 60px}
     </div>
   </div>
 </main>
+
+<!-- 팀 편집 모달 -->
+<div id="team-edit-modal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:1000;align-items:center;justify-content:center">
+  <div style="background:#fff;width:100%;max-width:420px;border-radius:16px;overflow:hidden;margin:16px">
+    <div style="padding:16px;border-bottom:1px solid var(--border);display:flex;justify-content:space-between;align-items:center">
+      <strong style="font-size:15px">✏️ 팀 정보 수정</strong>
+      <button onclick="closeTeamEditModal()" style="background:none;border:none;font-size:22px;cursor:pointer;color:var(--muted);line-height:1">×</button>
+    </div>
+    <div style="padding:16px;display:flex;flex-direction:column;gap:12px">
+      <div>
+        <div style="font-size:12px;font-weight:600;color:var(--muted);margin-bottom:6px">홈 팀</div>
+        <div style="display:flex;gap:6px">
+          <input id="te-h-flag"  placeholder="🏳" style="width:52px;padding:6px 8px;border:1px solid var(--border);border-radius:8px;font-size:16px;text-align:center">
+          <input id="te-h-short" placeholder="XXX" style="width:60px;padding:6px 8px;border:1px solid var(--border);border-radius:8px;font-size:13px;font-family:monospace">
+          <input id="te-h-name"  placeholder="국가명 (영문)" style="flex:1;padding:6px 8px;border:1px solid var(--border);border-radius:8px;font-size:13px">
+        </div>
+      </div>
+      <div>
+        <div style="font-size:12px;font-weight:600;color:var(--muted);margin-bottom:6px">원정 팀</div>
+        <div style="display:flex;gap:6px">
+          <input id="te-a-flag"  placeholder="🏳" style="width:52px;padding:6px 8px;border:1px solid var(--border);border-radius:8px;font-size:16px;text-align:center">
+          <input id="te-a-short" placeholder="XXX" style="width:60px;padding:6px 8px;border:1px solid var(--border);border-radius:8px;font-size:13px;font-family:monospace">
+          <input id="te-a-name"  placeholder="국가명 (영문)" style="flex:1;padding:6px 8px;border:1px solid var(--border);border-radius:8px;font-size:13px">
+        </div>
+      </div>
+    </div>
+    <div style="padding:14px 16px;border-top:1px solid var(--border);display:flex;gap:8px">
+      <button class="btn btn-ghost" style="flex:1" onclick="closeTeamEditModal()">취소</button>
+      <button class="btn btn-primary" style="flex:2" onclick="saveTeamEdit()">저장</button>
+    </div>
+  </div>
+</div>
 
 <!-- 경기 불러오기 미리보기 모달 -->
 <div id="import-modal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:1000;align-items:flex-end;justify-content:center">
@@ -800,7 +843,12 @@ async function deleteBet(id) {
 
 // ── ③ 경기 결과 ──────────────────────────────────────────
 function renderResults() {
-  document.getElementById('result-rows').innerHTML = activeGames().map(m => {
+  const sortedGames = [...activeGames()].sort((a, b) => {
+    const da = (a.date || '').replace(/\./g, '') + (a.time || '').replace(':', '');
+    const db = (b.date || '').replace(/\./g, '') + (b.time || '').replace(':', '');
+    return db.localeCompare(da);
+  });
+  document.getElementById('result-rows').innerHTML = sortedGames.map(m => {
     const res = allResults[String(m.id)];
     return `<div class="result-row">
       <div class="result-teams">
@@ -935,15 +983,21 @@ function renderGames() {
   const tbody = document.getElementById('games-body');
   if (!tbody) return;
   if (!allGames.length) {
-    tbody.innerHTML = '<tr><td colspan="8" style="text-align:center;color:#aaa;padding:20px">등록된 경기가 없습니다</td></tr>';
+    tbody.innerHTML = '<tr><td colspan="9" style="text-align:center;color:#aaa;padding:20px">등록된 경기가 없습니다</td></tr>';
     return;
   }
-  tbody.innerHTML = allGames.map(g => {
+  const sorted = [...allGames].sort((a, b) => {
+    const da = (a.date || '').replace(/\./g, '') + (a.time || '').replace(':', '');
+    const db = (b.date || '').replace(/\./g, '') + (b.time || '').replace(':', '');
+    return db.localeCompare(da);
+  });
+  tbody.innerHTML = sorted.map(g => {
     const dateVal = (g.date || '').replace(/\./g, '-');
     const timeVal = g.time || '';
     const del = !!g.deleted;
     return `
     <tr style="${del?'opacity:.5;background:#fbeaea':''}">
+      <td style="text-align:center"><input type="checkbox" class="g-chk" value="${g.id}" onchange="updateBulkBar()" style="cursor:pointer;width:15px;height:15px"></td>
       <td style="font-family:var(--mono);color:#aaa">${g.id}</td>
       <td><strong>${g.home.flag} ${g.home.name}</strong></td>
       <td><strong>${g.away.flag} ${g.away.name}</strong></td>
@@ -986,7 +1040,10 @@ function renderGames() {
                <button class="btn btn-sm btn-primary" onclick="restoreGame('${g.id}')">복구</button>
                <button class="btn btn-sm btn-danger" onclick="purgeGame('${g.id}')">영구삭제</button>
              </div>`
-          : `<button class="btn btn-sm btn-danger" onclick="deleteGame('${g.id}')">삭제</button>`}
+          : `<div style="display:flex;flex-direction:column;gap:4px">
+               <button class="btn btn-sm" style="background:#f5f5f5;border:1px solid #ddd" onclick="openTeamEditModal('${g.id}')">✏️ 팀 편집</button>
+               <button class="btn btn-sm btn-danger" onclick="deleteGame('${g.id}')">삭제</button>
+             </div>`}
       </td>
     </tr>`;
   }).join('');
@@ -1026,6 +1083,73 @@ async function setGameStatus(id, status) {
   if (i > -1) allGames[i] = res;
   const label={open:'베팅 중',closed:'마감',ended:'게임 종료',pending:'미등록'}[status]||status;
   toast(`상태 변경: ${label}`);
+}
+
+function toggleSelectAll(el) {
+  document.querySelectorAll('.g-chk').forEach(c => c.checked = el.checked);
+  updateBulkBar();
+}
+function deselectAll() {
+  document.querySelectorAll('.g-chk, #chk-all').forEach(c => c.checked = false);
+  updateBulkBar();
+}
+function updateBulkBar() {
+  const checked = document.querySelectorAll('.g-chk:checked');
+  const bar = document.getElementById('bulk-bar');
+  const countEl = document.getElementById('bulk-count');
+  const allChk = document.getElementById('chk-all');
+  bar.style.display = checked.length > 0 ? 'flex' : 'none';
+  if (countEl) countEl.textContent = `${checked.length}개 선택됨`;
+  const all = document.querySelectorAll('.g-chk');
+  if (allChk) allChk.indeterminate = checked.length > 0 && checked.length < all.length;
+  if (allChk) allChk.checked = all.length > 0 && checked.length === all.length;
+}
+async function bulkSetStatus() {
+  const checked = [...document.querySelectorAll('.g-chk:checked')];
+  if (!checked.length) return;
+  const status = document.getElementById('bulk-status').value;
+  const label = {open:'베팅 중',closed:'마감',ended:'게임 종료',pending:'미등록'}[status]||status;
+  await Promise.all(checked.map(async c => {
+    const res = await apiFetch(`/admin/games/${c.value}/status?status=${status}`, {method:'PATCH'});
+    if (res) { const i = allGames.findIndex(g => String(g.id) === String(c.value)); if (i > -1) allGames[i] = res; }
+  }));
+  toast(`✅ ${checked.length}개 경기를 "${label}"로 변경했습니다`);
+  deselectAll();
+  renderGames();
+}
+
+let _teamEditId = null;
+function openTeamEditModal(id) {
+  const g = allGames.find(x => String(x.id) === String(id));
+  if (!g) return;
+  _teamEditId = id;
+  document.getElementById('te-h-flag').value  = g.home.flag  || '';
+  document.getElementById('te-h-short').value = g.home.short || '';
+  document.getElementById('te-h-name').value  = g.home.name  || '';
+  document.getElementById('te-a-flag').value  = g.away.flag  || '';
+  document.getElementById('te-a-short').value = g.away.short || '';
+  document.getElementById('te-a-name').value  = g.away.name  || '';
+  document.getElementById('team-edit-modal').style.display = 'flex';
+  document.body.style.overflow = 'hidden';
+}
+function closeTeamEditModal() {
+  document.getElementById('team-edit-modal').style.display = 'none';
+  document.body.style.overflow = '';
+  _teamEditId = null;
+}
+async function saveTeamEdit() {
+  if (!_teamEditId) return;
+  const body = {
+    home: { flag: document.getElementById('te-h-flag').value.trim(), short: document.getElementById('te-h-short').value.trim().toUpperCase(), name: document.getElementById('te-h-name').value.trim() },
+    away: { flag: document.getElementById('te-a-flag').value.trim(), short: document.getElementById('te-a-short').value.trim().toUpperCase(), name: document.getElementById('te-a-name').value.trim() }
+  };
+  const res = await apiFetch(`/admin/games/${_teamEditId}/teams`, {method:'PATCH', body:JSON.stringify(body)});
+  if (!res) { toast('❌ 팀 정보 저장 실패', true); return; }
+  const i = allGames.findIndex(g => String(g.id) === String(_teamEditId));
+  if (i > -1) allGames[i] = res;
+  toast(`✅ 팀 정보가 업데이트됐습니다`);
+  closeTeamEditModal();
+  renderGames();
 }
 
 function toggleAcc(id) {

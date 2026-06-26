@@ -14,6 +14,27 @@ from datetime import datetime, timedelta
 app = FastAPI(title="사무실 월드컵 토토 API")
 
 @app.on_event("startup")
+async def auto_enrich_bracket_task():
+    async def _loop():
+        while True:
+            await asyncio.sleep(600)  # 10분마다
+            try:
+                parsed = await _fetch_and_parse_games(False)
+                games = get_games()
+                _, results_patch = _apply_enrich(games, parsed)
+                write_json(GAMES_FILE, games)
+                if results_patch:
+                    results = get_results()
+                    now = int(time.time())
+                    for gid, res in results_patch.items():
+                        if gid not in results:
+                            results[gid] = {**res, "registered_at": now}
+                    write_json(RESULTS_FILE, results)
+            except Exception:
+                pass
+    asyncio.create_task(_loop())
+
+@app.on_event("startup")
 async def auto_close_games():
     async def _loop():
         while True:
@@ -542,12 +563,36 @@ def admin_update_game_datetime(game_id: int, date: str, time: str, auth=Depends(
             return {"ok": True}
     raise HTTPException(404, "게임을 찾을 수 없습니다")
 
+class TeamSide(BaseModel):
+    flag: str = ""
+    short: str = ""
+    name: str = ""
+
+class TeamUpdateRequest(BaseModel):
+    home: TeamSide
+    away: TeamSide
+
+@app.patch("/api/admin/games/{game_id}/teams")
+def admin_update_game_teams(game_id: int, req: TeamUpdateRequest, auth=Depends(admin_required)):
+    games = get_games()
+    for g in games:
+        if str(g["id"]) == str(game_id):
+            if req.home.name:
+                g["home"] = {"flag": req.home.flag, "short": req.home.short, "name": req.home.name}
+            if req.away.name:
+                g["away"] = {"flag": req.away.flag, "short": req.away.short, "name": req.away.name}
+            write_json(GAMES_FILE, games)
+            return g
+    raise HTTPException(404, "게임을 찾을 수 없습니다")
+
 @app.patch("/api/admin/games/{game_id}/status")
 def admin_set_game_status(game_id: int, status: str, auth=Depends(admin_required)):
     games = get_games()
     for g in games:
         if str(g["id"]) == str(game_id):
             g["status"] = status
+            if status == "ended":
+                g.setdefault("ended_at", int(time.time()))
             write_json(GAMES_FILE, games)
             return g
     raise HTTPException(404, "게임을 찾을 수 없습니다")
@@ -852,12 +897,11 @@ async def admin_import_confirm(body: ImportConfirm, korea_only: bool = False, au
     write_json(RESULTS_FILE, results)
     return {"ok": True, "added": added, "total": len(existing)}
 
-@app.post("/api/admin/games/enrich-bracket")
-async def admin_enrich_bracket(auth=Depends(admin_required)):
-    """기존 등록 경기에 브래킷 메타데이터(stage·대진 라벨·확정 팀)를 채움. 베팅/상태는 보존."""
-    parsed = await _fetch_and_parse_games(False)
-    by_id = {str(p["game"]["id"]): p["game"] for p in parsed}
-    games = get_games()
+def _apply_enrich(games: list, parsed: list) -> tuple[int, dict]:
+    """enrich-bracket 공통 로직. (updated 수, 신규 결과 패치 dict) 반환."""
+    by_id        = {str(p["game"]["id"]): p["game"]   for p in parsed}
+    by_id_result = {str(p["game"]["id"]): p["result"] for p in parsed if p["result"]}
+    results_patch = {}
     updated = 0
     for g in games:
         src = by_id.get(str(g["id"]))
@@ -866,13 +910,33 @@ async def admin_enrich_bracket(auth=Depends(admin_required)):
         g["stage"]      = src.get("stage", "GS")
         g["home_label"] = src.get("home_label", "")
         g["away_label"] = src.get("away_label", "")
-        # 확정된 팀 정보가 새로 생겼으면 갱신 (이름이 비어있던 경기만)
-        if not g["home"].get("name") and src["home"].get("name"):
+        # API에 팀명이 있을 때만 갱신 (TBD/빈값이면 기존 데이터 보존)
+        if src.get("home") and src["home"].get("name"):
             g["home"] = src["home"]
-        if not g["away"].get("name") and src["away"].get("name"):
+        if src.get("away") and src["away"].get("name"):
             g["away"] = src["away"]
+        # 종료된 경기 스코어 패치
+        gid = str(g["id"])
+        if gid in by_id_result:
+            results_patch[gid] = by_id_result[gid]
         updated += 1
+    return updated, results_patch
+
+
+@app.post("/api/admin/games/enrich-bracket")
+async def admin_enrich_bracket(auth=Depends(admin_required)):
+    """기존 등록 경기에 브래킷 메타데이터(stage·대진 라벨·확정 팀·스코어)를 채움. 베팅/상태는 보존."""
+    parsed = await _fetch_and_parse_games(False)
+    games = get_games()
+    updated, results_patch = _apply_enrich(games, parsed)
     write_json(GAMES_FILE, games)
+    if results_patch:
+        results = get_results()
+        now = int(time.time())
+        for gid, res in results_patch.items():
+            if gid not in results:
+                results[gid] = {**res, "registered_at": now}
+        write_json(RESULTS_FILE, results)
     return {"ok": True, "updated": updated, "total": len(games)}
 
 @app.post("/api/admin/games/to-kst")
