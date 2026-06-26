@@ -714,7 +714,7 @@ function renderGameBody(){
   }else{
     sorted.forEach(([sc,arr])=>{
       const[hh,aa]=sc.split('-');
-      const names=arr.map(b=>`<span style="color:${b.paid?'var(--gold)':'var(--muted2)'}">${esc(b.name)}</span>`).join('');
+      const names=arr.map(b=>`<span style="color:${b.paid?'var(--gold)':'var(--muted2)'}">${esc(b.name)}</span>`).join(' ');
       const paidWinners=arr.filter(b=>b.paid).length;
       const payout=paidWinners>0&&paidPot>0?Math.floor(paidPot/paidWinners):null;
       const rightHtml=`<span style="font-size:13px;font-weight:700"><span style="color:#fff">총 ${arr.length}명</span>${payout!=null?`<span style="color:var(--muted)"> : </span><span style="color:var(--red)">인당 ${payout.toLocaleString()}원</span>`:''}</span>`;
