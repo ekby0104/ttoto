@@ -909,18 +909,19 @@ function exitOvvAndGo(stage,gid){
     smoothScrollY(targetY,460);
   },120);
 }
-// rAF 기반 커스텀 스무스 스크롤(절대값 직접 세팅 → 데스크탑 clamp/복원 영향 없음)
-let _ssRAF=null;
+// 커스텀 스무스 스크롤: setTimeout으로 잘게 쪼갠 '즉시' 스크롤(이징).
+// (이 페이지에선 native behavior:'smooth'가 미동작 → 즉시 스크롤만 신뢰 가능)
+let _ssTok=0;
 function smoothScrollY(targetFn,dur){
-  if(_ssRAF)cancelAnimationFrame(_ssRAF);
-  const startY=window.scrollY,t0=performance.now();
-  (function step(now){
-    const p=Math.min(1,(now-t0)/(dur||450));
-    const e=p<.5?2*p*p:1-Math.pow(-2*p+2,2)/2;   // easeInOutQuad
-    const ty=typeof targetFn==='function'?targetFn():targetFn;
-    window.scrollTo(0,startY+(ty-startY)*e);
-    _ssRAF=p<1?requestAnimationFrame(step):null;
-  })(performance.now());
+  const tok=++_ssTok, startY=window.scrollY, D=dur||440, steps=Math.max(1,Math.round(D/16));
+  for(let i=1;i<=steps;i++){
+    setTimeout(()=>{
+      if(tok!==_ssTok)return;                       // 새 스크롤 시작되면 취소
+      const p=i/steps, e=p<.5?2*p*p:1-Math.pow(-2*p+2,2)/2;   // easeInOutQuad
+      const ty=typeof targetFn==='function'?targetFn():targetFn;
+      window.scrollTo(0,Math.round(startY+(ty-startY)*e));
+    },Math.round(D*i/steps));
+  }
 }
 
 // 국가코드 → 대표 색상 (피파 앱 스타일 컬러바용)
