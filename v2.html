@@ -656,7 +656,7 @@ function betMatrixHtml(g,mb,res){
   mb.forEach(b=>{const bh=Number(b.h),ba=Number(b.a);if(bh>N||ba>N)return;const k=bh+'_'+ba;cnt[k]=(cnt[k]||0)+1;cmax=Math.max(cmax,cnt[k]);});
   const denom=cmax||1;
   const avail=Math.floor((Math.min(window.innerWidth,560)-36)*2/3);
-  const SZ=30;    // 모든 셀 30px 정사각형
+  const SZ=35;    // 모든 셀 35px 정사각형
   const hdrW=SZ;  // col 0 너비
   const scW=SZ;   // col 1 너비
   const cellW=SZ;
