@@ -448,8 +448,8 @@ function gStage(g){return g.stage||stageOf(g);}
 function matchRef(lb){const m=String(lb||'').match(/Match\s+(\d+)/i);return m?m[1]:null;}
 function transLabel(lb){
   lb=String(lb||'');let m;
-  if(m=lb.match(/Winner Match (\d+)/i))return m[1]+'경기 승자';
-  if(m=lb.match(/Loser Match (\d+)/i))return m[1]+'경기 패자';
+  if(m=lb.match(/Winner Match (\d+)/i))return 'TBD';
+  if(m=lb.match(/Loser Match (\d+)/i))return 'TBD';
   if(m=lb.match(/Winner Group ([A-Z])/i))return m[1]+'조 1위';
   if(m=lb.match(/Runner-?up Group ([A-Z])/i))return m[1]+'조 2위';
   if(m=lb.match(/3rd Group ([A-Z\/]+)/i))return m[1]+' 3위';
