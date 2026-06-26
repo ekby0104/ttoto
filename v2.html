@@ -407,7 +407,7 @@ function setStage(s){
     sc.scrollLeft=Math.max(0,(SECTION_X[s]||0)-6);
     setTimeout(()=>{sc.onscroll=()=>onBracketScroll(sc);},80);
   }else render();
-  window.scrollTo({top:0,behavior:'smooth'});
+  window.scrollTo({top:0});   // 즉시(스무스X) — 전체뷰→카드 스크롤과 충돌 방지
 }
 // 가로 스크롤 → 셀렉터 동기화 + 포커스 라운드 바뀌면 재배치(reflow)
 function onBracketScroll(sc){
