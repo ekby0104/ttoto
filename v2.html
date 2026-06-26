@@ -719,7 +719,7 @@ function renderMiniOverview(visible){
   // 6개 칼럼(GS+5KO) 균등 분할
   const COLW=Math.floor(vw/6);
   const CARDW=COLW-4;
-  const KO_CARDW=Math.floor(CARDW*0.85);  // 카드 가로 85%
+  const KO_CARDW=Math.floor(CARDW*0.90);  // 카드 가로 90%
   const KO_LEFT=4;                        // 카드 왼쪽 오프셋
   // CARDH 40: 12px 폰트 기준 재조정 (ROW=20) / SP = CARDH+10: 10px 갭
   const CARDH=40,SP=50,HDR=22,PADY=HDR+4;
@@ -773,7 +773,7 @@ function renderMiniOverview(visible){
   const letters=Object.keys(stand);
   let gsCards='';
   const hdrH=14,GS_GAP=10;
-  const GS_CARDW=Math.floor(CARDW*0.85);  // 카드 가로 85%
+  const GS_CARDW=Math.floor(CARDW*0.90);  // 카드 가로 90%
   const GS_LEFT=4;                        // 카드 왼쪽 오프셋
   const GS_PADV=4;                        // 상하 여백 +2px (2→4px)
   let gsY=PADY;
@@ -787,7 +787,7 @@ function renderMiniOverview(visible){
         <span style="flex:1;font-size:12px;font-weight:800;overflow:hidden;white-space:nowrap;color:${i<2?'#ddd':'#555'};letter-spacing:.2px">${String(t.short).slice(0,3).toUpperCase()}</span>
       </div>`;}).join('');
     gsCards+=`<div style="position:absolute;left:${GS_LEFT}px;top:${gsY}px;width:${GS_CARDW}px;overflow:hidden;background:#1c1c1e;border:1px solid #38383a;border-radius:4px;padding:${GS_PADV}px 0;box-sizing:border-box;cursor:pointer" onclick="exitOvvAndGo('GS')">
-      <div style="font-size:10px;font-weight:800;color:#fff;padding:0 4px;margin-bottom:1px">G.${L}</div>${rows}
+      <div style="font-size:10px;color:#fff;padding:0 4px;margin-bottom:1px">G.${L}</div>${rows}
     </div>`;
     gsY+=groupH+GS_GAP;
   });
