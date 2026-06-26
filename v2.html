@@ -336,9 +336,12 @@ function ovClose(e,id){if(e.target===e.currentTarget)closeSheet(id);}
 function startMs(g){const v=Date.parse(`${(g.date||'').replace(/\./g,'-')}T${g.time||'00:00'}:00+09:00`);return isNaN(v)?0:v;}
 function gBets(id){return BETS.filter(b=>String(b.game_id)===String(id));}
 function todayStr(){const d=new Date();return `${d.getFullYear()}.${String(d.getMonth()+1).padStart(2,'0')}.${String(d.getDate()).padStart(2,'0')}`;}
+function tsToDateStr(ts){const d=new Date(ts*1000);return `${d.getFullYear()}.${String(d.getMonth()+1).padStart(2,'0')}.${String(d.getDate()).padStart(2,'0')}`;}
+function endedDateStr(g){const res=RESULTS[String(g.id)];const ts=res?res.registered_at:g.ended_at;return ts?tsToDateStr(ts):null;}
 function gameBorderClr(g){
   const st=gState(g);
-  if(st==='ended')return g.date===todayStr()?'var(--blue)':'var(--gold)';
+  if(st==='ended'){const ed=endedDateStr(g);return ed===todayStr()?'var(--blue)':'var(--gold)';}
+
   if(st==='closed')return 'var(--pink)';
   const ms=startMs(g);
   if(ms>0&&ms<=Date.now())return 'var(--pink)';
@@ -611,7 +614,7 @@ function renderFullBracket(visible){
     const arr=stand[L];
     const grpGm=visible.filter(g=>gStage(g)==='GS'&&groupLetter(g)===L);
     const now=Date.now();
-    const stBdr=grpGm.some(g=>gState(g)==='ended'&&g.date===td)?'var(--blue)'
+    const stBdr=grpGm.some(g=>gState(g)==='ended'&&endedDateStr(g)===td)?'var(--blue)'
       :grpGm.length&&grpGm.every(g=>gState(g)==='ended')?'var(--gold)'
       :grpGm.some(g=>gState(g)!=='ended'&&(gState(g)==='closed'||(startMs(g)>0&&startMs(g)<=now)))?'#fff'
       :grpGm.some(g=>gState(g)!=='ended'&&startMs(g)>now)?'var(--green)'
@@ -991,7 +994,7 @@ function renderMiniOverview(visible){
     const arr=stand[L];
     const grpGames=visible.filter(g=>gStage(g)==='GS'&&groupLetter(g)===L);
     const now=Date.now();
-    const grpBdr=grpGames.some(g=>gState(g)==='ended'&&g.date===td)?'var(--blue)'
+    const grpBdr=grpGames.some(g=>gState(g)==='ended'&&endedDateStr(g)===td)?'var(--blue)'
       :grpGames.length&&grpGames.every(g=>gState(g)==='ended')?'var(--gold)'
       :grpGames.some(g=>gState(g)!=='ended'&&(gState(g)==='closed'||(startMs(g)>0&&startMs(g)<=now)))?'var(--pink)'
       :grpGames.some(g=>gState(g)!=='ended'&&startMs(g)>now)?'var(--green)'

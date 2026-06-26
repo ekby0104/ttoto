@@ -591,6 +591,8 @@ def admin_set_game_status(game_id: int, status: str, auth=Depends(admin_required
     for g in games:
         if str(g["id"]) == str(game_id):
             g["status"] = status
+            if status == "ended":
+                g.setdefault("ended_at", int(time.time()))
             write_json(GAMES_FILE, games)
             return g
     raise HTTPException(404, "게임을 찾을 수 없습니다")
