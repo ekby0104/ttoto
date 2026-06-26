@@ -662,19 +662,19 @@ function betMatrixHtml(g,mb,res){
   const cellH=Math.floor(cellW*2/3);
   const cellStyle=(extra='')=>`width:${cellW}px;height:${cellH}px;border-radius:${Math.max(3,cellW/8)|0}px;${extra}`;
   const thSc=`font-size:15px;color:#fff;font-weight:700;text-align:center`;
-  // 헤더 행 1: 빈 코너 + away팀 국기+코드
+  // 헤더 행 1: 빈 코너 + home팀 국기+코드 (→ 열 = 홈 스코어)
   let head=`<tr>
     <th style="width:${hdrW}px"></th>
-    <th colspan="${N+1}" style="font-size:14px;color:#fff;font-weight:800;text-align:center;padding:0 0 4px">${g.away.flag} ${esc(g.away.short)}</th>
+    <th colspan="${N+1}" style="font-size:14px;color:#fff;font-weight:800;text-align:center;padding:0 0 4px">${g.home.flag} ${esc(g.home.short)}</th>
   </tr>`;
-  // 헤더 행 2: home팀 국기+코드 + away 스코어 (0~N)
-  head+=`<tr><th style="width:${hdrW}px;font-size:12px;color:#fff;font-weight:800;text-align:center;line-height:1.3;padding:0 2px 4px">${g.home.flag}<br>${esc(g.home.short)}</th>`;
-  for(let a=0;a<=N;a++)head+=`<th style="width:${cellW}px;${thSc};padding-bottom:4px">${a}</th>`;
+  // 헤더 행 2: away팀 국기+코드 + home 스코어 (0~N)
+  head+=`<tr><th style="width:${hdrW}px;font-size:12px;color:#fff;font-weight:800;text-align:center;line-height:1.3;padding:0 2px 4px">${g.away.flag}<br>${esc(g.away.short)}</th>`;
+  for(let hh=0;hh<=N;hh++)head+=`<th style="width:${cellW}px;${thSc};padding-bottom:4px">${hh}</th>`;
   head+='</tr>';
   let rows='';
-  for(let hh=0;hh<=N;hh++){
-    rows+=`<tr><th style="${thSc}">${hh}</th>`;
-    for(let aa=0;aa<=N;aa++){
+  for(let aa=0;aa<=N;aa++){
+    rows+=`<tr><th style="${thSc}">${aa}</th>`;
+    for(let hh=0;hh<=N;hh++){
       const c=cnt[hh+'_'+aa]||0;
       const isRes=res&&Number(res.h)===hh&&Number(res.a)===aa;
       const op=c?(0.16+0.84*(c/denom)).toFixed(2):0;
@@ -686,7 +686,7 @@ function betMatrixHtml(g,mb,res){
     rows+='</tr>';
   }
   return `<div style="padding:2px 0"><table class="bmx">${head}${rows}</table></div>
-    <div class="bmx-cap">↓ ${esc(g.home.short)} 스코어 · → ${esc(g.away.short)} 스코어 · 칸 = 예측 인원${res?'<br>🟡 실제 결과':''}</div>`;
+    <div class="bmx-cap">→ ${esc(g.home.short)} 스코어 · ↓ ${esc(g.away.short)} 스코어 · 칸 = 예측 인원${res?'<br>🟡 실제 결과':''}</div>`;
 }
 function renderGameBody(){
   const g=curGame,res=RESULTS[String(g.id)],st=gState(g),mb=gBets(g.id);
