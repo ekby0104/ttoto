@@ -44,7 +44,9 @@ body{background:var(--bg);color:var(--text);font-family:var(--sys);min-height:10
 .seg-tx.trophy{font-size:18px}
 /* 조 순위표 */
 .stand-col{position:absolute}
-.stand{background:var(--card);border-radius:12px;margin-bottom:12px;border:1px solid var(--sep);padding:4px 8px 8px}
+.stand{background:var(--card);border-radius:12px;margin-bottom:12px;border:1px solid var(--sep);padding:4px 8px 8px;cursor:pointer;transition:border-color .2s,box-shadow .2s}
+.stand:active{filter:brightness(1.12)}
+.stand.sel{border-color:var(--green);box-shadow:0 0 0 1.5px var(--green)}
 .st-head{padding:8px 4px 6px}
 .st-gl{font-weight:800;color:#fff;font-size:14px}
 .st-table{width:100%;border-collapse:collapse;font-size:13px}
@@ -83,6 +85,7 @@ body{background:var(--bg);color:var(--text);font-family:var(--sys);min-height:10
 .bk-svg{position:absolute;top:0;left:0;pointer-events:none}
 .bk-card{position:absolute;background:var(--card);border:1.5px solid transparent;border-radius:10px;padding:5px 9px;display:flex;flex-direction:column;justify-content:center;gap:3px;cursor:pointer;overflow:hidden;transition:top .45s cubic-bezier(.32,.72,0,1);will-change:top}
 .bk-card.bettable{border-color:var(--green);box-shadow:0 0 10px rgba(48,209,88,.3)}
+.bk-card.sel{border-color:var(--green)!important;box-shadow:0 0 0 1.5px var(--green),0 0 16px 2px rgba(48,209,88,.45)}
 .bk-card:active{filter:brightness(1.15)}
 .bk-dt{font-size:10px;line-height:15px;height:15px;color:var(--muted);font-family:var(--mono);white-space:nowrap;overflow:hidden}
 .bk-row{display:flex;align-items:center;gap:6px;height:20px}
@@ -153,6 +156,28 @@ body{background:var(--bg);color:var(--text);font-family:var(--sys);min-height:10
 .dist-bar i{display:block;height:100%;background:var(--green);border-radius:4px}
 .dist-n{font-size:12px;color:var(--muted);font-family:var(--mono);min-width:36px;text-align:right}
 .dist-names{font-size:12px;color:var(--muted2);padding:2px 0 8px;line-height:1.6}
+/* 베팅 현황 뷰 토글 */
+.bv-toggle{display:inline-flex;background:var(--card2);border-radius:9px;padding:2px;gap:2px;flex-shrink:0}
+.bv-btn{border:none;background:none;color:var(--muted);font-size:12px;font-weight:700;padding:4px 11px;border-radius:7px;cursor:pointer;font-family:var(--sys)}
+.bv-btn.on{background:var(--green);color:#000}
+/* 스코어 매트릭스 */
+.bmx{border-collapse:separate;border-spacing:3px;font-variant-numeric:tabular-nums;margin:2px auto}
+.bmx th{font-size:11px;color:var(--muted);font-weight:700;font-family:var(--mono);text-align:center;padding:0}
+.bmx td{padding:0}
+.bmx-cell{width:32px;height:32px;border-radius:8px;display:flex;align-items:center;justify-content:center;font-size:13px;font-weight:800}
+.bmx-corner{font-size:9px;color:var(--muted);font-family:var(--mono);line-height:1.2}
+.bmx-cap{font-size:11px;color:var(--muted);text-align:center;margin-top:10px;font-family:var(--mono);line-height:1.5}
+/* 그룹 경기 시트 */
+.grp-game{display:flex;align-items:center;gap:8px;background:var(--card2);border-radius:12px;padding:11px 13px;margin-bottom:8px;cursor:pointer}
+.grp-game:active{filter:brightness(1.12)}
+.gg-team{display:flex;align-items:center;gap:7px;flex:1;min-width:0}
+.gg-team.gg-away{justify-content:flex-end}
+.gg-f{font-size:21px;flex-shrink:0}
+.gg-n{font-size:14px;font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.gg-mid{display:flex;flex-direction:column;align-items:center;justify-content:center;min-width:66px;flex-shrink:0}
+.gg-sc{font-size:14px;font-weight:800;color:#fff;font-variant-numeric:tabular-nums;font-family:var(--mono)}
+.gg-sc.dt{font-size:11px;color:var(--muted);font-weight:600}
+.gg-cnt{font-size:10px;color:var(--muted);font-weight:600;margin-top:2px;font-family:var(--mono)}
 .empty{text-align:center;color:var(--muted);padding:24px;font-size:14px}
 /* 버튼 */
 .btn{display:flex;align-items:center;justify-content:center;gap:8px;width:100%;border:none;border-radius:14px;padding:15px;font-size:16px;font-weight:800;cursor:pointer;font-family:var(--sys)}
@@ -225,6 +250,15 @@ body{background:var(--bg);color:var(--text);font-family:var(--sys);min-height:10
   </div>
 </div>
 
+<!-- 조별 경기 시트 -->
+<div class="sheet-ov" id="sh-group" style="z-index:99" onclick="ovClose(event,'sh-group')">
+  <div class="sheet">
+    <div class="sheet-grip"></div>
+    <div class="sheet-hd"><span class="sheet-ttl" id="grp-title">조별 경기</span><button class="x" onclick="closeSheet('sh-group')">×</button></div>
+    <div class="sheet-bd" id="grp-body"></div>
+  </div>
+</div>
+
 <!-- 피드백 시트 -->
 <div class="sheet-ov" id="sh-fb" onclick="ovClose(event,'sh-fb')">
   <div class="sheet">
@@ -259,6 +293,7 @@ let CONFIG={},GAMES=[],BETS=[],RESULTS={};
 let curGame=null;
 let selStage='GS';            // GS|R32|R16|QF|SF|F
 let openGroups={};            // 조별 펼침 상태
+let betView='list';           // 경기 베팅 현황 보기: list | matrix
 const STAGES=[['GS','조별'],['R32','32강'],['R16','16강'],['QF','8강'],['SF','4강'],['F','결승']];
 
 function stageOf(g){
@@ -287,7 +322,8 @@ function openSheet(id){
 }
 function closeSheet(id){
   document.getElementById(id).classList.remove('show');
-  document.body.style.overflow='';
+  // 다른 시트(예: 그룹 시트 위에 띄운 경기 시트)가 남아있으면 스크롤 잠금 유지
+  document.body.style.overflow=document.querySelector('.sheet-ov.show')?'hidden':'';
 }
 function ovClose(e,id){if(e.target===e.currentTarget)closeSheet(id);}
 
@@ -399,8 +435,9 @@ function transLabel(lb){
 }
 function teamSide(g,side){
   const t=g[side];
-  if(t&&t.name)return{flag:t.flag,name:t.short,known:true};
-  return{flag:'⚪',name:transLabel(g[side+'_label']),known:false};
+  if(t&&t.name)return{flag:t.flag,name:t.short,full:t.name,known:true};
+  const lbl=transLabel(g[side+'_label']);
+  return{flag:'⚪',name:lbl,full:lbl,known:false};
 }
 
 // 조별리그 순위표 (일반 흐름, iOS 안전)
@@ -472,10 +509,10 @@ function bkCardHtml(g){
   const dt=g.date?`${g.date.slice(5)} ${g.time||''}`:'';
   const x=g.stage==='3RD'?colX.F:colX[gStage(g)];
   const top=(BK.yc&&BK.yc[g.id]!=null)?BK.yc[g.id]:BK.PADY;
-  return `<div class="bk-card ${bett?'bettable':''}" id="bkc-${g.id}" style="left:${x}px;top:${top}px;width:${CARDW}px;height:${CARDH}px" onclick="openGame('${g.id}')">
+  return `<div class="bk-card ${bett?'bettable':''}" id="bkc-${g.id}" style="left:${x}px;top:${top}px;width:${CARDW}px;height:${CARDH}px" onclick="bkSelect(this);openGame('${g.id}')">
     <div class="bk-dt">${dt}${bett?' · ⚽':''}</div>
-    <div class="bk-row"><span class="bk-f">${h.flag}</span><span class="bk-n ${h.known?'':'tbd'}">${h.name}</span><span class="bk-s">${res?res.h:''}</span></div>
-    <div class="bk-row"><span class="bk-f">${a.flag}</span><span class="bk-n ${a.known?'':'tbd'}">${a.name}</span><span class="bk-s">${res?res.a:''}</span></div>
+    <div class="bk-row"><span class="bk-f">${h.flag}</span><span class="bk-n ${h.known?'':'tbd'}">${h.full}</span><span class="bk-s">${res?res.h:''}</span></div>
+    <div class="bk-row"><span class="bk-f">${a.flag}</span><span class="bk-n ${a.known?'':'tbd'}">${a.full}</span><span class="bk-s">${res?res.a:''}</span></div>
   </div>`;
 }
 // 포커스 라운드 기준 재배치 (카드 top 애니메이션 + 연결선 재계산)
@@ -528,7 +565,7 @@ function renderFullBracket(visible){
     const rows=arr.map((t,i)=>`<tr class="${i<2?'qual':''}">
       <td class="c-rk">${i+1}</td><td class="c-fl">${t.flag}</td><td class="c-nm">${t.short}</td>
       <td>${t.gp}</td><td>${t.w}</td><td>${t.d}</td><td>${t.l}</td><td>${t.gd>0?'+'+t.gd:t.gd}</td><td class="c-pts">${t.pts}</td></tr>`).join('');
-    return `<div class="stand"><div class="st-head"><span class="st-gl">Group ${L}</span></div>
+    return `<div class="stand" onclick="bkSelect(this);openGroupGames('${L}')"><div class="st-head"><span class="st-gl">Group ${L}</span></div>
       <table class="st-table"><thead><tr><th class="c-rk"></th><th class="c-fl"></th><th class="c-nm"></th><th>GP</th><th>W</th><th>D</th><th>L</th><th>GD</th><th>PTS</th></tr></thead>
       <tbody>${rows}</tbody></table></div>`;
   }).join('');
@@ -583,9 +620,62 @@ function openGame(id){
   const g=GAMES.find(x=>String(x.id)===String(id));
   if(!g)return;
   curGame=g;
+  betView='list';
   document.getElementById('g-title').textContent=`${g.home.short} vs ${g.away.short}`;
   renderGameBody();
   openSheet('sh-game');
+}
+function setBetView(v){betView=v;renderGameBody();}
+// 브래킷 카드/순위표 선택 시 초록 테두리
+function bkSelect(el){
+  document.querySelectorAll('.bk-card.sel,.stand.sel').forEach(e=>e.classList.remove('sel'));
+  if(el)el.classList.add('sel');
+}
+// 조별 카드 클릭 → 그 조의 경기 목록 시트
+function openGroupGames(L){
+  const games=GAMES.filter(g=>!g.deleted&&gStage(g)==='GS'&&groupLetter(g)===L)
+    .sort((a,b)=>startMs(a)-startMs(b));
+  document.getElementById('grp-title').textContent=`${L}조 경기`;
+  const body=document.getElementById('grp-body');
+  if(!games.length){body.innerHTML=`<div class="empty">등록된 경기가 없어요</div>`;}
+  else body.innerHTML=games.map(g=>{
+    const res=RESULTS[String(g.id)],nb=gBets(g.id).length;
+    const center=res?`${res.h} : ${res.a}`:`${g.date?g.date.slice(5):'미정'}${g.time?' '+g.time:''}`;
+    return `<div class="grp-game" onclick="openGame('${g.id}')">
+      <div class="gg-team"><span class="gg-f">${g.home.flag}</span><span class="gg-n">${esc(g.home.short)}</span></div>
+      <div class="gg-mid"><span class="gg-sc ${res?'':'dt'}">${center}</span><span class="gg-cnt">${nb}명 베팅</span></div>
+      <div class="gg-team gg-away"><span class="gg-n">${esc(g.away.short)}</span><span class="gg-f">${g.away.flag}</span></div>
+    </div>`;
+  }).join('');
+  openSheet('sh-group');
+}
+// 스코어 매트릭스(홈 스코어×원정 스코어, 칸=예측 인원수)
+function betMatrixHtml(g,mb,res){
+  let maxS=2;
+  mb.forEach(b=>{maxS=Math.max(maxS,Number(b.h),Number(b.a));});
+  const N=Math.min(maxS,9);
+  const cnt={};let cmax=0;
+  mb.forEach(b=>{const bh=Number(b.h),ba=Number(b.a);if(bh>N||ba>N)return;const k=bh+'_'+ba;cnt[k]=(cnt[k]||0)+1;cmax=Math.max(cmax,cnt[k]);});
+  const denom=cmax||1;
+  let head=`<tr><th><div class="bmx-corner">${esc(g.home.short)}＼${esc(g.away.short)}</div></th>`;
+  for(let a=0;a<=N;a++)head+=`<th>${a}</th>`;
+  head+='</tr>';
+  let rows='';
+  for(let hh=0;hh<=N;hh++){
+    rows+=`<tr><th>${hh}</th>`;
+    for(let aa=0;aa<=N;aa++){
+      const c=cnt[hh+'_'+aa]||0;
+      const isRes=res&&Number(res.h)===hh&&Number(res.a)===aa;
+      const op=c?(0.16+0.84*(c/denom)).toFixed(2):0;
+      const bg=c?`rgba(48,209,88,${op})`:'var(--card2)';
+      const col=c?(c/denom>0.55?'#000':'#fff'):'transparent';
+      const ring=isRes?'box-shadow:inset 0 0 0 2px var(--gold)':'';
+      rows+=`<td><div class="bmx-cell" style="background:${bg};color:${col};${ring}">${c||''}</div></td>`;
+    }
+    rows+='</tr>';
+  }
+  return `<div style="overflow-x:auto;padding:2px 0"><table class="bmx">${head}${rows}</table></div>
+    <div class="bmx-cap">세로 = ${esc(g.home.short)} 스코어 · 가로 = ${esc(g.away.short)} 스코어 · 칸 = 예측 인원${res?'<br>🟡 실제 결과':''}</div>`;
 }
 function renderGameBody(){
   const g=curGame,res=RESULTS[String(g.id)],st=gState(g),mb=gBets(g.id);
@@ -606,9 +696,16 @@ function renderGameBody(){
   mb.forEach(b=>{const k=`${b.h}-${b.a}`;(groups[k]=groups[k]||[]).push(b);});
   const sorted=Object.entries(groups).sort((a,b)=>b[1].length-a[1].length);
   const maxN=sorted.length?sorted[0][1].length:0;
-  h+=`<div class="dist-h">📊 베팅 현황</div>`;
+  h+=`<div class="dist-h" style="display:flex;align-items:center;justify-content:space-between;gap:8px">
+    <span>📊 베팅 현황</span>
+    <span class="bv-toggle">
+      <button class="bv-btn ${betView==='list'?'on':''}" onclick="setBetView('list')">리스트</button>
+      <button class="bv-btn ${betView==='matrix'?'on':''}" onclick="setBetView('matrix')">매트릭스</button>
+    </span></div>`;
   if(!sorted.length){
     h+=`<div class="empty">아직 베팅이 없어요${st==='open'?'<br>첫 베팅의 주인공이 되어보세요!':''}</div>`;
+  }else if(betView==='matrix'){
+    h+=betMatrixHtml(g,mb,res);
   }else{
     sorted.forEach(([sc,arr])=>{
       const[hh,aa]=sc.split('-');
