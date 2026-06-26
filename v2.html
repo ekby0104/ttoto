@@ -655,27 +655,30 @@ function betMatrixHtml(g,mb,res){
   const cnt={};let cmax=0;
   mb.forEach(b=>{const bh=Number(b.h),ba=Number(b.a);if(bh>N||ba>N)return;const k=bh+'_'+ba;cnt[k]=(cnt[k]||0)+1;cmax=Math.max(cmax,cnt[k]);});
   const denom=cmax||1;
-  // 셀 크기: 가용폭 2/3 기준, 높이는 너비의 2/3 (직사각형)
   const avail=Math.floor((Math.min(window.innerWidth,560)-36)*2/3);
-  const hdrW=54;  // (1,0)~(n,0) 병합 원정팀 열 너비
-  const cellW=Math.max(24,Math.floor((avail-hdrW)/(N+1)));
+  const hdrW=50;  // col 0: (1~n,0) 원정팀 병합
+  const scW=24;   // col 1: (2~n,1) 원정 득점
+  const cellW=Math.max(20,Math.floor((avail-hdrW-scW)/(N+1)));
   const cellH=Math.floor(cellW*2/3);
   const cellStyle=(extra='')=>`width:${cellW}px;height:${cellH}px;border-radius:${Math.max(3,cellW/8)|0}px;${extra}`;
   const thHd=`background:#fff;color:#000;font-weight:800;text-align:center`;
-  // 행 0: (0,0) 코너 배경 없음 + (0,1~n) 홈팀 병합
+  const thSc=`${thHd};font-family:var(--mono);font-size:14px`;
+  // 행 0: (0,0) 배경 없음 + (0,1~n) 홈팀 병합 (scW열+data열 = N+2 cols)
   let head=`<tr>
     <th style="background:none;width:${hdrW}px"></th>
-    <th colspan="${N+1}" style="${thHd};font-size:14px;padding:4px 0">${g.home.flag} ${esc(g.home.short)}</th>
+    <th colspan="${N+2}" style="${thHd};font-size:14px;padding:4px 0">${g.home.flag} ${esc(g.home.short)}</th>
   </tr>`;
-  // 원정팀 세로 텍스트: 이모지 + 코드 1자마다 줄바꿈
+  // 행 1: (1~n,0) 원정팀 rowspan 시작 + (1,1) 빈 교차셀 + (1,2~n) 홈 득점 0~N
   const awayVert=`${g.away.flag}<br>${esc(g.away.short).split('').join('<br>')}`;
+  head+=`<tr>
+    <th rowspan="${N+2}" style="${thHd};width:${hdrW}px;font-size:13px;line-height:1.5;vertical-align:middle;padding:2px 1px">${awayVert}</th>
+    <th style="${thHd};width:${scW}px"></th>`;
+  for(let hh=0;hh<=N;hh++)head+=`<th style="width:${cellW}px;${thSc};padding:0 0 4px">${hh}</th>`;
+  head+='</tr>';
+  // 행 2~n: (i,1) 원정 득점 + 데이터 셀
   let rows='';
   for(let aa=0;aa<=N;aa++){
-    rows+=`<tr>`;
-    if(aa===0){
-      // (1,0)~(n,0) 병합: 원정팀 rowspan
-      rows+=`<th rowspan="${N+1}" style="${thHd};width:${hdrW}px;font-size:13px;line-height:1.5;vertical-align:middle;padding:2px 1px">${awayVert}</th>`;
-    }
+    rows+=`<tr><th style="${thSc};width:${scW}px;padding:4px 0">${aa}</th>`;
     for(let hh=0;hh<=N;hh++){
       const c=cnt[hh+'_'+aa]||0;
       const isRes=res&&Number(res.h)===hh&&Number(res.a)===aa;
