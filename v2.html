@@ -244,8 +244,8 @@ body{background:var(--bg);color:var(--text);font-family:var(--sys);min-height:10
 <!-- 라운드 이동 플로팅 버튼 -->
 <div class="bk-round-nav" id="bk-round-nav">
   <button class="bk-round-btn" id="bk-prev" onclick="goPrevRound()"></button>
-  <button class="bk-round-btn" id="bk-next" onclick="goNextRound()"></button>
   <button class="bk-round-btn" id="bk-ovv"></button>
+  <button class="bk-round-btn" id="bk-next" onclick="goNextRound()"></button>
 </div>
 
 <!-- 경기 상세/베팅 시트 -->
@@ -1076,7 +1076,7 @@ function updateOvvBtn(){
     btn.classList.add('show');
     if(nav){const sb=document.getElementById('stagebar');if(sb){const r=sb.getBoundingClientRect();nav.style.top=(r.bottom+8)+'px';}}
   }else if(selStage==='GS'){
-    btn.innerHTML=`<span style="font-size:10px;font-weight:800;line-height:1.3">A</span>`;
+    btn.innerHTML=`<span style="font-size:10px;font-weight:800;line-height:1.3">‹A</span>`;
     btn.onclick=toggleOverview;
     btn.classList.add('show');
   }else{
