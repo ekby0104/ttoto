@@ -540,7 +540,7 @@ function bkCardHtml(g){
   const dt=g.date?`${g.date} ${g.time||''}`:'';
   const x=g.stage==='3RD'?colX.F:colX[gStage(g)];
   const top=(BK.yc&&BK.yc[g.id]!=null)?BK.yc[g.id]:BK.PADY;
-  return `<div class="bk-card ${bett?'bettable':''}" id="bkc-${g.id}" style="left:${x}px;top:${top}px;width:${CARDW}px;height:${CARDH}px;border-color:${gameBorderClr(g)}" onclick="bkSelect(this);openGame('${g.id}')">
+  return `<div class="bk-card ${bett?'bettable':''} ${String(g.id)===String(selGid)?'sel':''}" id="bkc-${g.id}" style="left:${x}px;top:${top}px;width:${CARDW}px;height:${CARDH}px;border-color:${gameBorderClr(g)}" onclick="bkSelect(this);openGame('${g.id}')">
     <div class="bk-dt">${dt}${bett?' · ⚽':''}</div>
     <div class="bk-row"><span class="bk-f">${h.flag}</span><span class="bk-n ${h.known?'':'tbd'}">${hn}</span><span class="bk-s">${res?res.h:''}</span></div>
     <div class="bk-row"><span class="bk-f">${a.flag}</span><span class="bk-n ${a.known?'':'tbd'}">${an}</span><span class="bk-s">${res?res.a:''}</span></div>
@@ -702,10 +702,11 @@ function jumpToScore(hh,aa){
   const bd=document.querySelector('#sh-game .sheet-bd');
   if(bd)bd.scrollTo({top:el.offsetTop-bd.offsetTop-8,behavior:'smooth'});
 }
-// 브래킷 카드/순위표 선택 시 초록 테두리
+// 브래킷 카드 선택 (id 저장 → 재렌더에도 흰색 반짝임 유지)
+let selGid=null;
 function bkSelect(el){
   document.querySelectorAll('.bk-card.sel,.stand.sel').forEach(e=>e.classList.remove('sel'));
-  if(el)el.classList.add('sel');
+  if(el){el.classList.add('sel');selGid=(el.id&&el.id.indexOf('bkc-')===0)?el.id.slice(4):null;}
 }
 // 조별 카드 클릭 → 그 조의 경기 목록 시트
 function openGroupGames(L){
