@@ -56,7 +56,7 @@ body{background:var(--bg);color:var(--text);font-family:var(--sys);min-height:10
 .st-table tbody tr+tr td{border-top:1px solid rgba(255,255,255,.06)}
 .st-table .c-rk{width:18px;color:var(--muted);font-weight:700}
 .st-table .c-fl{width:24px;font-size:16px}
-.st-table .c-nm{text-align:left;color:#fff;font-weight:700;padding-left:4px}
+.st-table .c-nm{text-align:left;color:#fff;font-weight:700;padding-left:4px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:120px}
 .st-table .c-pts{color:#fff;font-weight:800}
 .st-table tr.qual .c-rk{color:var(--green)}
 /* 섹션 */
@@ -541,7 +541,7 @@ function calcBkLayout(vw,isDesk){
   const GS_GAP=18;
   let STANDW,COLW,CARDW;
   if(isDesk){
-    STANDW=Math.min(Math.round(vw*0.18),200);
+    STANDW=280;  // 풀네임 표시에 충분한 고정 너비
     const baseC=Math.max(130,Math.round((vw-GS_GAP-STANDW)/ROUNDS.length));
     CARDW=Math.round((baseC-22)*1.5);  // 데스크탑: 1.5배 넓은 카드
     COLW=CARDW+22;
@@ -586,7 +586,7 @@ function renderFullBracket(visible){
   const standTables=letters.map(L=>{
     const arr=stand[L];
     const rows=arr.map((t,i)=>`<tr class="${i<2?'qual':''}">
-      <td class="c-rk">${i+1}</td><td class="c-fl">${t.flag}</td><td class="c-nm">${t.short}</td>
+      <td class="c-rk">${i+1}</td><td class="c-fl">${t.flag}</td><td class="c-nm">${isDesk?(t.name||t.short):t.short}</td>
       <td>${t.gp}</td><td>${t.w}</td><td>${t.d}</td><td>${t.l}</td><td>${t.gd>0?'+'+t.gd:t.gd}</td><td class="c-pts">${t.pts}</td></tr>`).join('');
     return `<div class="stand" onclick="bkSelect(this);openGroupGames('${L}')"><div class="st-head"><span class="st-gl">Group ${L}</span></div>
       <table class="st-table"><thead><tr><th class="c-rk"></th><th class="c-fl"></th><th class="c-nm"></th><th>GP</th><th>W</th><th>D</th><th>L</th><th>GD</th><th>PTS</th></tr></thead>
