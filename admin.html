@@ -965,7 +965,12 @@ function renderGames() {
     tbody.innerHTML = '<tr><td colspan="9" style="text-align:center;color:#aaa;padding:20px">등록된 경기가 없습니다</td></tr>';
     return;
   }
-  tbody.innerHTML = allGames.map(g => {
+  const sorted = [...allGames].sort((a, b) => {
+    const da = (a.date || '').replace(/\./g, '') + (a.time || '').replace(':', '');
+    const db = (b.date || '').replace(/\./g, '') + (b.time || '').replace(':', '');
+    return da.localeCompare(db);
+  });
+  tbody.innerHTML = sorted.map(g => {
     const dateVal = (g.date || '').replace(/\./g, '-');
     const timeVal = g.time || '';
     const del = !!g.deleted;
