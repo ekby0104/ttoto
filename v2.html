@@ -1278,6 +1278,7 @@ if(window.visualViewport)window.visualViewport.addEventListener('resize',_checkB
 if('scrollRestoration' in history)history.scrollRestoration='manual';   // 브라우저 스크롤 복원 끔(뷰 전환 시 위치 고정 방지)
 (async()=>{
   await loadAll();
+  ovvMode=true;   // 메인 진입 시 ALL(전체 뷰) 기본
   render();
   updateNotice();
   maybePopup();
