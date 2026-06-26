@@ -347,7 +347,8 @@ function gameBorderClr(g){
   if(st==='closed')return 'var(--pink)';
   const ms=startMs(g);
   const h=teamSide(g,'home'),a=teamSide(g,'away');
-  if(st==='open'&&ms>0&&h.known&&a.known)return 'var(--green)';
+  if(st==='open'&&ms>0&&h.known&&a.known)return 'var(--green)';   // 베팅중 + 확정
+  if(ms>0&&h.known&&a.known)return '#fff';                        // 확정(베팅중 아님)
   return 'transparent';
 }
 function gState(g){
