@@ -624,6 +624,14 @@ function openGame(id){
   openSheet('sh-game');
 }
 function setBetView(v){betView=v;renderGameBody();}
+function jumpToScore(hh,aa){
+  betView='list';
+  renderGameBody();
+  const el=document.getElementById(`dist-${hh}-${aa}`);
+  if(!el)return;
+  const bd=document.querySelector('#sh-game .sheet-bd');
+  if(bd)bd.scrollTo({top:el.offsetTop-bd.offsetTop-8,behavior:'smooth'});
+}
 // 브래킷 카드/순위표 선택 시 초록 테두리
 function bkSelect(el){
   document.querySelectorAll('.bk-card.sel,.stand.sel').forEach(e=>e.classList.remove('sel'));
@@ -684,7 +692,8 @@ function betMatrixHtml(g,mb,res){
       const bg=c?`rgba(48,209,88,${op})`:'var(--card2)';
       const col=c?(c/denom>0.55?'#000':'#fff'):'transparent';
       const resBg=isRes?`background:var(--gold);color:#000;`:`background:${bg};color:${col};`;
-      rows+=`<td><div class="bmx-cell" style="${cellStyle()}${resBg}">${c||''}</div></td>`;
+      const click=c?`onclick="jumpToScore(${hh},${aa})" style="cursor:pointer"`:'';
+      rows+=`<td><div class="bmx-cell" ${click} style="${cellStyle()}${resBg}">${c||''}</div></td>`;
     }
     rows+='</tr>';
   }
@@ -728,7 +737,7 @@ function renderGameBody(){
       const paidWinners=arr.filter(b=>b.paid).length;
       const payout=paidWinners>0&&paidPot>0?Math.floor(paidPot/paidWinners):null;
       const rightHtml=`<span style="font-size:13px;font-weight:700"><span style="color:#fff">총 ${arr.length}명</span>${payout!=null?`<span style="color:var(--muted)"> : </span><span style="color:var(--red)">인당 ${payout.toLocaleString()}원</span>`:''}</span>`;
-      h+=`<div class="dist-item">
+      h+=`<div class="dist-item" id="dist-${hh}-${aa}">
         <div class="dist-top"><span class="dist-sc">${hh} : ${aa}</span>${rightHtml}</div>
         <div class="dist-sep"></div>
         <div class="dist-names">${names}</div>
