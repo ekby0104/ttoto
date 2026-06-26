@@ -34,7 +34,7 @@ body{background:var(--bg);color:var(--text);font-family:var(--sys);min-height:10
 @media(min-width:768px){
   .stagebar{max-width:1200px;padding:4px 24px 6px}
   .wrap{max-width:1200px;padding:8px 24px 20px}
-  .bk-scroll{margin:0 -24px}
+  .bk-scroll{margin:0 -24px;padding:0 24px}
 }
 .seg-pill{flex:1;display:flex;background:#2a2a2c;border-radius:16px;padding:2px 4px;gap:4px}
 .ovv-btn{width:32px;height:32px;border-radius:9px;background:#2a2a2c;border:none;color:var(--muted2);font-size:15px;cursor:pointer;flex-shrink:0;display:flex;align-items:center;justify-content:center}
@@ -539,11 +539,19 @@ function relayoutBracket(focus){
 function renderFullBracket(visible){
   const ko=visible.filter(g=>ROUNDS.includes(gStage(g)));
   const byId={};ko.forEach(g=>byId[String(g.id)]=g);
-  const vw=Math.min(window.innerWidth,1200);
-  const cw=vw-24;
-  const STANDW=Math.min(cw,360);
-  // 컬럼 폭을 화면의 ~66%로 → 한 번에 2개 라운드(선택+다음 일부)만 보임
-  const COLW=Math.round(vw*0.66),CARDW=COLW-22,CARDH=74,SP=90,PADY=16,GS_GAP=18;
+  const isDesk=window.innerWidth>=768;
+  const vw=Math.min(window.innerWidth,isDesk?1200:560);
+  const CARDH=74,SP=90,PADY=16,GS_GAP=18;
+  let STANDW,COLW;
+  if(isDesk){
+    // 넓은 화면: 모든 라운드를 한 화면에
+    STANDW=Math.min(Math.round(vw*0.18),200);
+    COLW=Math.max(130,Math.round((vw-GS_GAP-STANDW)/ROUNDS.length));
+  }else{
+    STANDW=Math.min(vw-24,360);
+    COLW=Math.round(vw*0.66); // 모바일: 1.5 라운드
+  }
+  const CARDW=COLW-22;
   const bx0=STANDW+GS_GAP;
   const colX={R32:bx0,R16:bx0+COLW,QF:bx0+2*COLW,SF:bx0+3*COLW,F:bx0+4*COLW};
   SECTION_X={GS:0,R32:colX.R32-6,R16:colX.R16-6,QF:colX.QF-6,SF:colX.SF-6,F:colX.F-6};
@@ -863,7 +871,8 @@ function miniRow(flag,name,known,score,rowH){
 function renderMiniOverview(visible){
   const ko=visible.filter(g=>ROUNDS.includes(gStage(g)));
   const byId={};ko.forEach(g=>byId[String(g.id)]=g);
-  const vw=Math.min(window.innerWidth,1200)-28;
+  const _isDesk=window.innerWidth>=768;
+  const vw=Math.min(window.innerWidth,_isDesk?1200:560)-(_isDesk?48:28);
   // 6개 칼럼(GS+5KO) 균등 분할
   const COLW=Math.floor(vw/6);
   const CARDW=COLW-4;
