@@ -11,7 +11,7 @@
 :root{
   --bg:#000;--card:#1c1c1e;--card2:#2c2c2e;--sep:#38383a;
   --text:#fff;--muted:#8e8e93;--muted2:#aeaeb2;
-  --green:#30d158;--green-dim:#248a3d;--gold:#ffd60a;--red:#ff453a;--blue:#0a84ff;
+  --green:#30d158;--green-dim:#248a3d;--gold:#ffd60a;--red:#ff453a;--blue:#0a84ff;--pink:#ff2d55;
   --mono:'Share Tech Mono',ui-monospace,monospace;
   --sys:-apple-system,BlinkMacSystemFont,'SF Pro Display','SF Pro Text','Segoe UI',Roboto,'Noto Sans KR',sans-serif;
 }
@@ -339,9 +339,9 @@ function todayStr(){const d=new Date();return `${d.getFullYear()}.${String(d.get
 function gameBorderClr(g){
   const st=gState(g);
   if(st==='ended')return g.date===todayStr()?'var(--blue)':'var(--gold)';
-  if(st==='closed')return '#fff';
+  if(st==='closed')return 'var(--pink)';
   const ms=startMs(g);
-  if(ms>0&&ms<=Date.now())return '#fff';
+  if(ms>0&&ms<=Date.now())return 'var(--pink)';
   const h=teamSide(g,'home'),a=teamSide(g,'away');
   if(ms>0&&h.known&&a.known)return 'var(--green)';
   return 'transparent';
@@ -993,7 +993,7 @@ function renderMiniOverview(visible){
     const now=Date.now();
     const grpBdr=grpGames.some(g=>gState(g)==='ended'&&g.date===td)?'var(--blue)'
       :grpGames.length&&grpGames.every(g=>gState(g)==='ended')?'var(--gold)'
-      :grpGames.some(g=>gState(g)!=='ended'&&(gState(g)==='closed'||(startMs(g)>0&&startMs(g)<=now)))?'#fff'
+      :grpGames.some(g=>gState(g)!=='ended'&&(gState(g)==='closed'||(startMs(g)>0&&startMs(g)<=now)))?'var(--pink)'
       :grpGames.some(g=>gState(g)!=='ended'&&startMs(g)>now)?'var(--green)'
       :'#38383a';
     const groupH=arr.length*ROW+hdrH+GS_PADV*2;
