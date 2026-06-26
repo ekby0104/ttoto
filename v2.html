@@ -706,10 +706,10 @@ function miniRow(flag,name,known,score,rowH){
   const clr=flagToClr(flag);
   const lbl=known?String(name).slice(0,3).toUpperCase():'TBD';
   const txtClr=known?'#fff':'#555';
-  return `<div style="display:flex;align-items:center;gap:2px;height:${rowH}px;padding:0 2px">
-    <div style="width:3px;height:${rowH-4}px;background:${clr};border-radius:1.5px;flex-shrink:0"></div>
-    <span style="flex:1;font-size:7px;font-weight:800;overflow:hidden;white-space:nowrap;color:${txtClr};letter-spacing:.2px">${lbl}</span>
-    <span style="font-size:8px;font-weight:800;color:#fff;min-width:8px;text-align:right;font-variant-numeric:tabular-nums">${score!=null?score:''}</span>
+  return `<div style="display:flex;align-items:center;gap:2px;height:${rowH}px;padding:0 3px">
+    <div style="width:4px;height:${rowH-3}px;background:${clr};border-radius:2px;flex-shrink:0"></div>
+    <span style="flex:1;font-size:9px;font-weight:800;overflow:hidden;white-space:nowrap;color:${txtClr};letter-spacing:.2px">${lbl}</span>
+    <span style="font-size:10px;font-weight:800;color:#fff;min-width:9px;text-align:right;font-variant-numeric:tabular-nums">${score!=null?score:''}</span>
   </div>`;
 }
 function renderMiniOverview(visible){
@@ -719,9 +719,9 @@ function renderMiniOverview(visible){
   // GS 칼럼: vw/6, KO 5개 칼럼: 나머지 균등 분할 (칼럼은 화면 채움, 카드는 내용 맞춤 폭)
   const GS_W=Math.floor(vw/6);
   const KO_W=Math.floor((vw-GS_W)/5);
-  const CARDW=Math.min(KO_W-4,36);  // 카드 폭: 최대 36px (3글자+점수 맞춤)
-  // SP > CARDH 필수 (겹침 방지), KO 카드 상하 여백 증가
-  const CARDH=22,SP=30,HDR=22,PADY=HDR+4;
+  const CARDW=KO_W-4;  // 칼럼 꽉 채움
+  // SP = CARDH+2 (2px 갭, 빡빡하게)
+  const CARDH=26,SP=28,HDR=22,PADY=HDR+4;
   const ROW=Math.floor(CARDH/2);
   const colX={};ROUNDS.forEach((r,i)=>{colX[r]=GS_W+KO_W*i;});
   // 슬롯 계산
