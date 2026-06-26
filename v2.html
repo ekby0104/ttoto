@@ -84,7 +84,7 @@ body{background:var(--bg);color:var(--text);font-family:var(--sys);min-height:10
 .bk-head.cur{color:var(--green)}
 .bk-canvas{position:relative}
 .bk-svg{position:absolute;top:0;left:0;pointer-events:none}
-.bk-card{position:absolute;background:var(--card);border:1.5px solid transparent;border-radius:10px;padding:5px 9px;display:flex;flex-direction:column;justify-content:center;gap:3px;cursor:pointer;overflow:hidden;transition:top .45s cubic-bezier(.32,.72,0,1);will-change:top}
+.bk-card{position:absolute;background:var(--card);border:1.5px solid transparent;border-radius:10px;padding:5px 9px;display:flex;flex-direction:column;justify-content:center;gap:3px;cursor:pointer;overflow:hidden;transition:top .45s cubic-bezier(.32,.72,0,1),width .35s ease,left .35s ease;will-change:top,width,left}
 .bk-card.bettable{border-color:var(--green);box-shadow:0 0 10px rgba(48,209,88,.3)}
 .bk-card.sel{border-color:var(--green)!important;box-shadow:0 0 0 1.5px var(--green),0 0 16px 2px rgba(48,209,88,.45)}
 .bk-card:active{filter:brightness(1.15)}
@@ -537,6 +537,25 @@ function relayoutBracket(focus){
   updateNextBtn(focus,yc);
 }
 
+function calcBkLayout(vw,isDesk){
+  const GS_GAP=18;
+  let STANDW,COLW,CARDW;
+  if(isDesk){
+    STANDW=Math.min(Math.round(vw*0.18),200);
+    const baseC=Math.max(130,Math.round((vw-GS_GAP-STANDW)/ROUNDS.length));
+    CARDW=Math.round((baseC-22)*1.5);  // 데스크탑: 1.5배 넓은 카드
+    COLW=CARDW+22;
+  }else{
+    STANDW=Math.min(vw-24,360);
+    COLW=Math.round(vw*0.66);
+    CARDW=COLW-22;
+  }
+  const bx0=STANDW+GS_GAP;
+  const colX={R32:bx0,R16:bx0+COLW,QF:bx0+2*COLW,SF:bx0+3*COLW,F:bx0+4*COLW};
+  const W=colX.F+vw;
+  const stW=STANDW-10;
+  return{STANDW,COLW,CARDW,bx0,colX,W,stW};
+}
 // Apple식 통합: [조 순위표] + [R32~결승 브래킷] 한 캔버스, 가로 스크롤
 function renderFullBracket(visible){
   const ko=visible.filter(g=>ROUNDS.includes(gStage(g)));
@@ -544,18 +563,7 @@ function renderFullBracket(visible){
   const isDesk=window.innerWidth>=768;
   const vw=Math.min(window.innerWidth,isDesk?1200:560)-(isDesk?48:0);
   const CARDH=74,SP=90,PADY=16,GS_GAP=18;
-  let STANDW,COLW;
-  if(isDesk){
-    // 넓은 화면: 모든 라운드를 한 화면에
-    STANDW=Math.min(Math.round(vw*0.18),200);
-    COLW=Math.max(130,Math.round((vw-GS_GAP-STANDW)/ROUNDS.length));
-  }else{
-    STANDW=Math.min(vw-24,360);
-    COLW=Math.round(vw*0.66); // 모바일: 1.5 라운드
-  }
-  const CARDW=COLW-22;
-  const bx0=STANDW+GS_GAP;
-  const colX={R32:bx0,R16:bx0+COLW,QF:bx0+2*COLW,SF:bx0+3*COLW,F:bx0+4*COLW};
+  const{STANDW,COLW,CARDW,bx0,colX,W,stW}=calcBkLayout(vw,isDesk);
   SECTION_X={GS:0,R32:colX.R32-6,R16:colX.R16-6,QF:colX.QF-6,SF:colX.SF-6,F:colX.F-6};
   const finalG=ko.find(g=>gStage(g)==='F');
   const third=visible.find(g=>gStage(g)==='3RD');
@@ -575,7 +583,6 @@ function renderFullBracket(visible){
   // ── 조 순위표 (왼쪽 컬럼) ──
   const stand=computeStandings(visible);
   const letters=Object.keys(stand);
-  const stW=STANDW-10;
   const standTables=letters.map(L=>{
     const arr=stand[L];
     const rows=arr.map((t,i)=>`<tr class="${i<2?'qual':''}">
@@ -588,10 +595,8 @@ function renderFullBracket(visible){
   const standHtml=letters.length?`<div class="stand-col" style="left:0;top:${PADY}px;width:${stW}px">${standTables}</div>`:'';
   H=Math.max(H, PADY*2+letters.length*210);
   if(!ko.length&&!letters.length)return '<div class="empty">경기가 없습니다</div>';
-  // 오른쪽에 화면 한 칸 여백 → 결승도 왼쪽 끝까지 스크롤 가능 (오른쪽 비움)
-  const W=colX.F+vw;
-  const heads=`<div class="bk-head" style="left:0;width:${stW}px">조 순위</div>`+
-    ROUNDS.map(r=>`<div class="bk-head" style="left:${colX[r]}px;width:${CARDW}px">${RLBL[r]}</div>`).join('');
+  const heads=`<div class="bk-head" data-round="GS" style="left:0;width:${stW}px">조 순위</div>`+
+    ROUNDS.map(r=>`<div class="bk-head" data-round="${r}" style="left:${colX[r]}px;width:${CARDW}px">${RLBL[r]}</div>`).join('');
   return `<div class="bk-scroll" id="bk-scroll"><div class="bk-stage" style="width:${W}px">
     <div class="bk-heads" style="width:${W}px">${heads}</div>
     <div class="bk-canvas" style="width:${W}px;height:${H}px">
@@ -1069,6 +1074,52 @@ async function refresh(){
   // render() 내부 setTimeout(40ms) 이후 스크롤 복원
   if(savedScroll>=0)setTimeout(()=>{const s=document.getElementById('bk-scroll');if(s)s.scrollLeft=savedScroll;},60);
 }
+
+// ── 브래킷 카드 크기 반응형 업데이트 (CSS transition으로 부드럽게) ──
+function resizeBracketCards(){
+  if(!BK)return;
+  const sc=document.getElementById('bk-scroll');
+  if(!sc)return;
+  const isD=window.innerWidth>=768;
+  const vw=Math.min(window.innerWidth,isD?1200:560)-(isD?48:0);
+  const{CARDW,colX,W,stW}=calcBkLayout(vw,isD);
+  // 컨테이너 너비 업데이트
+  ['.bk-stage','.bk-heads','.bk-canvas'].forEach(sel=>{
+    const el=sc.querySelector(sel);if(el)el.style.width=W+'px';
+  });
+  const svg=document.getElementById('bk-svg');
+  if(svg){svg.setAttribute('width',W);svg.style.width=W+'px';}
+  // 컬럼 헤더 위치·너비
+  sc.querySelectorAll('.bk-head').forEach(el=>{
+    const r=el.dataset.round;
+    if(r==='GS'){el.style.width=stW+'px';return;}
+    if(colX[r]!=null){el.style.left=colX[r]+'px';el.style.width=CARDW+'px';}
+  });
+  // 카드 너비·위치 + 팀명 전환 (transition이 width/left 애니메이션)
+  const updateCards=gs=>gs.forEach(g=>{
+    const el=document.getElementById('bkc-'+g.id);if(!el)return;
+    const h=teamSide(g,'home'),a=teamSide(g,'away');
+    const nms=el.querySelectorAll('.bk-n');
+    if(nms[0])nms[0].textContent=isD?h.full:h.name;
+    if(nms[1])nms[1].textContent=isD?a.full:a.name;
+    const x=g.stage==='3RD'?colX.F:colX[gStage(g)];
+    el.style.left=x+'px';el.style.width=CARDW+'px';
+  });
+  updateCards(BK.ko);
+  if(BK.third)updateCards([BK.third]);
+  const tl=document.getElementById('bk-thirdlbl');
+  if(tl){tl.style.left=colX.F+'px';tl.style.width=CARDW+'px';}
+  BK.colX=colX;BK.CARDW=CARDW;
+  SECTION_X={GS:0,R32:colX.R32-6,R16:colX.R16-6,QF:colX.QF-6,SF:colX.SF-6,F:colX.F-6};
+  if(svg)svg.innerHTML=bracketLines(BK.yc);
+}
+let _bkIsDesk=window.innerWidth>=768;
+window.addEventListener('resize',()=>{
+  const isD=window.innerWidth>=768;
+  if(isD===_bkIsDesk)return;
+  _bkIsDesk=isD;
+  resizeBracketCards();
+});
 
 // ── 초기화 ──
 (async()=>{
