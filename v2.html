@@ -335,6 +335,13 @@ function ovClose(e,id){if(e.target===e.currentTarget)closeSheet(id);}
 
 function startMs(g){const v=Date.parse(`${(g.date||'').replace(/\./g,'-')}T${g.time||'00:00'}:00+09:00`);return isNaN(v)?0:v;}
 function gBets(id){return BETS.filter(b=>String(b.game_id)===String(id));}
+function todayStr(){const d=new Date();return `${d.getFullYear()}.${String(d.getMonth()+1).padStart(2,'0')}.${String(d.getDate()).padStart(2,'0')}`;}
+function gameBorderClr(g){
+  const st=gState(g);
+  if(st==='ended')return g.date===todayStr()?'var(--gold)':'var(--blue)';
+  if(st==='open')return 'var(--green)';
+  return 'transparent';
+}
 function gState(g){
   const res=RESULTS[String(g.id)];
   if(res||g.status==='ended')return 'ended';
@@ -517,7 +524,7 @@ function bkCardHtml(g){
   const dt=g.date?`${g.date.slice(5)} ${g.time||''}`:'';
   const x=g.stage==='3RD'?colX.F:colX[gStage(g)];
   const top=(BK.yc&&BK.yc[g.id]!=null)?BK.yc[g.id]:BK.PADY;
-  return `<div class="bk-card ${bett?'bettable':''}" id="bkc-${g.id}" style="left:${x}px;top:${top}px;width:${CARDW}px;height:${CARDH}px" onclick="bkSelect(this);openGame('${g.id}')">
+  return `<div class="bk-card ${bett?'bettable':''}" id="bkc-${g.id}" style="left:${x}px;top:${top}px;width:${CARDW}px;height:${CARDH}px;border-color:${gameBorderClr(g)}" onclick="bkSelect(this);openGame('${g.id}')">
     <div class="bk-dt">${dt}${bett?' · ⚽':''}</div>
     <div class="bk-row"><span class="bk-f">${h.flag}</span><span class="bk-n ${h.known?'':'tbd'}">${hn}</span><span class="bk-s">${res?res.h:''}</span></div>
     <div class="bk-row"><span class="bk-f">${a.flag}</span><span class="bk-n ${a.known?'':'tbd'}">${an}</span><span class="bk-s">${res?res.a:''}</span></div>
@@ -928,7 +935,7 @@ function renderMiniOverview(visible){
     const h=teamSide(g,'home'),a=teamSide(g,'away');
     const x=r==='3RD'?colX.F:colX[r];
     const top=yc[g.id]!=null?yc[g.id]:PADY;
-    const bdr=st==='open'?'#30d158':'#38383a';
+    const bdr=gameBorderClr(g)||'#38383a';
     const hn=_isDesk?h.full:h.name, an=_isDesk?a.full:a.name;
     cards+=`<div style="position:absolute;left:${x+KO_LEFT}px;top:${top}px;width:${KO_CARDW}px;height:${CARDH}px;background:#1c1c1e;border:1px solid ${bdr};border-radius:4px;overflow:hidden;box-sizing:border-box;cursor:pointer" onclick="exitOvvAndGo('${r==='3RD'?'F':r}')">
       ${miniRow(h.flag,hn,h.known,res!=null?res.h:null,ROW)}
@@ -944,8 +951,14 @@ function renderMiniOverview(visible){
   const GS_CARDW=GS_COLW-GS_LEFT-2;      // GS 컬럼 꽉 채우기
   const GS_PADV=4;
   let gsY=PADY;
+  const td=todayStr();
   letters.forEach((L)=>{
     const arr=stand[L];
+    const grpGames=visible.filter(g=>gStage(g)==='GS'&&groupLetter(g)===L);
+    const grpBdr=grpGames.some(g=>gState(g)==='ended'&&g.date===td)?'var(--gold)'
+      :grpGames.some(g=>gState(g)==='open')?'var(--green)'
+      :grpGames.length&&grpGames.every(g=>gState(g)==='ended')?'var(--blue)'
+      :'#38383a';
     const groupH=arr.length*ROW+hdrH+GS_PADV*2;
     const rows=arr.map((t,i)=>{
       const clr=flagToClr(t.flag);
@@ -954,7 +967,7 @@ function renderMiniOverview(visible){
         <div style="width:4px;height:${ROW-4}px;background:${clr};border-radius:2px;flex-shrink:0"></div>
         <span style="flex:1;font-size:12px;font-weight:800;overflow:hidden;white-space:nowrap;text-overflow:ellipsis;color:${i<2?'#ddd':'#555'};letter-spacing:.2px">${lbl}</span>
       </div>`;}).join('');
-    gsCards+=`<div style="position:absolute;left:${GS_LEFT}px;top:${gsY}px;width:${GS_CARDW}px;overflow:hidden;background:#1c1c1e;border:1px solid #38383a;border-radius:4px;padding:${GS_PADV}px 0;box-sizing:border-box;cursor:pointer" onclick="exitOvvAndGo('GS')">
+    gsCards+=`<div style="position:absolute;left:${GS_LEFT}px;top:${gsY}px;width:${GS_CARDW}px;overflow:hidden;background:#1c1c1e;border:1px solid ${grpBdr};border-radius:4px;padding:${GS_PADV}px 0;box-sizing:border-box;cursor:pointer" onclick="exitOvvAndGo('GS')">
       <div style="font-size:10px;color:#fff;padding:0 4px;margin-bottom:1px">G.${L}</div>${rows}
     </div>`;
     gsY+=groupH+GS_GAP;
