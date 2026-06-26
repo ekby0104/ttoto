@@ -987,9 +987,7 @@ function renderMiniOverview(visible){
       gs.forEach((g,j)=>{const a=pv[j*2],b=pv[j*2+1];slot[g.id]=((a?slot[a.id]:j*2)+(b?slot[b.id]:j*2+1))/2;});
     });
   }
-  // GS카드(102px) - KO 2장+gap(90px) = 12px 차이 → 6px씩 위아래 균등하게 오프셋
-  const KO_VOFFSET=6;
-  const yc={};for(const id in slot)yc[id]=slot[id]*SP+PADY+KO_VOFFSET;
+  const yc={};for(const id in slot)yc[id]=slot[id]*SP+PADY;
   const third=visible.find(g=>gStage(g)==='3RD');
   const finalG=ko.find(g=>gStage(g)==='F');
   if(third&&finalG)yc[third.id]=(yc[finalG.id]||PADY)+CARDH+4;
@@ -1039,8 +1037,9 @@ function renderMiniOverview(visible){
   let gsCards='';
   const hdrH=14,GS_GAP=10;
   const GS_LEFT=4;
-  const GS_CARDW=GS_COLW-GS_LEFT-2;      // GS 컬럼 꽉 채우기
+  const GS_CARDW=GS_COLW-GS_LEFT-2;
   const GS_PADV=4;
+  const GS_ROW=Math.floor((CARDH*2+GS_GAP-hdrH-GS_PADV*2)/4); // 17px → GS card = KO pair height (90px)
   let gsY=PADY;
   const td=todayStr();
   letters.forEach((L)=>{
@@ -1052,16 +1051,16 @@ function renderMiniOverview(visible){
       :grpGames.some(g=>gState(g)!=='ended'&&(gState(g)==='closed'||(startMs(g)>0&&startMs(g)<=now)))?'var(--pink)'
       :grpGames.some(g=>gState(g)!=='ended'&&startMs(g)>now)?'var(--green)'
       :'#38383a';
-    const groupH=arr.length*ROW+hdrH+GS_PADV*2;
+    const groupH=arr.length*GS_ROW+hdrH+GS_PADV*2;
     const rows=arr.map((t,i)=>{
       const clr=flagToClr(t.flag);
       const lbl=_isDesk?(t.name||t.short):t.short;
-      return `<div style="display:flex;align-items:center;gap:3px;height:${ROW}px;padding:0 4px">
-        <div style="width:4px;height:${ROW-4}px;background:${clr};border-radius:2px;flex-shrink:0"></div>
+      return `<div style="display:flex;align-items:center;gap:3px;height:${GS_ROW}px;padding:0 4px">
+        <div style="width:4px;height:${GS_ROW-4}px;background:${clr};border-radius:2px;flex-shrink:0"></div>
         <span style="flex:1;font-size:12px;font-weight:800;overflow:hidden;white-space:nowrap;text-overflow:ellipsis;color:${i<2?'#ddd':'#555'};letter-spacing:.2px">${lbl}</span>
       </div>`;}).join('');
     gsCards+=`<div style="position:absolute;left:${GS_LEFT}px;top:${gsY}px;width:${GS_CARDW}px;overflow:hidden;background:#1c1c1e;border:1px solid ${grpBdr};border-radius:4px;padding:${GS_PADV}px 0;box-sizing:border-box;cursor:pointer" onclick="exitOvvAndGo('GS',null,'${L}')">
-      <div style="font-size:10px;color:#fff;padding:0 4px;margin-bottom:1px">G.${L}</div>${rows}
+      <div style="font-size:10px;color:#fff;padding:0 4px;margin-bottom:1px">Group ${L}</div>${rows}
     </div>`;
     gsY+=groupH+GS_GAP;
   });
