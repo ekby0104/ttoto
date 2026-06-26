@@ -716,14 +716,13 @@ function renderMiniOverview(visible){
   const ko=visible.filter(g=>ROUNDS.includes(gStage(g)));
   const byId={};ko.forEach(g=>byId[String(g.id)]=g);
   const vw=Math.min(window.innerWidth,560)-28;
-  // GS 칼럼: vw/6, KO 5개 칼럼: 나머지 균등 분할 (칼럼은 화면 채움, 카드는 내용 맞춤 폭)
-  const GS_W=Math.floor(vw/6);
-  const KO_W=Math.floor((vw-GS_W)/5);
-  const CARDW=KO_W-4;  // 칼럼 꽉 채움
-  // SP = CARDH+2 (2px 갭, 빡빡하게)
+  // 6개 칼럼(GS+5KO) 균등 분할
+  const COLW=Math.floor(vw/6);
+  const CARDW=COLW-4;
+  // SP = CARDH+2 (2px 갭)
   const CARDH=32,SP=34,HDR=22,PADY=HDR+4;
   const ROW=Math.floor(CARDH/2);
-  const colX={};ROUNDS.forEach((r,i)=>{colX[r]=GS_W+KO_W*i;});
+  const colX={};ROUNDS.forEach((r,i)=>{colX[r]=COLW*(i+1);});
   // 슬롯 계산
   let slot=BK&&Object.keys(BK.slot||{}).length?{...BK.slot}:{};
   if(!Object.keys(slot).length){
@@ -767,35 +766,32 @@ function renderMiniOverview(visible){
       ${miniRow(a.flag,a.name,a.known,res!=null?res.a:null,ROW)}
     </div>`;
   });
-  // GS 조별 순위 카드 — 단순 누적 스택 (겹침 방지)
+  // GS 조별 카드 — 순위·득점 제거, KO 카드와 동일 포맷/크기
   const stand=computeStandings(visible);
   const letters=Object.keys(stand);
   let gsCards='';
-  const rowH=10,hdrH=12,GS_GAP=4;
+  const hdrH=10,GS_GAP=4;
   let gsY=PADY;
   letters.forEach((L)=>{
     const arr=stand[L];
-    const groupH=arr.length*rowH+hdrH+4;
+    const groupH=arr.length*ROW+hdrH+4;
     const rows=arr.map((t,i)=>{
       const clr=flagToClr(t.flag);
-      return `<div style="display:flex;align-items:center;gap:2px;height:${rowH}px">
-        <span style="width:6px;font-size:6px;color:${i<2?'#30d158':'#444'};flex-shrink:0;text-align:center;line-height:1">${i+1}</span>
-        <div style="width:3px;height:7px;background:${clr};border-radius:1px;flex-shrink:0"></div>
-        <span style="flex:1;font-size:6px;font-weight:800;overflow:hidden;white-space:nowrap;color:${i<2?'#ddd':'#666'};letter-spacing:.1px">${String(t.short).slice(0,3).toUpperCase()}</span>
-        <span style="font-size:6px;font-weight:800;color:#fff;min-width:7px;text-align:right">${t.pts}</span>
+      return `<div style="display:flex;align-items:center;gap:3px;height:${ROW}px;padding:0 4px">
+        <div style="width:4px;height:${ROW-4}px;background:${clr};border-radius:2px;flex-shrink:0"></div>
+        <span style="flex:1;font-size:11px;font-weight:800;overflow:hidden;white-space:nowrap;color:${i<2?'#ddd':'#555'};letter-spacing:.2px">${String(t.short).slice(0,3).toUpperCase()}</span>
       </div>`;}).join('');
-    gsCards+=`<div style="position:absolute;left:0;top:${gsY}px;width:${GS_W-2}px;overflow:hidden;background:#1c1c1e;border:1px solid #38383a;border-radius:4px;padding:2px 3px;box-sizing:border-box;cursor:pointer" onclick="exitOvvAndGo('GS')">
-      <div style="font-size:7px;font-weight:800;color:#555;margin-bottom:2px">G.${L}</div>${rows}
+    gsCards+=`<div style="position:absolute;left:2px;top:${gsY}px;width:${CARDW}px;overflow:hidden;background:#1c1c1e;border:1px solid #38383a;border-radius:4px;padding:2px 0;box-sizing:border-box;cursor:pointer" onclick="exitOvvAndGo('GS')">
+      <div style="font-size:8px;font-weight:800;color:#555;padding:0 4px;margin-bottom:1px">G.${L}</div>${rows}
     </div>`;
     gsY+=groupH+GS_GAP;
   });
-  // GS 캔버스 높이는 KO 높이와 GS 높이 중 큰 값
   const gsCanvasH=gsY+PADY;
   const totalH=Math.max(canvasH,gsCanvasH);
-  // 컬럼 헤더
-  let hdrs=`<div style="position:absolute;left:0;width:${GS_W}px;top:3px;text-align:center;font-size:10px;font-weight:800;color:#8e8e93;cursor:pointer" onclick="exitOvvAndGo('GS')">GS</div>`;
+  // 컬럼 헤더 — 6개 균등
+  let hdrs=`<div style="position:absolute;left:0;width:${COLW}px;top:3px;text-align:center;font-size:10px;font-weight:800;color:#8e8e93;cursor:pointer" onclick="exitOvvAndGo('GS')">GS</div>`;
   ROUNDS.forEach(r=>{
-    hdrs+=`<div style="position:absolute;left:${colX[r]}px;width:${KO_W}px;top:3px;text-align:center;font-size:10px;font-weight:800;color:#8e8e93;cursor:pointer" onclick="exitOvvAndGo('${r}')">${r==='F'?'🏆':r}</div>`;
+    hdrs+=`<div style="position:absolute;left:${colX[r]}px;width:${COLW}px;top:3px;text-align:center;font-size:10px;font-weight:800;color:#8e8e93;cursor:pointer" onclick="exitOvvAndGo('${r}')">${r==='F'?'🏆':r}</div>`;
   });
   return `<div style="position:relative;width:${W}px">
     <div style="position:relative;height:${HDR}px">${hdrs}</div>
