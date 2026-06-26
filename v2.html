@@ -86,7 +86,8 @@ body{background:var(--bg);color:var(--text);font-family:var(--sys);min-height:10
 .bk-svg{position:absolute;top:0;left:0;pointer-events:none}
 .bk-card{position:absolute;background:var(--card);border:1.5px solid transparent;border-radius:10px;padding:5px 9px;display:flex;flex-direction:column;justify-content:center;gap:3px;cursor:pointer;overflow:hidden;transition:top .45s cubic-bezier(.32,.72,0,1),width .35s ease,left .35s ease;will-change:top,width,left}
 .bk-card.bettable{border-color:var(--green);box-shadow:0 0 10px rgba(48,209,88,.3)}
-.bk-card.sel{border-color:var(--green)!important;box-shadow:0 0 0 1.5px var(--green),0 0 16px 2px rgba(48,209,88,.45)}
+.bk-card.sel{border-color:#fff!important;animation:selBlink 1s ease-in-out infinite;z-index:6}
+@keyframes selBlink{0%,100%{box-shadow:0 0 0 2px #fff,0 0 16px 3px rgba(255,255,255,.65)}50%{box-shadow:0 0 0 2px rgba(255,255,255,.45),0 0 6px 1px rgba(255,255,255,.25)}}
 .bk-card:active{filter:brightness(1.15)}
 .bk-dt{font-size:12px;line-height:16px;height:16px;color:#fff;font-family:var(--mono);white-space:nowrap;overflow:hidden}
 .bk-row{display:flex;align-items:center;gap:6px;height:20px}
@@ -884,6 +885,7 @@ function exitOvvAndGo(stage,gid){
     setTimeout(()=>{
       const el=document.getElementById('bkc-'+gid);
       if(!el)return;
+      bkSelect(el);   // 흰색 반짝이는 보더로 선택 표시
       const rect=el.getBoundingClientRect();
       const y=window.scrollY+rect.top-(window.innerHeight/2-rect.height/2);
       window.scrollTo({top:Math.max(0,y),behavior:'smooth'});
