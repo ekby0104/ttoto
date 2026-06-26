@@ -893,21 +893,34 @@ function exitOvvAndGo(stage,gid){
   if(gid)selGid=String(gid);     // 선택 id 미리 등록 → 렌더 시 바로 흰색 반짝임(재렌더에도 유지)
   setStage(stage,true);          // 전체뷰 이동: 상단 스크롤 건너뜀(이중 점프 방지)
   if(!gid)return;
-  // render() 내부 relayout(setTimeout 40ms)로 카드 최종 top이 정해진 뒤 '즉시' 스크롤.
-  // (behavior:'smooth'는 카드 reflow 중 데스크탑에서 미동작 → 즉시 스크롤; 카드는 .45s 트랜지션으로 중앙 슬라이드)
-  // 브라우저 스크롤 복원과 경쟁하므로 2회 재확인(같은 y라 중복돼도 무해).
-  const scrollToCard=()=>{
+  // render() 내부 relayout(setTimeout 40ms)로 카드 최종 top이 정해진 뒤 부드럽게 스크롤.
+  // native behavior:'smooth'는 카드 reflow 중 데스크탑에서 clamp되어 미동작 → rAF로 직접 보간(tween).
+  // 카드 .45s 트랜지션과 같은 시간으로 맞춰 페이지와 카드가 함께 중앙으로 흐름.
+  setTimeout(()=>{
     const el=document.getElementById('bkc-'+gid);
     if(!el||!el.offsetHeight)return;
     el.classList.add('sel');     // 흰색 반짝임 보강(selGid로도 유지됨)
-    const canvas=el.closest('.bk-canvas')||el.offsetParent;
-    const cardTop=parseFloat(el.style.top)||0;
-    const pageY=(canvas?canvas.getBoundingClientRect().top+window.scrollY:0)+cardTop;
-    const y=Math.max(0,pageY-(window.innerHeight/2-el.offsetHeight/2));
-    window.scrollTo(0,y);
-  };
-  setTimeout(scrollToCard,140);
-  setTimeout(scrollToCard,360);
+    const targetY=()=>{
+      const canvas=el.closest('.bk-canvas')||el.offsetParent;
+      const cardTop=parseFloat(el.style.top)||0;
+      const pageY=(canvas?canvas.getBoundingClientRect().top+window.scrollY:0)+cardTop;
+      return Math.max(0,pageY-(window.innerHeight/2-el.offsetHeight/2));
+    };
+    smoothScrollY(targetY,460);
+  },120);
+}
+// rAF 기반 커스텀 스무스 스크롤(절대값 직접 세팅 → 데스크탑 clamp/복원 영향 없음)
+let _ssRAF=null;
+function smoothScrollY(targetFn,dur){
+  if(_ssRAF)cancelAnimationFrame(_ssRAF);
+  const startY=window.scrollY,t0=performance.now();
+  (function step(now){
+    const p=Math.min(1,(now-t0)/(dur||450));
+    const e=p<.5?2*p*p:1-Math.pow(-2*p+2,2)/2;   // easeInOutQuad
+    const ty=typeof targetFn==='function'?targetFn():targetFn;
+    window.scrollTo(0,startY+(ty-startY)*e);
+    _ssRAF=p<1?requestAnimationFrame(step):null;
+  })(performance.now());
 }
 
 // 국가코드 → 대표 색상 (피파 앱 스타일 컬러바용)
