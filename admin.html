@@ -411,6 +411,11 @@ main{max-width:960px;margin:0 auto;padding:16px 12px 60px}
         <button class="btn btn-sm btn-danger" onclick="deleteAllBets()">🗑 전체 삭제</button>
       </div>
       <div style="display:flex;gap:8px;margin-bottom:14px;flex-wrap:wrap">
+        <select class="form-input" id="pay-filter-status" onchange="renderPayments()" style="max-width:130px">
+          <option value="unpaid">미입금만</option>
+          <option value="paid">입금완료만</option>
+          <option value="">전체</option>
+        </select>
         <select class="form-input" id="pay-filter-game" onchange="renderPayments()" style="max-width:220px">
           <option value="">전체 경기</option>
         </select>
@@ -662,7 +667,13 @@ function renderGameFilters() {
     const sel = document.getElementById(selId);
     const cur = sel.value;
     sel.innerHTML = '<option value="">전체 경기</option>';
-    activeGames().forEach(m => {
+    let games = activeGames();
+    // 입금 확인 탭 경기 픽커: 경기 일시 역순(최신 먼저)
+    if (selId === 'pay-filter-game') {
+      games = [...games].sort((a,b) =>
+        `${b.date} ${b.time||''}`.localeCompare(`${a.date} ${a.time||''}`));
+    }
+    games.forEach(m => {
       const opt = document.createElement('option');
       opt.value = m.id;
       opt.textContent = `${m.home.flag}${m.home.short} vs ${m.away.short}${m.away.flag} (${m.date})`;
@@ -733,13 +744,18 @@ async function saveToken() {
 // ── ② 입금 확인 ──────────────────────────────────────────
 function renderPayments() {
   const gFilter = document.getElementById('pay-filter-game').value;
-  const bets    = (gFilter ? allBets.filter(b => b.game_id === parseInt(gFilter)) : allBets).slice().sort((a,b)=>(b.created_at||0)-(a.created_at||0));
+  const sFilter = document.getElementById('pay-filter-status').value;   // unpaid | paid | ''
+  let bets = (gFilter ? allBets.filter(b => b.game_id === parseInt(gFilter)) : allBets).slice();
+  if (sFilter === 'unpaid') bets = bets.filter(b => !b.paid);
+  else if (sFilter === 'paid') bets = bets.filter(b => b.paid);
+  bets.sort((a,b)=>(b.created_at||0)-(a.created_at||0));
   const tbody   = document.getElementById('payments-body');
   const cntEl   = document.getElementById('pay-count');
   const paidCnt = bets.filter(b => b.paid).length;
   if (cntEl) cntEl.textContent = bets.length ? `총 ${bets.length}건 · 입금 ${paidCnt} · 대기 ${bets.length - paidCnt}` : '';
   if (!bets.length) {
-    tbody.innerHTML = '<tr><td colspan="6" style="text-align:center;color:#aaa;padding:20px">베팅 내역이 없습니다</td></tr>';
+    const msg = sFilter==='unpaid' ? '미입금 내역이 없습니다' : sFilter==='paid' ? '입금완료 내역이 없습니다' : '베팅 내역이 없습니다';
+    tbody.innerHTML = `<tr><td colspan="6" style="text-align:center;color:#aaa;padding:20px">${msg}</td></tr>`;
     return;
   }
   tbody.innerHTML = bets.map(b => `
