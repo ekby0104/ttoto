@@ -878,7 +878,18 @@ async function doBet(viaKakao){
 // ── 토너먼트 오버뷰 (인라인 미니 브래킷) ──
 let ovvMode=false;
 function toggleOverview(){ovvMode=!ovvMode;render();}
-function exitOvvAndGo(stage){ovvMode=false;setStage(stage);}
+function exitOvvAndGo(stage,gid){
+  ovvMode=false;setStage(stage);
+  if(gid){
+    setTimeout(()=>{
+      const el=document.getElementById('bkc-'+gid);
+      if(!el)return;
+      const rect=el.getBoundingClientRect();
+      const y=window.scrollY+rect.top-(window.innerHeight/2-rect.height/2);
+      window.scrollTo({top:Math.max(0,y),behavior:'smooth'});
+    },140);
+  }
+}
 
 // 국가코드 → 대표 색상 (피파 앱 스타일 컬러바용)
 const TEAM_CLR={
@@ -979,7 +990,7 @@ function renderMiniOverview(visible){
     const top=yc[g.id]!=null?yc[g.id]:PADY;
     const bdr=gameBorderClr(g)||'#38383a';
     const hn=_isDesk?h.full:h.name, an=_isDesk?a.full:a.name;
-    cards+=`<div style="position:absolute;left:${x+KO_LEFT}px;top:${top}px;width:${KO_CARDW}px;height:${CARDH}px;background:#1c1c1e;border:1px solid ${bdr};border-radius:4px;overflow:hidden;box-sizing:border-box;cursor:pointer" onclick="exitOvvAndGo('${r==='3RD'?'F':r}')">
+    cards+=`<div style="position:absolute;left:${x+KO_LEFT}px;top:${top}px;width:${KO_CARDW}px;height:${CARDH}px;background:#1c1c1e;border:1px solid ${bdr};border-radius:4px;overflow:hidden;box-sizing:border-box;cursor:pointer" onclick="exitOvvAndGo('${r==='3RD'?'F':r}','${g.id}')">
       ${miniRow(h.flag,hn,h.known,res!=null?res.h:null,ROW)}
       ${miniRow(a.flag,an,a.known,res!=null?res.a:null,ROW)}
     </div>`;
@@ -990,7 +1001,7 @@ function renderMiniOverview(visible){
     const top3=yc[third.id]!=null?yc[third.id]:PADY;
     const bdr3=gameBorderClr(third)||'#38383a';
     const hn3=_isDesk?h.full:h.name, an3=_isDesk?a.full:a.name;
-    cards+=`<div style="position:absolute;left:${colX.F+KO_LEFT}px;top:${top3}px;width:${KO_CARDW}px;height:${CARDH}px;background:#1c1c1e;border:1px solid ${bdr3};border-radius:4px;overflow:hidden;box-sizing:border-box;cursor:pointer" onclick="exitOvvAndGo('F')">
+    cards+=`<div style="position:absolute;left:${colX.F+KO_LEFT}px;top:${top3}px;width:${KO_CARDW}px;height:${CARDH}px;background:#1c1c1e;border:1px solid ${bdr3};border-radius:4px;overflow:hidden;box-sizing:border-box;cursor:pointer" onclick="exitOvvAndGo('F','${third.id}')">
       ${miniRow(h.flag,hn3,h.known,res!=null?res.h:null,ROW)}
       ${miniRow(a.flag,an3,a.known,res!=null?res.a:null,ROW)}
     </div>`;
