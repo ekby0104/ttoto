@@ -716,9 +716,9 @@ function renderMiniOverview(visible){
   const ko=visible.filter(g=>ROUNDS.includes(gStage(g)));
   const byId={};ko.forEach(g=>byId[String(g.id)]=g);
   const vw=Math.min(window.innerWidth,560)-28;
-  // GS 칼럼은 넓게, KO 5개 칼럼은 나머지를 균등 분할 (내용에 맞는 폭)
-  const GS_W=Math.floor(vw*0.28);
-  const KO_W=Math.floor((vw-GS_W)/5);
+  // GS 칼럼: 원래대로 vw/6, KO 칼럼: 내용(3글자+점수)에 맞는 고정 폭
+  const GS_W=Math.floor(vw/6);
+  const KO_W=40;
   // SP > CARDH 필수 (겹침 방지), KO 카드 상하 여백 증가
   const CARDW=KO_W-4,CARDH=22,SP=30,HDR=22,PADY=HDR+4;
   const ROW=Math.floor(CARDH/2);
@@ -741,7 +741,7 @@ function renderMiniOverview(visible){
   if(third&&finalG)yc[third.id]=(yc[finalG.id]||PADY)+CARDH+4;
   const allYs=Object.values(yc);
   const canvasH=(allYs.length?Math.max(...allYs):PADY)+CARDH+PADY;
-  const W=vw;
+  const W=GS_W+KO_W*5;
   // SVG 연결선
   let lines='';
   ko.forEach(g=>{
