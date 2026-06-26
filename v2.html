@@ -148,7 +148,7 @@ body{background:var(--bg);color:var(--text);font-family:var(--sys);min-height:10
 .stat .v{font-size:20px;font-weight:800}
 .stat .l{font-size:11px;color:var(--muted);margin-top:2px}
 /* 점수 분포 */
-.dist-h{font-size:13px;font-weight:700;color:var(--muted);margin:6px 2px 8px}
+.dist-h{font-size:13px;font-weight:700;color:#fff;margin:6px 2px 8px}
 .dist-sc{font-family:var(--mono);font-weight:800;font-size:17px;color:#fff;flex-shrink:0}
 .dist-item{background:var(--card2);border-radius:12px;padding:10px 13px;margin-bottom:8px}
 .dist-top{display:flex;align-items:center;justify-content:space-between;gap:8px}
@@ -156,7 +156,7 @@ body{background:var(--bg);color:var(--text);font-family:var(--sys);min-height:10
 .dist-names{font-size:12px;line-height:1.8}
 /* 베팅 현황 뷰 토글 */
 .bv-toggle{display:inline-flex;background:var(--card2);border-radius:9px;padding:2px;gap:2px;flex-shrink:0}
-.bv-btn{border:none;background:none;color:var(--muted);font-size:12px;font-weight:700;padding:4px 11px;border-radius:7px;cursor:pointer;font-family:var(--sys)}
+.bv-btn{border:none;background:none;color:#fff;font-size:12px;font-weight:700;padding:4px 11px;border-radius:7px;cursor:pointer;font-family:var(--sys)}
 .bv-btn.on{background:var(--green);color:#000}
 /* 스코어 매트릭스 */
 .bmx{border-collapse:separate;border-spacing:3px;font-variant-numeric:tabular-nums;margin:2px auto}
@@ -176,7 +176,7 @@ body{background:var(--bg);color:var(--text);font-family:var(--sys);min-height:10
 .gg-sc{font-size:14px;font-weight:800;color:#fff;font-variant-numeric:tabular-nums;font-family:var(--mono)}
 .gg-sc.dt{font-size:11px;color:var(--muted);font-weight:600}
 .gg-cnt{font-size:10px;color:var(--muted);font-weight:600;margin-top:2px;font-family:var(--mono)}
-.empty{text-align:center;color:var(--muted);padding:24px;font-size:14px}
+.empty{text-align:center;color:#fff;padding:24px;font-size:14px}
 /* 버튼 */
 .btn{display:flex;align-items:center;justify-content:center;gap:8px;width:100%;border:none;border-radius:14px;padding:15px;font-size:16px;font-weight:800;cursor:pointer;font-family:var(--sys)}
 .btn-g{background:var(--green);color:#000}
@@ -657,23 +657,27 @@ function betMatrixHtml(g,mb,res){
   const denom=cmax||1;
   // 셀 크기: 가용폭 2/3 기준, 높이는 너비의 2/3 (직사각형)
   const avail=Math.floor((Math.min(window.innerWidth,560)-36)*2/3);
-  const hdrW=38;
+  const flagW=28;  // (n,0) 원정 국기 열 너비
+  const scW=26;    // (n,1) 원정 득점 열 너비
+  const hdrW=flagW+scW;
   const cellW=Math.max(24,Math.floor((avail-hdrW)/(N+1)));
   const cellH=Math.floor(cellW*2/3);
   const cellStyle=(extra='')=>`width:${cellW}px;height:${cellH}px;border-radius:${Math.max(3,cellW/8)|0}px;${extra}`;
-  const thSc=`font-size:15px;color:#fff;font-weight:700;text-align:center`;
-  // 헤더 행 1: 빈 코너 + home팀 국기+코드 (→ 열 = 홈 스코어)
+  const thHd=`background:#fff;color:#000;font-weight:800;text-align:center`;
+  // 헤더 행 1: 코너(colspan=2) + home팀 국기+코드 (→ 열 = 홈 스코어)
   let head=`<tr>
-    <th style="width:${hdrW}px"></th>
-    <th colspan="${N+1}" style="font-size:14px;color:#fff;font-weight:800;text-align:center;padding:0 0 4px">${g.home.flag} ${esc(g.home.short)}</th>
+    <th colspan="2" style="${thHd};width:${hdrW}px;font-size:12px;line-height:1.3;padding:0 2px 4px">${g.away.flag}<br>${esc(g.away.short)}</th>
+    <th colspan="${N+1}" style="${thHd};font-size:14px;padding:0 0 4px">${g.home.flag} ${esc(g.home.short)}</th>
   </tr>`;
-  // 헤더 행 2: away팀 국기+코드 + home 스코어 (0~N)
-  head+=`<tr><th style="width:${hdrW}px;font-size:12px;color:#fff;font-weight:800;text-align:center;line-height:1.3;padding:0 2px 4px">${g.away.flag}<br>${esc(g.away.short)}</th>`;
-  for(let hh=0;hh<=N;hh++)head+=`<th style="width:${cellW}px;${thSc};padding-bottom:4px">${hh}</th>`;
+  // 헤더 행 2: 빈 국기열 + 빈 득점열 + home 스코어 (0~N)
+  head+=`<tr><th style="${thHd};width:${flagW}px;font-size:11px;padding:0 0 4px"></th><th style="${thHd};width:${scW}px;font-size:11px;padding:0 0 4px"></th>`;
+  for(let hh=0;hh<=N;hh++)head+=`<th style="width:${cellW}px;${thHd};font-size:15px;padding-bottom:4px">${hh}</th>`;
   head+='</tr>';
   let rows='';
   for(let aa=0;aa<=N;aa++){
-    rows+=`<tr><th style="${thSc}">${aa}</th>`;
+    rows+=`<tr>
+      <th style="${thHd};width:${flagW}px;font-size:17px;padding:2px 0">${g.away.flag}</th>
+      <th style="${thHd};width:${scW}px;font-size:15px;font-weight:800;font-family:var(--mono)">${aa}</th>`;
     for(let hh=0;hh<=N;hh++){
       const c=cnt[hh+'_'+aa]||0;
       const isRes=res&&Number(res.h)===hh&&Number(res.a)===aa;
