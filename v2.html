@@ -417,7 +417,9 @@ function setStage(s,fromOvv){
 }
 // 가로 스크롤 → 셀렉터 동기화 + 포커스 라운드 바뀌면 재배치(reflow)
 function onBracketScroll(sc){
-  const x=sc.scrollLeft+sc.clientWidth*0.25;
+  // 검출점: 뷰포트 25% 지점. 단 데스크탑처럼 넓을 때 다음 열로 넘어가지 않도록 열 너비 기준으로 제한
+  const colSpan=(SECTION_X.R16||0)-(SECTION_X.R32||0)||120;
+  const x=sc.scrollLeft+Math.min(sc.clientWidth*0.25, colSpan*0.6);
   let cur='GS';
   STAGES.forEach(([k])=>{if((SECTION_X[k]||0)<=x)cur=k;});
   if(cur!==selStage){selStage=cur;renderStageBar();}
