@@ -149,13 +149,11 @@ body{background:var(--bg);color:var(--text);font-family:var(--sys);min-height:10
 .stat .l{font-size:11px;color:var(--muted);margin-top:2px}
 /* 점수 분포 */
 .dist-h{font-size:13px;font-weight:700;color:var(--muted);margin:6px 2px 8px}
-.dist-row{display:flex;align-items:center;gap:10px;padding:8px 0;border-bottom:1px solid var(--sep)}
-.dist-row:last-child{border:none}
-.dist-sc{font-family:var(--mono);font-weight:800;font-size:15px;min-width:48px}
-.dist-bar{flex:1;height:8px;background:var(--card2);border-radius:4px;overflow:hidden}
-.dist-bar i{display:block;height:100%;background:var(--green);border-radius:4px}
-.dist-n{font-size:12px;color:var(--muted);font-family:var(--mono);min-width:36px;text-align:right}
-.dist-names{font-size:12px;color:var(--muted2);padding:2px 0 8px;line-height:1.6}
+.dist-sc{font-family:var(--mono);font-weight:800;font-size:17px;color:#fff;flex-shrink:0}
+.dist-item{background:var(--card2);border-radius:12px;padding:10px 13px;margin-bottom:8px}
+.dist-top{display:flex;align-items:center;justify-content:space-between;gap:8px}
+.dist-sep{height:1px;background:rgba(255,255,255,.08);margin:8px 0 6px}
+.dist-names{font-size:12px;line-height:1.8;flex-wrap:wrap;display:flex;gap:4px 6px}
 /* 베팅 현황 뷰 토글 */
 .bv-toggle{display:inline-flex;background:var(--card2);border-radius:9px;padding:2px;gap:2px;flex-shrink:0}
 .bv-btn{border:none;background:none;color:var(--muted);font-size:12px;font-weight:700;padding:4px 11px;border-radius:7px;cursor:pointer;font-family:var(--sys)}
@@ -716,15 +714,15 @@ function renderGameBody(){
   }else{
     sorted.forEach(([sc,arr])=>{
       const[hh,aa]=sc.split('-');
-      const names=arr.map(b=>`<span style="color:${b.paid?'var(--gold)':'var(--muted2)'}">${esc(b.name)}</span>`).join(' ');
+      const names=arr.map(b=>`<span style="color:${b.paid?'var(--gold)':'var(--muted2)'}">${esc(b.name)}</span>`).join('');
       const paidWinners=arr.filter(b=>b.paid).length;
       const payout=paidWinners>0&&paidPot>0?Math.floor(paidPot/paidWinners):null;
-      const payoutHtml=payout!=null?`<span style="color:var(--red);font-size:11px;font-weight:700">당첨시 인당 : ${payout.toLocaleString()}원</span>`:'';
-      h+=`<div class="dist-row">
-        <span class="dist-sc">${hh} : ${aa}</span>
-        <span class="dist-bar"><i style="width:${maxN?arr.length/maxN*100:0}%"></i></span>
-        <span class="dist-n">${arr.length}명</span>
-      </div><div class="dist-names" style="display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:4px">${names}${payoutHtml}</div>`;
+      const rightHtml=`<span style="font-size:13px;font-weight:700"><span style="color:#fff">총 ${arr.length}명</span>${payout!=null?`<span style="color:var(--muted)"> : </span><span style="color:var(--red)">인당 ${payout.toLocaleString()}원</span>`:''}</span>`;
+      h+=`<div class="dist-item">
+        <div class="dist-top"><span class="dist-sc">${hh} : ${aa}</span>${rightHtml}</div>
+        <div class="dist-sep"></div>
+        <div class="dist-names">${names}</div>
+      </div>`;
     });
   }
   // CTA
