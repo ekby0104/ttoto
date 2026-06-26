@@ -935,7 +935,8 @@ function renderMiniOverview(visible){
   const KO_CARDW=Math.floor((KO_COLW-4)*0.90);
   const KO_LEFT=4;
   // CARDH 40: 12px 폰트 기준 재조정 (ROW=20) / SP = CARDH+10: 10px 갭
-  const CARDH=40,SP=50,HDR=22,PADY=HDR+4;
+  // SP: GS카드(4팀=102px) + gap(10px) = 112px → R32 2슬롯이 나눔 → 56px/슬롯
+  const CARDH=40,SP=56,HDR=22,PADY=HDR+4;
   const ROW=Math.floor(CARDH/2);
   const colX={};ROUNDS.forEach((r,i)=>{colX[r]=GS_COLW+KO_COLW*i;});
   // 슬롯 계산
