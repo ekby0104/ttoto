@@ -31,11 +31,6 @@ body{background:var(--bg);color:var(--text);font-family:var(--sys);min-height:10
 .notice-txt{font-family:var(--mono);font-size:13px;font-weight:900;color:#000;text-shadow:-1px -1px 0 #fff,1px -1px 0 #fff,-1px 1px 0 #fff,1px 1px 0 #fff}
 /* 셀렉터: 텍스트 라벨 (결승만 우승컵) */
 .stagebar{max-width:560px;margin:0 auto;padding:4px 10px 6px;display:flex;align-items:center;gap:6px}
-@media(min-width:768px){
-  .stagebar{max-width:1200px;padding:4px 24px 6px}
-  .wrap{max-width:1200px;padding:8px 24px 20px}
-  .bk-scroll{margin:0;padding:0}
-}
 .seg-pill{flex:1;display:flex;background:#2a2a2c;border-radius:16px;padding:2px 4px;gap:4px}
 .ovv-btn{width:32px;height:32px;border-radius:9px;background:#2a2a2c;border:none;color:var(--muted2);font-size:15px;cursor:pointer;flex-shrink:0;display:flex;align-items:center;justify-content:center}
 .ovv-btn:active{filter:brightness(.7)}
@@ -223,6 +218,11 @@ body{background:var(--bg);color:var(--text);font-family:var(--sys);min-height:10
 .popup-card{text-align:center;padding:30px 22px 24px}
 .popup-emoji{font-size:52px;margin-bottom:14px}
 .popup-msg{font-size:16px;line-height:1.8}
+@media(min-width:768px){
+  .stagebar{max-width:1200px;padding:4px 24px 6px}
+  .wrap{max-width:1200px;padding:8px 24px 20px}
+  .bk-scroll{margin:0;padding:0}
+}
 </style>
 </head>
 <body>
