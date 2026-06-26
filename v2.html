@@ -88,7 +88,7 @@ body{background:var(--bg);color:var(--text);font-family:var(--sys);min-height:10
 .bk-card.bettable{border-color:var(--green);box-shadow:0 0 10px rgba(48,209,88,.3)}
 .bk-card.sel{border-color:var(--green)!important;box-shadow:0 0 0 1.5px var(--green),0 0 16px 2px rgba(48,209,88,.45)}
 .bk-card:active{filter:brightness(1.15)}
-.bk-dt{font-size:10px;line-height:15px;height:15px;color:var(--muted);font-family:var(--mono);white-space:nowrap;overflow:hidden}
+.bk-dt{font-size:12px;line-height:16px;height:16px;color:#fff;font-family:var(--mono);white-space:nowrap;overflow:hidden}
 .bk-row{display:flex;align-items:center;gap:6px;height:20px}
 .bk-f{font-size:15px;flex-shrink:0}
 .bk-n{flex:1;font-size:13px;font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
@@ -521,7 +521,7 @@ function bkCardHtml(g){
   const h=teamSide(g,'home'),a=teamSide(g,'away');
   const isD=window.innerWidth>=768;
   const hn=isD?h.full:h.name, an=isD?a.full:a.name;
-  const dt=g.date?`${g.date.slice(5)} ${g.time||''}`:'';
+  const dt=g.date?`${g.date} ${g.time||''}`:'';
   const x=g.stage==='3RD'?colX.F:colX[gStage(g)];
   const top=(BK.yc&&BK.yc[g.id]!=null)?BK.yc[g.id]:BK.PADY;
   return `<div class="bk-card ${bett?'bettable':''}" id="bkc-${g.id}" style="left:${x}px;top:${top}px;width:${CARDW}px;height:${CARDH}px;border-color:${gameBorderClr(g)}" onclick="bkSelect(this);openGame('${g.id}')">
@@ -535,10 +535,14 @@ function relayoutBracket(focus){
   if(!BK)return;
   const yc=bracketYc(focus);
   BK.ko.forEach(g=>{const el=document.getElementById('bkc-'+g.id);if(el&&yc[g.id]!=null)el.style.top=yc[g.id]+'px';});
-  if(BK.third&&BK.finalG){
-    const ft=yc[BK.finalG.id]!=null?yc[BK.finalG.id]:BK.PADY, tt=ft+BK.CARDH+60;
-    const tc=document.getElementById('bkc-'+BK.third.id);if(tc)tc.style.top=tt+'px';
-    const tl=document.getElementById('bk-thirdlbl');if(tl)tl.style.top=(tt-22)+'px';
+  if(BK.finalG){
+    const ft=yc[BK.finalG.id]!=null?yc[BK.finalG.id]:BK.PADY;
+    const fl=document.getElementById('bk-finallbl');if(fl)fl.style.top=(ft-22)+'px';
+    if(BK.third){
+      const tt=ft+BK.CARDH+60;
+      const tc=document.getElementById('bkc-'+BK.third.id);if(tc)tc.style.top=tt+'px';
+      const tl=document.getElementById('bk-thirdlbl');if(tl)tl.style.top=(tt-22)+'px';
+    }
   }
   const svg=document.getElementById('bk-svg');if(svg)svg.innerHTML=bracketLines(yc);
   updateNextBtn(focus,yc);
@@ -584,7 +588,15 @@ function renderFullBracket(visible){
   BK.yc=yc;
   let cards=ko.map(g=>bkCardHtml(g)).join('');
   let Hbk=nR32*SP+PADY*2;
-  if(third&&finalG){cards+=`<div class="bk-thirdlbl" id="bk-thirdlbl" style="left:${colX.F}px;top:0px;width:${CARDW}px">🥉 3·4위전</div>`+bkCardHtml(third);Hbk+=160;}
+  if(finalG&&yc[finalG.id]!=null){
+    const ft=yc[finalG.id];
+    cards+=`<div class="bk-thirdlbl" id="bk-finallbl" style="left:${colX.F}px;top:${ft-22}px;width:${CARDW}px">🥇🥈 결승전</div>`;
+  }
+  if(third&&finalG){
+    const tt=yc[third.id]||PADY;
+    cards+=`<div class="bk-thirdlbl" id="bk-thirdlbl" style="left:${colX.F}px;top:${tt-22}px;width:${CARDW}px">🥉 3·4위전</div>`+bkCardHtml(third);
+    Hbk+=160;
+  }
   const lines=bracketLines(yc);
   let H=Hbk;
   // ── 조 순위표 (왼쪽 컬럼) ──
@@ -942,6 +954,17 @@ function renderMiniOverview(visible){
       ${miniRow(a.flag,an,a.known,res!=null?res.a:null,ROW)}
     </div>`;
   });
+  if(third&&finalG){
+    const res=RESULTS[String(third.id)];
+    const h=teamSide(third,'home'),a=teamSide(third,'away');
+    const top3=yc[third.id]!=null?yc[third.id]:PADY;
+    const bdr3=gameBorderClr(third)||'#38383a';
+    const hn3=_isDesk?h.full:h.name, an3=_isDesk?a.full:a.name;
+    cards+=`<div style="position:absolute;left:${colX.F+KO_LEFT}px;top:${top3}px;width:${KO_CARDW}px;height:${CARDH}px;background:#1c1c1e;border:1px solid ${bdr3};border-radius:4px;overflow:hidden;box-sizing:border-box;cursor:pointer" onclick="exitOvvAndGo('F')">
+      ${miniRow(h.flag,hn3,h.known,res!=null?res.h:null,ROW)}
+      ${miniRow(a.flag,an3,a.known,res!=null?res.a:null,ROW)}
+    </div>`;
+  }
   // GS 조별 카드 — 순위·득점 제거, KO 카드와 동일 포맷/크기
   const stand=computeStandings(visible);
   const letters=Object.keys(stand);
@@ -1125,6 +1148,8 @@ function resizeBracketCards(){
   if(BK.third)updateCards([BK.third]);
   const tl=document.getElementById('bk-thirdlbl');
   if(tl){tl.style.left=colX.F+'px';tl.style.width=CARDW+'px';}
+  const fl=document.getElementById('bk-finallbl');
+  if(fl){fl.style.left=colX.F+'px';fl.style.width=CARDW+'px';}
   BK.colX=colX;BK.CARDW=CARDW;
   SECTION_X={GS:0,R32:colX.R32-6,R16:colX.R16-6,QF:colX.QF-6,SF:colX.SF-6,F:colX.F-6};
   if(svg)svg.innerHTML=bracketLines(BK.yc);
