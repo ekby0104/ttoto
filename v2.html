@@ -656,29 +656,30 @@ function betMatrixHtml(g,mb,res){
   mb.forEach(b=>{const bh=Number(b.h),ba=Number(b.a);if(bh>N||ba>N)return;const k=bh+'_'+ba;cnt[k]=(cnt[k]||0)+1;cmax=Math.max(cmax,cnt[k]);});
   const denom=cmax||1;
   const avail=Math.floor((Math.min(window.innerWidth,560)-36)*2/3);
-  const hdrW=30;  // col 0: (1~n,0) 원정팀 병합
-  const scW=25;   // col 1: (2~n,1) 원정 득점
-  const cellW=Math.max(20,Math.floor((avail-hdrW-scW)/(N+1)));
-  const cellH=25;
-  const cellStyle=(extra='')=>`width:${cellW}px;height:${cellH}px;border-radius:${Math.max(3,cellW/8)|0}px;${extra}`;
+  const SZ=30;    // 모든 셀 30px 정사각형
+  const hdrW=SZ;  // col 0 너비
+  const scW=SZ;   // col 1 너비
+  const cellW=SZ;
+  const cellH=SZ;
+  const cellStyle=(extra='')=>`width:${SZ}px;height:${SZ}px;border-radius:6px;${extra}`;
   const thHd=`background:#fff;color:#000;font-weight:800;text-align:center`;
   const thSc=`${thHd};font-family:var(--mono);font-size:14px`;
-  // 행 0: (0,0) 배경 없음 + (0,1~n) 홈팀 병합 (scW열+data열 = N+2 cols)
-  let head=`<tr>
-    <th style="background:none;width:${hdrW}px"></th>
-    <th colspan="${N+2}" style="${thHd};font-size:14px;padding:4px 0">${g.home.flag} ${esc(g.home.short)}</th>
+  // 행 0: (0,0) 배경 없음 + (0,1~n) 홈팀 병합, 높이 30px
+  let head=`<tr style="height:${SZ}px">
+    <th style="background:none;width:${SZ}px"></th>
+    <th colspan="${N+2}" style="${thHd};font-size:14px">${g.home.flag} ${esc(g.home.short)}</th>
   </tr>`;
-  // 행 1: (1~n,0) 원정팀 rowspan 시작 + (1,1) 빈 교차셀 + (1,2~n) 홈 득점 0~N
+  // 행 1: (1~n,0) 원정팀 rowspan 시작 + (1,1) 빈 교차셀 + (1,2~n) 홈 득점 0~N, 높이 30px
   const awayVert=`${g.away.flag}<br>${esc(g.away.short).split('').join('<br>')}`;
-  head+=`<tr>
-    <th rowspan="${N+2}" style="${thHd};width:${hdrW}px;font-size:13px;line-height:1.5;vertical-align:middle;padding:2px 1px">${awayVert}</th>
-    <th style="${thHd};width:${scW}px"></th>`;
-  for(let hh=0;hh<=N;hh++)head+=`<th style="width:${cellW}px;${thSc};padding:0 0 4px">${hh}</th>`;
+  head+=`<tr style="height:${SZ}px">
+    <th rowspan="${N+2}" style="${thHd};width:${SZ}px;font-size:13px;line-height:1.5;vertical-align:middle;padding:2px 1px">${awayVert}</th>
+    <th style="${thHd};width:${SZ}px"></th>`;
+  for(let hh=0;hh<=N;hh++)head+=`<th style="width:${SZ}px;${thSc}">${hh}</th>`;
   head+='</tr>';
   // 행 2~n: (i,1) 원정 득점 + 데이터 셀
   let rows='';
   for(let aa=0;aa<=N;aa++){
-    rows+=`<tr><th style="${thSc};width:${scW}px;padding:4px 0">${aa}</th>`;
+    rows+=`<tr style="height:${SZ}px"><th style="${thSc};width:${SZ}px">${aa}</th>`;
     for(let hh=0;hh<=N;hh++){
       const c=cnt[hh+'_'+aa]||0;
       const isRes=res&&Number(res.h)===hh&&Number(res.a)===aa;
