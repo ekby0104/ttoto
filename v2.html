@@ -512,13 +512,15 @@ function bracketLines(yc){
 function bkCardHtml(g){
   const {colX,CARDW,CARDH}=BK,st=gState(g),bett=st==='open',res=RESULTS[String(g.id)];
   const h=teamSide(g,'home'),a=teamSide(g,'away');
+  const isD=window.innerWidth>=768;
+  const hn=isD?h.full:h.name, an=isD?a.full:a.name;
   const dt=g.date?`${g.date.slice(5)} ${g.time||''}`:'';
   const x=g.stage==='3RD'?colX.F:colX[gStage(g)];
   const top=(BK.yc&&BK.yc[g.id]!=null)?BK.yc[g.id]:BK.PADY;
   return `<div class="bk-card ${bett?'bettable':''}" id="bkc-${g.id}" style="left:${x}px;top:${top}px;width:${CARDW}px;height:${CARDH}px" onclick="bkSelect(this);openGame('${g.id}')">
     <div class="bk-dt">${dt}${bett?' · ⚽':''}</div>
-    <div class="bk-row"><span class="bk-f">${h.flag}</span><span class="bk-n ${h.known?'':'tbd'}">${h.full}</span><span class="bk-s">${res?res.h:''}</span></div>
-    <div class="bk-row"><span class="bk-f">${a.flag}</span><span class="bk-n ${a.known?'':'tbd'}">${a.full}</span><span class="bk-s">${res?res.a:''}</span></div>
+    <div class="bk-row"><span class="bk-f">${h.flag}</span><span class="bk-n ${h.known?'':'tbd'}">${hn}</span><span class="bk-s">${res?res.h:''}</span></div>
+    <div class="bk-row"><span class="bk-f">${a.flag}</span><span class="bk-n ${a.known?'':'tbd'}">${an}</span><span class="bk-s">${res?res.a:''}</span></div>
   </div>`;
 }
 // 포커스 라운드 기준 재배치 (카드 top 애니메이션 + 연결선 재계산)
@@ -860,7 +862,7 @@ function flagToClr(emoji){
 }
 function miniRow(flag,name,known,score,rowH){
   const clr=flagToClr(flag);
-  const lbl=known?String(name).slice(0,3).toUpperCase():'TBD';
+  const lbl=known?name:'TBD';
   const txtClr=known?'#fff':'#555';
   return `<div style="display:flex;align-items:center;gap:2px;height:${rowH}px;padding:0 2px">
     <div style="width:4px;height:${rowH-4}px;background:${clr};border-radius:2px;flex-shrink:0"></div>
@@ -920,9 +922,10 @@ function renderMiniOverview(visible){
     const x=r==='3RD'?colX.F:colX[r];
     const top=yc[g.id]!=null?yc[g.id]:PADY;
     const bdr=st==='open'?'#30d158':'#38383a';
+    const hn=_isDesk?h.full:h.name, an=_isDesk?a.full:a.name;
     cards+=`<div style="position:absolute;left:${x+KO_LEFT}px;top:${top}px;width:${KO_CARDW}px;height:${CARDH}px;background:#1c1c1e;border:1px solid ${bdr};border-radius:4px;overflow:hidden;box-sizing:border-box;cursor:pointer" onclick="exitOvvAndGo('${r==='3RD'?'F':r}')">
-      ${miniRow(h.flag,h.name,h.known,res!=null?res.h:null,ROW)}
-      ${miniRow(a.flag,a.name,a.known,res!=null?res.a:null,ROW)}
+      ${miniRow(h.flag,hn,h.known,res!=null?res.h:null,ROW)}
+      ${miniRow(a.flag,an,a.known,res!=null?res.a:null,ROW)}
     </div>`;
   });
   // GS 조별 카드 — 순위·득점 제거, KO 카드와 동일 포맷/크기
