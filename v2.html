@@ -784,7 +784,7 @@ function betMatrixHtml(g,mb,res){
       const resBg=isRes?`background:var(--gold);color:#000;`:`background:${bg};color:${col};`;
       const cursor=c?'cursor:pointer;':'';
       const onclick=c?`onclick="jumpToScore(${hh},${aa})"`:'';
-      rows+=`<td><div class="bmx-cell" ${onclick} style="${cellStyle()}${resBg}${cursor}">${c||''}</div></td>`;
+      rows+=`<td><div class="bmx-cell" ${onclick} style="${cellStyle()}${resBg}${cursor}">${isRes?c:(c||'')}</div></td>`;
     }
     rows+='</tr>';
   }
