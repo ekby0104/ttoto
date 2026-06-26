@@ -886,13 +886,13 @@ function exitOvvAndGo(stage,gid){
       const el=document.getElementById('bkc-'+gid);
       if(!el)return;
       bkSelect(el);   // 흰색 반짝이는 보더로 선택 표시
-      // 카드 애니메이션 중간값이 아니라 최종 위치(style.top)로 계산
+      // 카드 최종 위치(style.top) 기준으로 계산 → 즉시 스크롤(레이아웃 준비 후, smooth clamp 방지)
       const canvas=el.closest('.bk-canvas')||el.offsetParent;
       const cardTop=parseFloat(el.style.top)||0;
       const pageY=(canvas?canvas.getBoundingClientRect().top+window.scrollY:0)+cardTop;
       const y=pageY-(window.innerHeight/2-el.offsetHeight/2);
-      window.scrollTo({top:Math.max(0,y),behavior:'smooth'});
-    },180);
+      window.scrollTo({top:Math.max(0,y)});
+    },220);
   }
 }
 
