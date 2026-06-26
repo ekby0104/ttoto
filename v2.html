@@ -657,31 +657,25 @@ function betMatrixHtml(g,mb,res){
   const denom=cmax||1;
   // 셀 크기: 가용폭 2/3 기준, 높이는 너비의 2/3 (직사각형)
   const avail=Math.floor((Math.min(window.innerWidth,560)-36)*2/3);
-  const flagW=28;  // (n,0) 원정 국기 열 너비
-  const scW=26;    // (n,1) 원정 득점 열 너비
-  const hdrW=flagW+scW;
+  const hdrW=54;  // (1,0)~(n,0) 병합 원정팀 열 너비
   const cellW=Math.max(24,Math.floor((avail-hdrW)/(N+1)));
   const cellH=Math.floor(cellW*2/3);
   const cellStyle=(extra='')=>`width:${cellW}px;height:${cellH}px;border-radius:${Math.max(3,cellW/8)|0}px;${extra}`;
   const thHd=`background:#fff;color:#000;font-weight:800;text-align:center`;
-  // 헤더 행 1: 빈 코너(colspan=2) + home팀 국기+코드 (→ 열 = 홈 스코어)
+  // 행 0: (0,0) 코너 배경 없음 + (0,1~n) 홈팀 병합
   let head=`<tr>
-    <th colspan="2" style="${thHd};width:${hdrW}px;padding:0 2px 4px"></th>
-    <th colspan="${N+1}" style="${thHd};font-size:14px;padding:0 0 4px">${g.home.flag} ${esc(g.home.short)}</th>
+    <th style="background:none;width:${hdrW}px"></th>
+    <th colspan="${N+1}" style="${thHd};font-size:14px;padding:4px 0">${g.home.flag} ${esc(g.home.short)}</th>
   </tr>`;
-  // 헤더 행 2: 빈 국기열 + 빈 득점열 + home 스코어 (0~N)
-  head+=`<tr><th style="${thHd};width:${flagW}px;font-size:11px;padding:0 0 4px"></th><th style="${thHd};width:${scW}px;font-size:11px;padding:0 0 4px"></th>`;
-  for(let hh=0;hh<=N;hh++)head+=`<th style="width:${cellW}px;${thHd};font-size:15px;padding-bottom:4px">${hh}</th>`;
-  head+='</tr>';
   // 원정팀 세로 텍스트: 이모지 + 코드 1자마다 줄바꿈
   const awayVert=`${g.away.flag}<br>${esc(g.away.short).split('').join('<br>')}`;
   let rows='';
   for(let aa=0;aa<=N;aa++){
     rows+=`<tr>`;
     if(aa===0){
-      rows+=`<th rowspan="${N+1}" style="${thHd};width:${flagW}px;font-size:13px;line-height:1.5;vertical-align:middle;padding:2px 1px">${awayVert}</th>`;
+      // (1,0)~(n,0) 병합: 원정팀 rowspan
+      rows+=`<th rowspan="${N+1}" style="${thHd};width:${hdrW}px;font-size:13px;line-height:1.5;vertical-align:middle;padding:2px 1px">${awayVert}</th>`;
     }
-    rows+=`<th style="${thHd};width:${scW}px;font-size:15px;font-weight:800;font-family:var(--mono)">${aa}</th>`;
     for(let hh=0;hh<=N;hh++){
       const c=cnt[hh+'_'+aa]||0;
       const isRes=res&&Number(res.h)===hh&&Number(res.a)===aa;
