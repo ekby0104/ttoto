@@ -904,8 +904,9 @@ function exitOvvAndGo(stage,gid){
       const cardTop=parseFloat(el.style.top)||0;
       const pageY=(canvas?canvas.getBoundingClientRect().top+window.scrollY:0)+cardTop;
       const y=Math.max(0,pageY-(window.innerHeight/2-el.offsetHeight/2));
-      window.scrollTo(0,y);
-      return;
+      // 문서가 충분히 길어진(reflow 완료) 뒤 즉시 스크롤 → 0으로 clamp 방지
+      const maxScroll=document.documentElement.scrollHeight-window.innerHeight;
+      if(maxScroll>=y-2||tries>=20){window.scrollTo(0,y);return;}
     }
     if(tries++<45)requestAnimationFrame(go);
   })();
