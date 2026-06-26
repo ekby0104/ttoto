@@ -893,39 +893,26 @@ function toggleOverview(){ovvMode=!ovvMode;render();}
 function exitOvvAndGo(stage,gid){
   ovvMode=false;
   if(gid)selGid=String(gid);     // 선택 id 미리 등록 → 렌더 시 바로 흰색 반짝임(재렌더에도 유지)
-  // 카드 top 트랜지션을 꺼서(레이아웃 스래싱 제거) 페이지 스크롤만 부드럽게 흐르게 함
+  // 카드 top 트랜지션을 꺼서(레이아웃 스래싱 제거) 페이지 스크롤이 부드럽게 흐르게 함
   document.body.classList.add('bk-snap');
   setStage(stage,true);          // 전체뷰 이동: 상단 스크롤 건너뜀(이중 점프 방지)
   if(!gid){requestAnimationFrame(()=>document.body.classList.remove('bk-snap'));return;}
-  // render() 내부 relayout(setTimeout 40ms)로 카드 최종 top 확정 → 페이지를 카드로 부드럽게 스크롤
+  // render() 내부 relayout(setTimeout 40ms)로 카드 최종 top 확정 후 → 카드로 부드럽게(native smooth) 스크롤.
+  // native smooth가 안 먹는 환경 대비: 일정 시간 후 도착 못했으면 즉시 스크롤로 보정.
   setTimeout(()=>{
     const el=document.getElementById('bkc-'+gid);
     if(!el||!el.offsetHeight){document.body.classList.remove('bk-snap');return;}
     el.classList.add('sel');     // 흰색 반짝임 보강(selGid로도 유지됨)
-    smoothScrollY(()=>{
-      const canvas=el.closest('.bk-canvas')||el.offsetParent;
-      const cardTop=parseFloat(el.style.top)||0;
-      const pageY=(canvas?canvas.getBoundingClientRect().top+window.scrollY:0)+cardTop;
-      return Math.max(0,pageY-(window.innerHeight/2-el.offsetHeight/2));
-    },460);
-    setTimeout(()=>document.body.classList.remove('bk-snap'),520);   // 스크롤 끝난 뒤 트랜지션 복구
-  },110);
-}
-// 커스텀 스무스 스크롤: setTimeout으로 잘게 쪼갠 '즉시' 스크롤(이징).
-// (이 페이지에선 native behavior:'smooth'가 미동작 → 즉시 스크롤만 신뢰 가능)
-let _ssTok=0;
-function smoothScrollY(targetFn,dur){
-  const tok=++_ssTok, D=dur||440, steps=Math.max(1,Math.round(D/16));
-  let startY=null;
-  for(let i=1;i<=steps;i++){
+    const canvas=el.closest('.bk-canvas')||el.offsetParent;
+    const cardTop=parseFloat(el.style.top)||0;
+    const pageY=(canvas?canvas.getBoundingClientRect().top+window.scrollY:0)+cardTop;
+    const y=Math.max(0,pageY-(window.innerHeight/2-el.offsetHeight/2));
+    window.scrollTo({top:y,behavior:'smooth'});
     setTimeout(()=>{
-      if(tok!==_ssTok)return;                       // 새 스크롤 시작되면 취소
-      if(startY==null)startY=window.scrollY;        // 첫 실행 시점 위치 기준(전환 정착 후)
-      const p=i/steps, e=p<.5?2*p*p:1-Math.pow(-2*p+2,2)/2;   // easeInOutQuad
-      const ty=typeof targetFn==='function'?targetFn():targetFn;
-      window.scrollTo(0,Math.round(startY+(ty-startY)*e));
-    },Math.round(D*i/steps));
-  }
+      if(Math.abs(window.scrollY-y)>24)window.scrollTo(0,y);   // smooth 실패 시 보정
+      document.body.classList.remove('bk-snap');
+    },650);
+  },110);
 }
 
 // 국가코드 → 대표 색상 (피파 앱 스타일 컬러바용)
