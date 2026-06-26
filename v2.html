@@ -680,7 +680,7 @@ function betMatrixHtml(g,mb,res){
     }
     rows+='</tr>';
   }
-  return `<div style="padding:2px 0"><table class="bmx" style="width:100%">${head}${rows}</table></div>
+  return `<div style="padding:2px 0"><table class="bmx">${head}${rows}</table></div>
     <div class="bmx-cap">↓ ${esc(g.home.short)} 스코어 · → ${esc(g.away.short)} 스코어 · 칸 = 예측 인원${res?'<br>🟡 실제 결과':''}</div>`;
 }
 function renderGameBody(){
