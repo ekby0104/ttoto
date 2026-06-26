@@ -33,9 +33,10 @@ body{background:var(--bg);color:var(--text);font-family:var(--sys);min-height:10
 .seg-pill{flex:1;display:flex;background:#2a2a2c;border-radius:16px;padding:2px 4px;gap:4px}
 .ovv-btn{width:32px;height:32px;border-radius:9px;background:#2a2a2c;border:none;color:var(--muted2);font-size:15px;cursor:pointer;flex-shrink:0;display:flex;align-items:center;justify-content:center}
 .ovv-btn:active{filter:brightness(.7)}
-.bk-next-float{position:fixed;right:8px;top:140px;display:none;flex-direction:column;align-items:center;justify-content:center;gap:1px;background:rgba(28,28,30,.96);border:1px solid #48484a;border-radius:12px;color:var(--green);width:34px;padding:7px 3px;cursor:pointer;z-index:50;box-shadow:0 2px 10px rgba(0,0,0,.7)}
-.bk-next-float.show{display:flex}
-.bk-next-float:active{filter:brightness(.8)}
+.bk-round-nav{position:fixed;right:8px;top:140px;display:flex;flex-direction:column;align-items:center;gap:6px;z-index:50}
+.bk-round-btn{display:none;flex-direction:column;align-items:center;justify-content:center;gap:1px;background:rgba(28,28,30,.96);border:1px solid #48484a;border-radius:12px;color:var(--green);width:34px;padding:7px 3px;cursor:pointer;box-shadow:0 2px 10px rgba(0,0,0,.7)}
+.bk-round-btn.show{display:flex}
+.bk-round-btn:active{filter:brightness(.8)}
 .seg{flex:1;background:none;border:none;border-radius:12px;padding:5px 0;cursor:pointer;display:flex;align-items:center;justify-content:center;transition:background .2s}
 .seg.active{background:#fff}
 .seg-tx{font-size:14px;font-weight:800;color:var(--muted2)}
@@ -209,8 +210,11 @@ body{background:var(--bg);color:var(--text);font-family:var(--sys);min-height:10
 <!-- 플로팅 피드백 버튼 -->
 <button class="fab" onclick="openFeedback()" aria-label="피드백">💬</button>
 
-<!-- 다음 라운드 플로팅 버튼 -->
-<button class="bk-next-float" id="bk-next" onclick="goNextRound()"></button>
+<!-- 라운드 이동 플로팅 버튼 -->
+<div class="bk-round-nav" id="bk-round-nav">
+  <button class="bk-round-btn" id="bk-prev" onclick="goPrevRound()"></button>
+  <button class="bk-round-btn" id="bk-next" onclick="goNextRound()"></button>
+</div>
 
 <!-- 경기 상세/베팅 시트 -->
 <div class="sheet-ov" id="sh-game" onclick="ovClose(event,'sh-game')">
@@ -302,7 +306,7 @@ function render(){
   document.getElementById('hd-sub').textContent=`${visible.filter(g=>gState(g)==='open').length}경기 베팅중`;
   if(ovvMode){
     document.getElementById('wrap').innerHTML=renderMiniOverview(visible);
-    const nb=document.getElementById('bk-next');if(nb)nb.classList.remove('show');
+    ['bk-next','bk-prev'].forEach(id=>{const b=document.getElementById(id);if(b)b.classList.remove('show');});
     return;
   }
   document.getElementById('wrap').innerHTML=renderFullBracket(visible);  // 조 순위표 + 브래킷 통합
@@ -807,22 +811,41 @@ function renderMiniOverview(visible){
     <p style="text-align:center;font-size:11px;color:#444;padding:8px 0 4px">라운드를 탭해서 이동</p>
   </div>`;
 }
-// ── 다음 라운드 버튼 ──
+// ── 라운드 이동 버튼 ──
+function goPrevRound(){
+  const idx=STAGES.findIndex(([k])=>k===selStage);
+  if(idx>0)setStage(STAGES[idx-1][0]);
+}
 function goNextRound(){
   const idx=STAGES.findIndex(([k])=>k===selStage);
   if(idx<STAGES.length-1)setStage(STAGES[idx+1][0]);
 }
 function updateNextBtn(focus,yc){
-  const btn=document.getElementById('bk-next');if(!btn)return;
+  const nav=document.getElementById('bk-round-nav');
+  const btnPrev=document.getElementById('bk-prev');
+  const btnNext=document.getElementById('bk-next');
+  if(!btnNext)return;
   const idx=STAGES.findIndex(([k])=>k===selStage);
-  if(idx>=STAGES.length-1){btn.classList.remove('show');return;}
-  const[nextKey]=STAGES[idx+1];
-  const nextLabel=nextKey==='F'?'🏆':nextKey;
-  btn.innerHTML=`<span style="font-size:10px;font-weight:800;line-height:1.3">${nextLabel}</span><span style="font-size:15px;line-height:1">›</span>`;
-  btn.classList.add('show');
-  // 세로 위치: stagebar 바로 아래 고정 (FAB 위에 숨지 않도록)
-  const sb=document.getElementById('stagebar');
-  if(sb){const r=sb.getBoundingClientRect();btn.style.top=(r.bottom+8)+'px';}
+  // 이전 버튼
+  if(btnPrev){
+    if(idx<=0){btnPrev.classList.remove('show');}
+    else{
+      const[prevKey]=STAGES[idx-1];
+      const prevLabel=prevKey==='F'?'🏆':prevKey;
+      btnPrev.innerHTML=`<span style="font-size:15px;line-height:1">‹</span><span style="font-size:10px;font-weight:800;line-height:1.3">${prevLabel}</span>`;
+      btnPrev.classList.add('show');
+    }
+  }
+  // 다음 버튼
+  if(idx>=STAGES.length-1){btnNext.classList.remove('show');}
+  else{
+    const[nextKey]=STAGES[idx+1];
+    const nextLabel=nextKey==='F'?'🏆':nextKey;
+    btnNext.innerHTML=`<span style="font-size:10px;font-weight:800;line-height:1.3">${nextLabel}</span><span style="font-size:15px;line-height:1">›</span>`;
+    btnNext.classList.add('show');
+  }
+  // 세로 위치: stagebar 바로 아래 고정
+  if(nav){const sb=document.getElementById('stagebar');if(sb){const r=sb.getBoundingClientRect();nav.style.top=(r.bottom+8)+'px';}}
 }
 
 // ── 피드백 ──
