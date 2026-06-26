@@ -177,8 +177,13 @@ body.bk-snap .bk-card{transition:none!important}   /* 전체뷰→이동 시 카
 .bmx-corner{font-size:9px;color:var(--muted);font-family:var(--mono);line-height:1.2}
 .bmx-cap{font-size:12px;color:#fff;text-align:center;margin-top:10px;font-family:var(--mono);line-height:1.5}
 /* 그룹 경기 시트 */
-.grp-game{display:flex;align-items:center;gap:8px;background:var(--card2);border-radius:12px;padding:11px 13px;margin-bottom:8px;cursor:pointer}
+.grp-game{display:flex;align-items:center;gap:8px;background:var(--card2);border:1.5px solid transparent;border-radius:12px;padding:11px 13px;margin-bottom:8px;cursor:pointer}
 .grp-game:active{filter:brightness(1.12)}
+/* 1명 이상 베팅: 흰 배경 + 스크롤뷰 카드 보더색(인라인) + 어두운 글자 */
+.grp-game.gg-bet{background:#fff}
+.grp-game.gg-bet .gg-n{color:#111}
+.grp-game.gg-bet .gg-sc{color:#111}
+.grp-game.gg-bet .gg-cnt{color:#555}
 .gg-team{display:flex;align-items:center;gap:7px;flex:1;min-width:0}
 .gg-team.gg-away{justify-content:flex-end}
 .gg-f{font-size:21px;flex-shrink:0}
@@ -722,10 +727,11 @@ function openGroupGames(L){
   else body.innerHTML=games.map(g=>{
     const res=RESULTS[String(g.id)],nb=gBets(g.id).length;
     const st=gState(g);
+    const bet=nb>=1;                                  // 1명 이상 베팅
     const score=res?`${res.h} : ${res.a}`:'vs';
     const dtStr=g.date?`${g.date}${g.time?' '+g.time:''}`:'미정';
-    const dtClr=st==='ended'?'#fff':'var(--gold)';
-    return `<div class="grp-game" onclick="openGame('${g.id}')">
+    const dtClr=bet?'#555':(st==='ended'?'#fff':'var(--gold)');   // 흰 배경이면 어두운 글자
+    return `<div class="grp-game${bet?' gg-bet':''}"${bet?` style="border-color:${gameBorderClr(g)}"`:''} onclick="openGame('${g.id}')">
       <div class="gg-team" style="flex-direction:column;align-items:flex-start;gap:3px">
         <span style="font-size:12px;font-weight:600;color:${dtClr};font-family:var(--mono);white-space:nowrap">${dtStr}</span>
         <div style="display:flex;align-items:center;gap:7px"><span class="gg-f">${g.home.flag}</span><span class="gg-n">${esc(g.home.short)}</span></div>
