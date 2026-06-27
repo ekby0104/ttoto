@@ -506,8 +506,8 @@ function renderStandingsList(visible){
 let BK=null;
 function bkChildrenG(g){return [matchRef(g.home_label),matchRef(g.away_label)].map(x=>x&&BK.byId[x]).filter(c=>c);}
 // 트리 위치(slot)를 DFS로 계산 → 형제가 인접 = 연결선 깔끔
-function computeSlots(){
-  const {ko,byId,finalG}=BK;
+// 순수 slot 계산: 전체뷰/스크롤뷰가 동일한 트리 배치를 쓰도록 공유 (렌더 순서 무관)
+function computeSlotsFor(ko,byId,finalG,noLabels){
   const slot={};let s=0;
   function dfs(id){
     const g=byId[id];if(!g)return s++;
@@ -515,7 +515,7 @@ function computeSlots(){
     if(!c.length){const v=s++;slot[id]=v;return v;}
     const ys=c.map(dfs);const v=ys.reduce((a,b)=>a+b,0)/ys.length;slot[id]=v;return v;
   }
-  if(finalG&&!BK.noLabels)dfs(String(finalG.id));
+  if(finalG&&!noLabels)dfs(String(finalG.id));
   else{ // 라벨 없음: 위치 기반
     s=0;ko.filter(g=>gStage(g)==='R32').sort(bkSort).forEach(g=>slot[g.id]=s++);
     ['R16','QF','SF','F'].forEach((r,i)=>{
@@ -526,6 +526,7 @@ function computeSlots(){
   }
   return slot;
 }
+function computeSlots(){const {ko,byId,finalG,noLabels}=BK;return computeSlotsFor(ko,byId,finalG,noLabels);}
 // 포커스 라운드가 SP 간격이 되도록 전체 slot을 스케일 + 포커스 라운드를 항상 위(PADY)에 정렬
 function bracketYc(focus){
   const {slot,SP,PADY,ko}=BK, fi=Math.max(0,ROUNDS.indexOf(focus));
@@ -986,18 +987,10 @@ function renderMiniOverview(visible){
   const CARDH=40,SP=50,HDR=22,PADY=HDR+4;
   const ROW=Math.floor(CARDH/2);
   const colX={};ROUNDS.forEach((r,i)=>{colX[r]=GS_COLW+KO_COLW*i;});
-  // 슬롯 계산
-  let slot=BK&&Object.keys(BK.slot||{}).length?{...BK.slot}:{};
-  if(!Object.keys(slot).length){
-    let s=0;
-    ko.filter(g=>gStage(g)==='R32').sort(bkSort).forEach(g=>{slot[g.id]=s++;});
-    ['R16','QF','SF','F'].forEach((r,ri)=>{
-      const prev=['R32','R16','QF','SF'][ri];
-      const gs=ko.filter(g=>gStage(g)===r).sort(bkSort);
-      const pv=ko.filter(g=>gStage(g)===prev).sort(bkSort);
-      gs.forEach((g,j)=>{const a=pv[j*2],b=pv[j*2+1];slot[g.id]=((a?slot[a.id]:j*2)+(b?slot[b.id]:j*2+1))/2;});
-    });
-  }
+  // 슬롯 계산 — 스크롤뷰(computeSlots)와 동일한 트리 배치 사용 (BK 존재 여부 무관)
+  const finalG2=ko.find(g=>gStage(g)==='F');
+  const noLabels2=!(finalG2&&(finalG2.home_label||finalG2.away_label));
+  const slot=computeSlotsFor(ko,byId,finalG2,noLabels2);
   const yc={};for(const id in slot)yc[id]=slot[id]*SP+PADY;
   const third=visible.find(g=>gStage(g)==='3RD');
   const finalG=ko.find(g=>gStage(g)==='F');
