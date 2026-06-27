@@ -436,7 +436,11 @@ function onBracketScroll(sc){
   STAGES.forEach(([k])=>{if((SECTION_X[k]||0)<=x)cur=k;});
   if(cur!==selStage){selStage=cur;renderStageBar();}
   const f=cur==='GS'?'R32':cur;
-  if(f!==bkFocus){bkFocus=f;relayoutBracket(f);}
+  if(f!==bkFocus){
+    bkFocus=f;relayoutBracket(f);
+    // 포커스 라운드가 바뀌면 카드가 상단으로 재배치되므로, 버튼 이동과 동일하게 세로 스크롤도 상단 정렬(빈 화면 방지)
+    if(window.scrollY>0)window.scrollTo(0,0);
+  }
 }
 
 // 조 순위 계산 (결과 기반)
@@ -576,6 +580,13 @@ function relayoutBracket(focus){
     }
   }
   const svg=document.getElementById('bk-svg');if(svg)svg.innerHTML=bracketLines(yc);
+  // 포커스 라운드에 맞춰 캔버스 높이 재계산 → 아래쪽 빈 영역 제거(브라우저가 세로 스크롤을 자동 클램프)
+  let maxTop=BK.PADY;
+  for(const id in yc){if(yc[id]>maxTop)maxTop=yc[id];}
+  if(BK.third&&BK.finalG){const ft0=yc[BK.finalG.id]!=null?yc[BK.finalG.id]:BK.PADY;const tt0=ft0+BK.CARDH+60;if(tt0>maxTop)maxTop=tt0;}
+  const newH=Math.max(maxTop+BK.CARDH+BK.PADY, BK.standColH||0);
+  const cv=document.querySelector('#bk-scroll .bk-canvas');if(cv)cv.style.height=newH+'px';
+  if(svg)svg.setAttribute('height',newH);
   updateNextBtn(focus,yc);
 }
 
@@ -654,6 +665,7 @@ function renderFullBracket(visible){
   // stand-col 높이: 여유 있게 계산 (헤더44 + 행44×n + 여백 60)
   const standColH=PADY+letters.reduce((sum,L)=>{const n=(stand[L]||[]).length;return sum+44+n*44+60;},0)+PADY;
   H=Math.max(H,standColH);
+  BK.standColH=standColH;   // relayout 시 캔버스 최소 높이(조 순위표 기준)
   if(!ko.length&&!letters.length)return '<div class="empty">경기가 없습니다</div>';
   const heads=`<div class="bk-head" data-round="GS" style="left:0;width:${stW}px">조 순위</div>`+
     ROUNDS.map(r=>`<div class="bk-head" data-round="${r}" style="left:${colX[r]}px;width:${CARDW}px">${RLBL[r]}</div>`).join('');
