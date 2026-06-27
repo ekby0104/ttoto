@@ -3,6 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<meta name="theme-color" content="#000000">   <!-- iOS 사파리 상/하단 바를 앱 검정색으로(회색 기본 바 방지) -->
 <title>⚽ 또또</title>
 <link rel="icon" type="image/png" href="/icon-192.png">
 <link rel="apple-touch-icon" href="/apple-touch-icon.png">
@@ -44,6 +45,9 @@ body{background:var(--bg);color:var(--text);font-family:var(--sys);min-height:10
 .seg-tx{font-size:14px;font-weight:800;color:var(--muted2)}
 .seg.active .seg-tx{color:#1c1c1e}
 .seg-tx.trophy{font-size:18px}
+/* 셀렉터/네비 버튼: 탭·포커스 시 밑줄/아웃라인 아티팩트 제거 */
+.seg,.seg-tx,.ovv-btn,.bk-round-btn{text-decoration:none!important}
+.seg:focus,.seg:focus-visible,.ovv-btn:focus,.bk-round-btn:focus{outline:none}
 /* 조 순위표 */
 .stand-col{position:absolute}
 .stand{background:var(--card);border-radius:12px;margin-bottom:12px;border:1px solid var(--sep);padding:4px 8px 8px;cursor:pointer;transition:border-color .2s,box-shadow .2s}
@@ -1163,9 +1167,10 @@ function updateOvvBtn(){
   const next=document.getElementById('bk-next');
   if(ovvMode){
     // GS 이동 버튼을 스크롤뷰의 '상위 라운드(다음)' 버튼과 같은 위치(아래 슬롯)에 배치.
-    // 위 슬롯(bk-ovv)은 같은 높이의 빈 공간으로 둬서 정렬을 맞춤.
+    // 위 슬롯(bk-ovv)은 투명 공백 버튼으로 둬서 정렬을 맞춤(위치 계산 없이 자연 배치).
     btn.innerHTML=`<span style="font-size:15px;line-height:1">‹</span><span style="font-size:10px;font-weight:800;line-height:1.3">ALL</span>`;
-    btn.style.visibility='hidden';
+    btn.style.opacity='0';
+    btn.style.pointerEvents='none';
     btn.onclick=null;
     btn.classList.add('show');
     if(next){
@@ -1176,12 +1181,12 @@ function updateOvvBtn(){
     }
     if(nav){const sb=document.getElementById('stagebar');if(sb){const r=sb.getBoundingClientRect();nav.style.top=(r.bottom+8)+'px';}}
   }else if(selStage==='GS'){
-    btn.style.visibility='';
+    btn.style.opacity='';btn.style.pointerEvents='';
     btn.innerHTML=`<span style="font-size:15px;line-height:1">‹</span><span style="font-size:10px;font-weight:800;line-height:1.3">ALL</span>`;
     btn.onclick=toggleOverview;
     btn.classList.add('show');
   }else{
-    btn.style.visibility='';
+    btn.style.opacity='';btn.style.pointerEvents='';
     btn.classList.remove('show');
   }
 }
