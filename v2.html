@@ -1150,6 +1150,8 @@ function updateNextBtn(focus,yc){
     const[nextKey]=STAGES[idx+1];
     const nextLabel=nextKey==='F'?'🏆':nextKey;
     btnNext.innerHTML=`<span style="font-size:10px;font-weight:800;line-height:1.3">${nextLabel}</span><span style="font-size:15px;line-height:1">›</span>`;
+    btnNext.onclick=goNextRound;       // overview에서 바꾼 onclick 복구
+    btnNext.style.visibility='';
     btnNext.classList.add('show');
   }
   // 세로 위치: stagebar 바로 아래 고정
@@ -1159,16 +1161,28 @@ function updateNextBtn(focus,yc){
 function updateOvvBtn(){
   const btn=document.getElementById('bk-ovv');if(!btn)return;
   const nav=document.getElementById('bk-round-nav');
+  const next=document.getElementById('bk-next');
   if(ovvMode){
-    btn.innerHTML=`<span style="font-size:10px;font-weight:800;line-height:1.3">GS</span><span style="font-size:15px;line-height:1">›</span>`;
-    btn.onclick=()=>exitOvvAndGo('GS');
+    // GS 이동 버튼을 스크롤뷰의 '상위 라운드(다음)' 버튼과 같은 위치(아래 슬롯)에 배치.
+    // 위 슬롯(bk-ovv)은 같은 높이의 빈 공간으로 둬서 정렬을 맞춤.
+    btn.innerHTML=`<span style="font-size:15px;line-height:1">‹</span><span style="font-size:10px;font-weight:800;line-height:1.3">ALL</span>`;
+    btn.style.visibility='hidden';
+    btn.onclick=null;
     btn.classList.add('show');
+    if(next){
+      next.innerHTML=`<span style="font-size:10px;font-weight:800;line-height:1.3">GS</span><span style="font-size:15px;line-height:1">›</span>`;
+      next.onclick=()=>exitOvvAndGo('GS');
+      next.style.visibility='';
+      next.classList.add('show');
+    }
     if(nav){const sb=document.getElementById('stagebar');if(sb){const r=sb.getBoundingClientRect();nav.style.top=(r.bottom+8)+'px';}}
   }else if(selStage==='GS'){
+    btn.style.visibility='';
     btn.innerHTML=`<span style="font-size:15px;line-height:1">‹</span><span style="font-size:10px;font-weight:800;line-height:1.3">ALL</span>`;
     btn.onclick=toggleOverview;
     btn.classList.add('show');
   }else{
+    btn.style.visibility='';
     btn.classList.remove('show');
   }
 }
