@@ -9,7 +9,6 @@
 <style>
 @import url('https://fonts.googleapis.com/css2?family=Share+Tech+Mono&display=swap');
 :root{
-  color-scheme:dark;   /* iOS에서 미지정 영역 기본 배경을 어둡게(흰/회색 공백 방지) */
   --bg:#000;--card:#1c1c1e;--card2:#2c2c2e;--sep:#38383a;
   --text:#fff;--muted:#8e8e93;--muted2:#aeaeb2;
   --green:#30d158;--green-dim:#248a3d;--gold:#ffd60a;--red:#ff453a;--blue:#0a84ff;--pink:#ff2d55;
@@ -17,7 +16,6 @@
   --sys:-apple-system,BlinkMacSystemFont,'SF Pro Display','SF Pro Text','Segoe UI',Roboto,'Noto Sans KR',sans-serif;
 }
 *{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent}
-html{background:var(--bg)}   /* 시트 열릴 때 iOS 뷰포트 축소로 노출되는 하단 영역을 앱 배경(검정)으로 채움 */
 html,body{overflow-anchor:none}   /* 뷰 전환 시 스크롤 앵커링이 위치를 고정해 스무스 스크롤을 막는 것 방지 */
 body{background:var(--bg);color:var(--text);font-family:var(--sys);min-height:100vh;-webkit-text-size-adjust:100%;padding-bottom:90px}
 /* 헤더 */
@@ -145,7 +143,7 @@ body.bk-snap .bk-card{transition:none!important}   /* 전체뷰→이동 시 카
 .fab-act:active{filter:brightness(1.2)}
 .fab-ic{font-size:15px;line-height:1}
 /* 시트(모달) */
-.sheet-ov{position:fixed;inset:0;background:rgba(0,0,0,.6);z-index:100;display:flex;align-items:flex-end;justify-content:center;opacity:0;pointer-events:none;transition:opacity .25s}
+.sheet-ov{position:fixed;inset:0;background:rgba(0,0,0,.6);z-index:100;display:flex;align-items:flex-end;justify-content:center;opacity:0;pointer-events:none;touch-action:none;transition:opacity .25s}
 .sheet-ov.show{opacity:1;pointer-events:auto}
 .sheet{background:var(--card);width:100%;max-width:560px;border-radius:20px 20px 0 0;max-height:92vh;max-height:92svh;overflow:hidden;display:flex;flex-direction:column;transform:translateY(100%);transition:transform .3s cubic-bezier(.32,.72,0,1)}
 .sheet-ov.show .sheet{transform:translateY(0)}
@@ -153,7 +151,7 @@ body.bk-snap .bk-card{transition:none!important}   /* 전체뷰→이동 시 카
 .sheet-hd{display:flex;align-items:center;justify-content:space-between;padding:10px 18px 12px;border-bottom:1px solid var(--sep);flex-shrink:0;background:var(--card)}
 .sheet-ttl{font-size:18px;font-weight:800}
 .x{background:var(--card2);border:none;color:var(--muted2);width:30px;height:30px;border-radius:50%;font-size:18px;cursor:pointer}
-.sheet-bd{padding:16px 18px;overflow-y:auto;flex:1;-webkit-overflow-scrolling:touch;padding-bottom:max(20px,env(safe-area-inset-bottom))}
+.sheet-bd{padding:16px 18px;overflow-y:auto;flex:1;-webkit-overflow-scrolling:touch;overscroll-behavior:contain;padding-bottom:max(20px,env(safe-area-inset-bottom))}
 /* 스코어보드 */
 .sb{display:flex;align-items:center;justify-content:center;gap:14px;padding:6px 0 18px}
 .sb-team{flex:1;text-align:center}
@@ -357,12 +355,11 @@ function openSheet(id){
   const bd=el.querySelector('.sheet-bd');
   if(bd)bd.scrollTop=0;
   el.classList.add('show');
-  document.body.style.overflow='hidden';
+  // body{overflow:hidden} 잠금은 iOS 사파리에서 뷰포트(하단 툴바)를 흔들어 공백을 만들어 사용 안 함.
+  // 배경은 시트 오버레이가 덮고, 시트 내부 스크롤은 overscroll-behavior:contain으로 격리.
 }
 function closeSheet(id){
   document.getElementById(id).classList.remove('show');
-  // 다른 시트(예: 그룹 시트 위에 띄운 경기 시트)가 남아있으면 스크롤 잠금 유지
-  document.body.style.overflow=document.querySelector('.sheet-ov.show')?'hidden':'';
 }
 function ovClose(e,id){if(e.target===e.currentTarget)closeSheet(id);}
 
