@@ -9,6 +9,7 @@
 <style>
 @import url('https://fonts.googleapis.com/css2?family=Share+Tech+Mono&display=swap');
 :root{
+  color-scheme:dark;   /* iOS에서 미지정 영역 기본 배경을 어둡게(흰/회색 공백 방지) */
   --bg:#000;--card:#1c1c1e;--card2:#2c2c2e;--sep:#38383a;
   --text:#fff;--muted:#8e8e93;--muted2:#aeaeb2;
   --green:#30d158;--green-dim:#248a3d;--gold:#ffd60a;--red:#ff453a;--blue:#0a84ff;--pink:#ff2d55;
@@ -16,6 +17,7 @@
   --sys:-apple-system,BlinkMacSystemFont,'SF Pro Display','SF Pro Text','Segoe UI',Roboto,'Noto Sans KR',sans-serif;
 }
 *{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent}
+html{background:var(--bg)}   /* 시트 열릴 때 iOS 뷰포트 축소로 노출되는 하단 영역을 앱 배경(검정)으로 채움 */
 html,body{overflow-anchor:none}   /* 뷰 전환 시 스크롤 앵커링이 위치를 고정해 스무스 스크롤을 막는 것 방지 */
 body{background:var(--bg);color:var(--text);font-family:var(--sys);min-height:100vh;-webkit-text-size-adjust:100%;padding-bottom:90px}
 /* 헤더 */
