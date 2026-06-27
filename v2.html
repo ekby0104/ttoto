@@ -780,7 +780,7 @@ function openGroupGames(L){
 function openActiveBets(){
   closeFab();
   const games=GAMES.filter(g=>!g.deleted&&gBets(g.id).length>=1&&gState(g)!=='pending')
-    .sort((a,b)=>startMs(a)-startMs(b));
+    .sort((a,b)=>startMs(b)-startMs(a));   // 게임일시 역순(최근 먼저)
   document.getElementById('grp-title').textContent='베팅중인 경기';
   const body=document.getElementById('grp-body');
   body.innerHTML=games.length?games.map(gameRowHtml).join(''):`<div class="empty">베팅중인 경기가 없어요</div>`;
