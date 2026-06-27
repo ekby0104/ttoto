@@ -133,8 +133,15 @@ body.bk-snap .bk-card{transition:none!important}   /* 전체뷰→이동 시 카
 .card-cta{display:flex;align-items:center;justify-content:center;gap:6px;padding:11px;border-top:1px solid var(--sep);font-size:14px;font-weight:700;color:var(--green)}
 .card-info{padding:9px 14px;border-top:1px solid var(--sep);font-size:12px;color:var(--muted);font-family:var(--mono);display:flex;justify-content:space-between}
 /* 플로팅 피드백 버튼 */
-.fab{position:fixed;right:10px;bottom:max(10px,env(safe-area-inset-bottom));width:37px;height:37px;border-radius:50%;background:var(--blue);color:#fff;border:none;font-size:16px;display:flex;align-items:center;justify-content:center;box-shadow:0 4px 13px rgba(10,132,255,.5);cursor:pointer;z-index:60}
+.fab-menu{position:fixed;right:10px;bottom:max(10px,env(safe-area-inset-bottom));z-index:60;display:flex;flex-direction:column;align-items:flex-end;gap:10px}
+.fab{width:37px;height:37px;border-radius:50%;background:var(--blue);color:#fff;border:none;display:flex;align-items:center;justify-content:center;box-shadow:0 4px 13px rgba(10,132,255,.5);cursor:pointer}
 .fab:active{transform:scale(.92)}
+.fab-plus{font-size:23px;line-height:1;transition:transform .22s}
+.fab-menu.open .fab-plus{transform:rotate(135deg)}
+.fab-act{display:inline-flex;align-items:center;gap:7px;height:34px;padding:0 13px 0 11px;border-radius:17px;background:#2a2a2c;color:#fff;border:none;font-size:13px;font-weight:700;cursor:pointer;box-shadow:0 3px 12px rgba(0,0,0,.55);white-space:nowrap;font-family:var(--sys);opacity:0;transform:translateY(10px) scale(.92);pointer-events:none;transition:opacity .18s,transform .18s}
+.fab-menu.open .fab-act{opacity:1;transform:translateY(0) scale(1);pointer-events:auto}
+.fab-act:active{filter:brightness(1.2)}
+.fab-ic{font-size:15px;line-height:1}
 /* 시트(모달) */
 .sheet-ov{position:fixed;inset:0;background:rgba(0,0,0,.6);z-index:100;display:flex;align-items:flex-end;justify-content:center;opacity:0;pointer-events:none;transition:opacity .25s}
 .sheet-ov.show{opacity:1;pointer-events:auto}
@@ -258,7 +265,11 @@ body.bk-snap .bk-card{transition:none!important}   /* 전체뷰→이동 시 카
 <div class="wrap" id="wrap"><div class="loader">불러오는 중...</div></div>
 
 <!-- 플로팅 피드백 버튼 -->
-<button class="fab" onclick="openFeedback()" aria-label="피드백">💬</button>
+<div class="fab-menu" id="fab-menu">
+  <button class="fab-act" onclick="openActiveBets()"><span class="fab-ic">🔥</span>베팅중</button>
+  <button class="fab-act" onclick="openFeedback()"><span class="fab-ic">💬</span>피드백</button>
+  <button class="fab" onclick="toggleFab()" aria-label="메뉴"><span class="fab-plus">+</span></button>
+</div>
 
 <!-- 라운드 이동 플로팅 버튼 -->
 <div class="bk-round-nav" id="bk-round-nav">
@@ -736,31 +747,43 @@ function bkSelect(el){
   if(el){el.classList.add('sel');selGid=(el.id&&el.id.indexOf('bkc-')===0)?el.id.slice(4):null;}
 }
 // 조별 카드 클릭 → 그 조의 경기 목록 시트
-function openGroupGames(L){
-  const games=GAMES.filter(g=>!g.deleted&&gStage(g)==='GS'&&groupLetter(g)===L)
-    .sort((a,b)=>startMs(a)-startMs(b));
-  document.getElementById('grp-title').textContent=`${L}조 경기`;
-  const body=document.getElementById('grp-body');
-  if(!games.length){body.innerHTML=`<div class="empty">등록된 경기가 없어요</div>`;}
-  else body.innerHTML=games.map(g=>{
-    const res=RESULTS[String(g.id)],nb=gBets(g.id).length;
-    const st=gState(g);
-    const bet=nb>=1;                                  // 1명 이상 베팅
-    const score=res?`${res.h} : ${res.a}`:'vs';
-    const dtStr=g.date?`${g.date}${g.time?' '+g.time:''}`:'미정';
-    const dtClr=bet?'#555':(st==='ended'?'#fff':'var(--gold)');   // 흰 배경이면 어두운 글자
-    return `<div class="grp-game${bet?' gg-bet':''}"${bet?` style="border-color:${gameBorderClr(g)}"`:''} onclick="openGame('${g.id}')">
+// 경기 리스트 한 줄(조별리그 팝업 / 베팅중 팝업 공용). KO 게임도 teamSide로 안전 표시
+function gameRowHtml(g){
+  const res=RESULTS[String(g.id)],nb=gBets(g.id).length;
+  const st=gState(g);
+  const bet=nb>=1;                                  // 1명 이상 베팅
+  const score=res?`${res.h} : ${res.a}`:'vs';
+  const dtStr=g.date?`${g.date}${g.time?' '+g.time:''}`:'미정';
+  const dtClr=bet?'#555':(st==='ended'?'#fff':'var(--gold)');   // 흰 배경이면 어두운 글자
+  const h=teamSide(g,'home'),a=teamSide(g,'away');
+  return `<div class="grp-game${bet?' gg-bet':''}"${bet?` style="border-color:${gameBorderClr(g)}"`:''} onclick="openGame('${g.id}')">
       <div class="gg-team" style="flex-direction:column;align-items:flex-start;gap:3px">
         <span style="font-size:12px;font-weight:600;color:${dtClr};font-family:var(--mono);white-space:nowrap">${dtStr}</span>
-        <div style="display:flex;align-items:center;gap:7px"><span class="gg-f">${g.home.flag}</span><span class="gg-n">${esc(g.home.short)}</span></div>
+        <div style="display:flex;align-items:center;gap:7px"><span class="gg-f">${h.flag}</span><span class="gg-n">${esc(h.name)}</span></div>
       </div>
       <div class="gg-mid">
         <span class="gg-sc ${res?'':'dt'}">${score}</span>
         <span class="gg-cnt">${nb}명 베팅</span>
       </div>
-      <div class="gg-team gg-away"><span class="gg-n">${esc(g.away.short)}</span><span class="gg-f">${g.away.flag}</span></div>
+      <div class="gg-team gg-away"><span class="gg-n">${esc(a.name)}</span><span class="gg-f">${a.flag}</span></div>
     </div>`;
-  }).join('');
+}
+function openGroupGames(L){
+  const games=GAMES.filter(g=>!g.deleted&&gStage(g)==='GS'&&groupLetter(g)===L)
+    .sort((a,b)=>startMs(a)-startMs(b));
+  document.getElementById('grp-title').textContent=`${L}조 경기`;
+  const body=document.getElementById('grp-body');
+  body.innerHTML=games.length?games.map(gameRowHtml).join(''):`<div class="empty">등록된 경기가 없어요</div>`;
+  openSheet('sh-group');
+}
+// 베팅중인 경기: 베팅 1명 이상 + (종료 또는 진행중=open/closed)
+function openActiveBets(){
+  closeFab();
+  const games=GAMES.filter(g=>!g.deleted&&gBets(g.id).length>=1&&gState(g)!=='pending')
+    .sort((a,b)=>startMs(a)-startMs(b));
+  document.getElementById('grp-title').textContent='베팅중인 경기';
+  const body=document.getElementById('grp-body');
+  body.innerHTML=games.length?games.map(gameRowHtml).join(''):`<div class="empty">베팅중인 경기가 없어요</div>`;
   openSheet('sh-group');
 }
 // 스코어 매트릭스(홈 스코어×원정 스코어, 칸=예측 인원수)
@@ -1151,7 +1174,12 @@ function updateOvvBtn(){
 }
 
 // ── 피드백 ──
+// 플로팅(+) 스피드다이얼 메뉴
+function toggleFab(){const m=document.getElementById('fab-menu');if(m)m.classList.toggle('open');}
+function closeFab(){const m=document.getElementById('fab-menu');if(m)m.classList.remove('open');}
+document.addEventListener('click',e=>{const m=document.getElementById('fab-menu');if(m&&m.classList.contains('open')&&!m.contains(e.target))m.classList.remove('open');});
 async function openFeedback(){
+  closeFab();
   openSheet('sh-fb');
   await renderFeedback();
 }
