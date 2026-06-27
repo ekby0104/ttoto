@@ -3,7 +3,6 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
-<meta name="theme-color" content="#000000">   <!-- iOS 사파리 상/하단 바를 앱 검정색으로(회색 기본 바 방지) -->
 <title>⚽ 또또</title>
 <link rel="icon" type="image/png" href="/icon-192.png">
 <link rel="apple-touch-icon" href="/apple-touch-icon.png">
@@ -45,9 +44,9 @@ body{background:var(--bg);color:var(--text);font-family:var(--sys);min-height:10
 .seg-tx{font-size:14px;font-weight:800;color:var(--muted2)}
 .seg.active .seg-tx{color:#1c1c1e}
 .seg-tx.trophy{font-size:18px}
-/* 셀렉터/네비 버튼: 탭·포커스 시 밑줄/아웃라인 아티팩트 제거 */
-.seg,.seg-tx,.ovv-btn,.bk-round-btn{text-decoration:none!important}
-.seg:focus,.seg:focus-visible,.ovv-btn:focus,.bk-round-btn:focus{outline:none}
+/* 셀렉터/네비 버튼: 탭·포커스 시 밑줄/아웃라인 아티팩트 제거(iOS 포함) */
+.seg,.seg-tx,.ovv-btn,.bk-round-btn{text-decoration:none!important;-webkit-text-decoration:none!important;-webkit-appearance:none;appearance:none}
+.seg:focus,.seg:focus-visible,.seg:active,.ovv-btn:focus,.bk-round-btn:focus{outline:none!important;text-decoration:none!important;-webkit-text-decoration:none!important;box-shadow:none}
 /* 조 순위표 */
 .stand-col{position:absolute}
 .stand{background:var(--card);border-radius:12px;margin-bottom:12px;border:1px solid var(--sep);padding:4px 8px 8px;cursor:pointer;transition:border-color .2s,box-shadow .2s}
@@ -410,6 +409,7 @@ function render(){
     return;
   }
   document.getElementById('wrap').innerHTML=renderFullBracket(visible);  // 조 순위표 + 브래킷 통합
+  updateNextBtn();   // nav 버튼(이전/다음/ALL) 즉시 갱신 → 40ms 지연으로 인한 깜빡임 방지
   setTimeout(()=>{
     const sc=document.getElementById('bk-scroll');if(!sc)return;
     sc.scrollLeft=Math.max(0,(SECTION_X[selStage]||0)-6);
@@ -422,9 +422,9 @@ let bkFocus='R32';
 // 셀렉터: 텍스트 라벨(GS, R32…), 결승만 우승컵
 function renderStageBar(){
   const bar=document.getElementById('stagebar');
-  bar.innerHTML=`<button class="ovv-btn" onclick="toggleOverview()" title="전체 토너먼트" style="color:${ovvMode?'var(--green)':'var(--muted2)'};font-size:11px;font-weight:800">ALL</button><div class="seg-pill">${STAGES.map(([k])=>{
+  bar.innerHTML=`<button class="ovv-btn" onclick="this.blur();toggleOverview()" title="전체 토너먼트" style="color:${ovvMode?'var(--green)':'var(--muted2)'};font-size:11px;font-weight:800">ALL</button><div class="seg-pill">${STAGES.map(([k])=>{
     const content=k==='F'?'🏆':k;
-    return `<button class="seg ${!ovvMode&&selStage===k?'active':''}" data-stage="${k}" onclick="setStage('${k}')"><span class="seg-tx ${k==='F'?'trophy':''}">${content}</span></button>`;
+    return `<button class="seg ${!ovvMode&&selStage===k?'active':''}" data-stage="${k}" onclick="this.blur();setStage('${k}')"><span class="seg-tx ${k==='F'?'trophy':''}">${content}</span></button>`;
   }).join('')}</div>`;
 }
 function setStage(s,fromOvv){
