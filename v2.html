@@ -585,8 +585,9 @@ function bracketLines(yc){
 function bkCardHtml(g){
   const {colX,CARDW,CARDH}=BK,st=gState(g),bett=st==='open',res=RESULTS[String(g.id)];
   const h=teamSide(g,'home'),a=teamSide(g,'away');
-  const isD=window.innerWidth>=768;
-  const hn=isD?h.full:h.name, an=isD?a.full:a.name;
+  // 모바일·데스크탑 모두 국가명 표기, 10자 초과 시 9자+".."
+  const trunc=s=>{s=String(s||'');return s.length>10?s.slice(0,9)+'..':s;};
+  const hn=h.known?trunc(h.full):h.name, an=a.known?trunc(a.full):a.name;
   const dt=g.date?`${g.date} ${g.time||''}`:'';
   const x=g.stage==='3RD'?colX.F:colX[gStage(g)];
   const top=(BK.yc&&BK.yc[g.id]!=null)?BK.yc[g.id]:BK.PADY;
