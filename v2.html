@@ -1102,6 +1102,12 @@ function renderMiniOverview(visible){
   const GS_ROW=Math.floor((CARDH*2+GS_GAP-hdrH-GS_PADV*2)/4); // 17px → GS card = KO pair height (90px)
   let gsY=PADY;
   const td=todayStr();
+  // 32강에 실제 배정된 국가코드 집합 (3위 진출국 판별의 유일한 근거)
+  const r32Adv=new Set();
+  ko.filter(g=>gStage(g)==='R32').forEach(g=>{
+    if(g.home&&g.home.name&&g.home.short)r32Adv.add(g.home.short);
+    if(g.away&&g.away.name&&g.away.short)r32Adv.add(g.away.short);
+  });
   letters.forEach((L)=>{
     const arr=stand[L];
     const grpGames=visible.filter(g=>gStage(g)==='GS'&&groupLetter(g)===L);
@@ -1115,9 +1121,11 @@ function renderMiniOverview(visible){
     const rows=arr.map((t,i)=>{
       const clr=flagToClr(t.flag);
       const lbl=_isDesk?(t.name||t.short):t.short;
+      // 32강 진출국만 강조: 1·2위 초록, 3위 진출국 흰색, 그 외 dim
+      const txtClr=r32Adv.has(t.short)?(i<2?'var(--green)':'#fff'):'#555';
       return `<div style="display:flex;align-items:center;gap:3px;height:${GS_ROW}px;padding:0 4px">
         <div style="width:4px;height:${GS_ROW-4}px;background:${clr};border-radius:2px;flex-shrink:0"></div>
-        <span style="flex:1;font-size:12px;font-weight:800;overflow:hidden;white-space:nowrap;text-overflow:ellipsis;color:${i<2?'#ddd':'#555'};letter-spacing:.2px">${lbl}</span>
+        <span style="flex:1;font-size:12px;font-weight:800;overflow:hidden;white-space:nowrap;text-overflow:ellipsis;color:${txtClr};letter-spacing:.2px">${lbl}</span>
       </div>`;}).join('');
     gsCards+=`<div style="position:absolute;left:${GS_LEFT}px;top:${gsY}px;width:${GS_CARDW}px;overflow:hidden;background:#1c1c1e;border:1px solid ${grpBdr};border-radius:4px;padding:${GS_PADV}px 0;box-sizing:border-box;cursor:pointer" onclick="exitOvvAndGo('GS',null,'${L}')">
       <div style="font-size:10px;color:#fff;padding:0 4px;margin-bottom:1px">Grp ${L}</div>${rows}
