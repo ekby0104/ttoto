@@ -882,7 +882,7 @@ function renderGameBody(){
       <button class="bv-btn ${betView==='matrix'?'on':''}" onclick="setBetView('matrix')">매트릭스</button>
     </span></div>`;
   if(!sorted.length){
-    h+=`<div class="empty">아직 베팅이 없어요${st==='open'?'<br>첫 베팅의 주인공이 되어보세요!':''}</div>`;
+    h+=`<div class="empty">${st==='ended'?'베팅한 사람이 없어요':`아직 베팅이 없어요${st==='open'?'<br>첫 베팅의 주인공이 되어보세요!':''}`}</div>`;
   }else if(betView==='matrix'){
     h+=betMatrixHtml(g,mb,res);
   }else{
