@@ -915,10 +915,13 @@ def _apply_enrich(games: list, parsed: list) -> tuple[int, dict]:
             g["home"] = src["home"]
         if src.get("away") and src["away"].get("name"):
             g["away"] = src["away"]
-        # 종료된 경기 스코어 패치
+        # 종료된 경기 스코어 패치 + 상태 자동 종료 처리
         gid = str(g["id"])
         if gid in by_id_result:
             results_patch[gid] = by_id_result[gid]
+            if g.get("status") != "ended":
+                g["status"] = "ended"
+                g.setdefault("ended_at", int(time.time()))
         updated += 1
     return updated, results_patch
 
