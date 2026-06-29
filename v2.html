@@ -99,7 +99,7 @@ body.bk-snap .bk-card{transition:none!important}   /* 전체뷰→이동 시 카
 .bk-card.bettable .bk-n.tbd{color:#999}
 .bk-card.bettable .bk-s{color:#111}
 .bk-card.sel{animation:selBlink 1s ease-in-out infinite;z-index:6}
-@keyframes selBlink{0%,100%{box-shadow:0 0 0 2px #fff,0 0 16px 3px rgba(255,255,255,.65)}50%{box-shadow:0 0 0 2px rgba(255,255,255,.45),0 0 6px 1px rgba(255,255,255,.25)}}
+@keyframes selBlink{0%,100%{box-shadow:0 0 0 2px var(--selclr,#fff),0 0 16px 4px var(--selclr,#fff)}50%{box-shadow:0 0 0 2px var(--selclr,#fff),0 0 4px 1px var(--selclr,#fff)}}
 .bk-card:active{filter:brightness(1.15)}
 .bk-dt{font-size:12px;line-height:16px;height:16px;color:#fff;font-family:var(--mono);white-space:nowrap;overflow:hidden}
 .bk-row{display:flex;align-items:center;gap:6px;height:20px}
@@ -591,7 +591,8 @@ function bkCardHtml(g){
   const dt=g.date?`${g.date} ${g.time||''}`:'';
   const x=g.stage==='3RD'?colX.F:colX[gStage(g)];
   const top=(BK.yc&&BK.yc[g.id]!=null)?BK.yc[g.id]:BK.PADY;
-  return `<div class="bk-card ${bett?'bettable':''} ${String(g.id)===String(selGid)?'sel':''}" id="bkc-${g.id}" style="left:${x}px;top:${top}px;width:${CARDW}px;height:${CARDH}px;border-color:${gameBorderClr(g)}" onclick="bkSelect(this);openGame('${g.id}')">
+  const bc=gameBorderClr(g),selc=bc==='transparent'?'#fff':bc;
+  return `<div class="bk-card ${bett?'bettable':''} ${String(g.id)===String(selGid)?'sel':''}" id="bkc-${g.id}" style="left:${x}px;top:${top}px;width:${CARDW}px;height:${CARDH}px;border-color:${bc};--selclr:${selc}" onclick="bkSelect(this);openGame('${g.id}')">
     <div class="bk-dt">${dt}${bett?' · ⚽':''}</div>
     <div class="bk-row"><span class="bk-f">${h.flag}</span><span class="bk-n ${h.known?'':'tbd'}">${hn}</span><span class="bk-s">${res?res.h:''}</span></div>
     <div class="bk-row"><span class="bk-f">${a.flag}</span><span class="bk-n ${a.known?'':'tbd'}">${an}</span><span class="bk-s">${res?res.a:''}</span></div>
@@ -689,7 +690,7 @@ function renderFullBracket(visible){
     const rows=arr.map((t,i)=>`<tr class="${i<2?'qual':''}">
       <td class="c-rk">${i+1}</td><td class="c-fl">${t.flag}</td><td class="c-nm" data-short="${t.short}" data-full="${t.name||t.short}">${isDesk?(t.name||t.short):t.short}</td>
       <td>${t.gp}</td><td>${t.w}</td><td>${t.d}</td><td>${t.l}</td><td>${t.gd>0?'+'+t.gd:t.gd}</td><td class="c-pts">${t.pts}</td></tr>`).join('');
-    return `<div class="stand" id="stand-${L}" style="border-color:${stBdr}" onclick="bkSelect(this);openGroupGames('${L}')"><div class="st-head"><span class="st-gl">Group ${L}</span></div>
+    return `<div class="stand" id="stand-${L}" style="border-color:${stBdr};--selclr:${stBdr==='#38383a'?'#fff':stBdr}" onclick="bkSelect(this);openGroupGames('${L}')"><div class="st-head"><span class="st-gl">Group ${L}</span></div>
       <table class="st-table"><thead><tr><th class="c-rk"></th><th class="c-fl"></th><th class="c-nm"></th><th>GP</th><th>W</th><th>D</th><th>L</th><th>GD</th><th>PTS</th></tr></thead>
       <tbody>${rows}</tbody></table></div>`;
   }).join('');
