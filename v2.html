@@ -52,7 +52,7 @@ body{background:var(--bg);color:var(--text);font-family:var(--sys);min-height:10
 .stand-col{position:absolute}
 .stand{background:var(--card);border-radius:12px;margin-bottom:12px;border:1px solid var(--sep);padding:4px 8px 8px;cursor:pointer;transition:border-color .2s,box-shadow .2s}
 .stand:active{filter:brightness(1.12)}
-.stand.sel{border-color:#fff!important;animation:selBlink 1s ease-in-out infinite}
+.stand.sel{animation:selBlink 1s ease-in-out infinite}
 .st-head{padding:8px 4px 6px}
 .st-gl{font-weight:800;color:#fff;font-size:14px}
 .st-table{width:100%;border-collapse:collapse;font-size:13px}
@@ -98,7 +98,7 @@ body.bk-snap .bk-card{transition:none!important}   /* 전체뷰→이동 시 카
 .bk-card.bettable .bk-n{color:#111}
 .bk-card.bettable .bk-n.tbd{color:#999}
 .bk-card.bettable .bk-s{color:#111}
-.bk-card.sel{border-color:#fff!important;animation:selBlink 1s ease-in-out infinite;z-index:6}
+.bk-card.sel{animation:selBlink 1s ease-in-out infinite;z-index:6}
 @keyframes selBlink{0%,100%{box-shadow:0 0 0 2px #fff,0 0 16px 3px rgba(255,255,255,.65)}50%{box-shadow:0 0 0 2px rgba(255,255,255,.45),0 0 6px 1px rgba(255,255,255,.25)}}
 .bk-card:active{filter:brightness(1.15)}
 .bk-dt{font-size:12px;line-height:16px;height:16px;color:#fff;font-family:var(--mono);white-space:nowrap;overflow:hidden}
