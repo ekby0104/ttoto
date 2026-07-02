@@ -8,7 +8,7 @@ from fastapi.staticfiles import StaticFiles
 from fastapi.responses import FileResponse
 from pydantic import BaseModel, Field
 from typing import Optional
-import json, os, time, httpx, re, asyncio
+import json, os, time, httpx, re, asyncio, sqlite3, threading
 from datetime import datetime, timedelta
 
 app = FastAPI(title="사무실 월드컵 토토 API")
@@ -76,15 +76,68 @@ FEEDBACK_FILE     = os.path.join(DATA_DIR, "feedback.json")
 
 os.makedirs(DATA_DIR, exist_ok=True)
 
+# ── 저장소: SQLite 문서 스토어 ────────────────────────────────────────
+# 기존 read_json/write_json/get_* API를 그대로 유지하면서 원자적 쓰기·동시성 안전 확보.
+# (JSON 파일 대비: 부분 기록으로 인한 손상 방지, WAL 모드로 동시 접근 안전)
+DB_FILE  = os.path.join(DATA_DIR, "ttoto.db")
+_db_lock = threading.Lock()
+
+def _db_conn():
+    conn = sqlite3.connect(DB_FILE, timeout=10)
+    conn.execute("PRAGMA journal_mode=WAL")
+    conn.execute("PRAGMA busy_timeout=5000")
+    return conn
+
+def _doc_key(path):
+    # bets.json → "bets" 처럼 파일명을 문서 키로 사용 (기존 호출부 변경 불필요)
+    return os.path.splitext(os.path.basename(path))[0]
+
+def _init_db():
+    conn = _db_conn()
+    try:
+        conn.execute("CREATE TABLE IF NOT EXISTS documents (key TEXT PRIMARY KEY, data TEXT NOT NULL)")
+        # 최초 1회: 기존 JSON 파일을 DB로 이관 (DB에 없는 키만, 원본 파일은 백업으로 보존)
+        for path in (BETS_FILE, CONFIG_FILE, RESULTS_FILE, AUTH_FILE,
+                     GAMES_FILE, AI_PREDICTIONS_FILE, FEEDBACK_FILE):
+            key = _doc_key(path)
+            if conn.execute("SELECT 1 FROM documents WHERE key=?", (key,)).fetchone():
+                continue
+            if os.path.exists(path):
+                try:
+                    with open(path, "r", encoding="utf-8") as f:
+                        raw = f.read()
+                    json.loads(raw)  # 유효성 검증 후 저장
+                    conn.execute("INSERT INTO documents(key, data) VALUES(?, ?)", (key, raw))
+                except Exception:
+                    pass
+        conn.commit()
+    finally:
+        conn.close()
+
 def read_json(path, default):
-    if os.path.exists(path):
-        with open(path, "r", encoding="utf-8") as f:
-            return json.load(f)
-    return default
+    key = _doc_key(path)
+    conn = _db_conn()
+    try:
+        row = conn.execute("SELECT data FROM documents WHERE key=?", (key,)).fetchone()
+    finally:
+        conn.close()
+    return default if row is None else json.loads(row[0])
 
 def write_json(path, data):
-    with open(path, "w", encoding="utf-8") as f:
-        json.dump(data, f, ensure_ascii=False, indent=2)
+    key = _doc_key(path)
+    payload = json.dumps(data, ensure_ascii=False)
+    with _db_lock:
+        conn = _db_conn()
+        try:
+            conn.execute(
+                "INSERT INTO documents(key, data) VALUES(?, ?) "
+                "ON CONFLICT(key) DO UPDATE SET data=excluded.data",
+                (key, payload))
+            conn.commit()
+        finally:
+            conn.close()
+
+_init_db()
 
 def get_bets():           return read_json(BETS_FILE,           [])
 def get_config():         return read_json(CONFIG_FILE,         {"bet_amount": 3000, "kp_link": "", "site_title": "토토", "carryover": 0})
