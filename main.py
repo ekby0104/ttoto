@@ -76,9 +76,13 @@ FEEDBACK_FILE     = os.path.join(DATA_DIR, "feedback.json")
 
 os.makedirs(DATA_DIR, exist_ok=True)
 
-# ── 저장소: SQLite 문서 스토어 ────────────────────────────────────────
-# 기존 read_json/write_json/get_* API를 그대로 유지하면서 원자적 쓰기·동시성 안전 확보.
-# (JSON 파일 대비: 부분 기록으로 인한 손상 방지, WAL 모드로 동시 접근 안전)
+# ── 저장소: SQLite 정규화 테이블 ─────────────────────────────────────
+# v2(documents 문서 통짜 저장) → v3(도메인별 테이블 정규화).
+# 설계: 각 행의 data(JSON)가 원본(single source of truth)이고, 조회용 컬럼은
+# GENERATED ALWAYS AS json_extract(...) 가상 컬럼으로 DB가 자동 파생.
+#   → 컬럼과 JSON이 어긋나는 것이 구조적으로 불가능 + 실제 SQL 조회/집계/인덱스 사용 가능.
+#   (Postgres의 jsonb + expression index와 같은 하이브리드 패턴)
+# 기존 read_json/write_json/get_* API는 그대로 유지 → 호출부 60곳 변경 없음.
 DB_FILE  = os.path.join(DATA_DIR, "ttoto.db")
 _db_lock = threading.Lock()
 
@@ -89,14 +93,107 @@ def _db_conn():
     return conn
 
 def _doc_key(path):
-    # bets.json → "bets" 처럼 파일명을 문서 키로 사용 (기존 호출부 변경 불필요)
+    # bets.json → "bets" 처럼 파일명을 키로 사용 (기존 호출부 변경 불필요)
     return os.path.splitext(os.path.basename(path))[0]
+
+# 리스트형(순서 보존, seq가 PK) / 딕셔너리형(game_id가 PK) / 키-값형
+_LIST_TABLES = ("bets", "games", "feedback")
+_DICT_TABLES = ("results", "ai_predictions")
+_KV_TABLES   = ("config", "auth")
+
+_SCHEMA = """
+CREATE TABLE IF NOT EXISTS games(
+  seq        INTEGER PRIMARY KEY,
+  data       TEXT NOT NULL,
+  id         TEXT    GENERATED ALWAYS AS (json_extract(data,'$.id'))         VIRTUAL,
+  stage      TEXT    GENERATED ALWAYS AS (json_extract(data,'$.stage'))      VIRTUAL,
+  grp        TEXT    GENERATED ALWAYS AS (json_extract(data,'$.group'))      VIRTUAL,
+  date       TEXT    GENERATED ALWAYS AS (json_extract(data,'$.date'))       VIRTUAL,
+  time       TEXT    GENERATED ALWAYS AS (json_extract(data,'$.time'))       VIRTUAL,
+  venue      TEXT    GENERATED ALWAYS AS (json_extract(data,'$.venue'))      VIRTUAL,
+  status     TEXT    GENERATED ALWAYS AS (json_extract(data,'$.status'))     VIRTUAL,
+  home_name  TEXT    GENERATED ALWAYS AS (json_extract(data,'$.home.name'))  VIRTUAL,
+  home_short TEXT    GENERATED ALWAYS AS (json_extract(data,'$.home.short')) VIRTUAL,
+  away_name  TEXT    GENERATED ALWAYS AS (json_extract(data,'$.away.name'))  VIRTUAL,
+  away_short TEXT    GENERATED ALWAYS AS (json_extract(data,'$.away.short')) VIRTUAL,
+  ended_at   INTEGER GENERATED ALWAYS AS (json_extract(data,'$.ended_at'))   VIRTUAL,
+  deleted    INTEGER GENERATED ALWAYS AS (coalesce(json_extract(data,'$.deleted'),0)) VIRTUAL
+);
+CREATE INDEX IF NOT EXISTS idx_games_id     ON games(id);
+CREATE INDEX IF NOT EXISTS idx_games_status ON games(status);
+CREATE INDEX IF NOT EXISTS idx_games_stage  ON games(stage);
+
+CREATE TABLE IF NOT EXISTS bets(
+  seq        INTEGER PRIMARY KEY,
+  data       TEXT NOT NULL,
+  id         TEXT    GENERATED ALWAYS AS (json_extract(data,'$.id'))         VIRTUAL,
+  game_id    TEXT    GENERATED ALWAYS AS (json_extract(data,'$.game_id'))    VIRTUAL,
+  name       TEXT    GENERATED ALWAYS AS (json_extract(data,'$.name'))       VIRTUAL,
+  h          INTEGER GENERATED ALWAYS AS (json_extract(data,'$.h'))          VIRTUAL,
+  a          INTEGER GENERATED ALWAYS AS (json_extract(data,'$.a'))          VIRTUAL,
+  amount     INTEGER GENERATED ALWAYS AS (json_extract(data,'$.amount'))     VIRTUAL,
+  paid       INTEGER GENERATED ALWAYS AS (json_extract(data,'$.paid'))       VIRTUAL,
+  paid_out   INTEGER GENERATED ALWAYS AS (json_extract(data,'$.paid_out'))   VIRTUAL,
+  created_at INTEGER GENERATED ALWAYS AS (json_extract(data,'$.created_at')) VIRTUAL
+);
+CREATE INDEX IF NOT EXISTS idx_bets_game_id ON bets(game_id);
+CREATE INDEX IF NOT EXISTS idx_bets_name    ON bets(name);
+
+CREATE TABLE IF NOT EXISTS feedback(
+  seq        INTEGER PRIMARY KEY,
+  data       TEXT NOT NULL,
+  id         TEXT    GENERATED ALWAYS AS (json_extract(data,'$.id'))         VIRTUAL,
+  name       TEXT    GENERATED ALWAYS AS (json_extract(data,'$.name'))       VIRTUAL,
+  message    TEXT    GENERATED ALWAYS AS (json_extract(data,'$.message'))    VIRTUAL,
+  created_at INTEGER GENERATED ALWAYS AS (json_extract(data,'$.created_at')) VIRTUAL
+);
+CREATE INDEX IF NOT EXISTS idx_feedback_created ON feedback(created_at);
+
+CREATE TABLE IF NOT EXISTS results(
+  game_id       TEXT PRIMARY KEY,
+  data          TEXT NOT NULL,
+  h             INTEGER GENERATED ALWAYS AS (json_extract(data,'$.h'))             VIRTUAL,
+  a             INTEGER GENERATED ALWAYS AS (json_extract(data,'$.a'))             VIRTUAL,
+  registered_at INTEGER GENERATED ALWAYS AS (json_extract(data,'$.registered_at')) VIRTUAL
+);
+
+CREATE TABLE IF NOT EXISTS ai_predictions(
+  game_id TEXT PRIMARY KEY,
+  data    TEXT NOT NULL
+);
+
+CREATE TABLE IF NOT EXISTS config(key TEXT PRIMARY KEY, value TEXT NOT NULL);
+CREATE TABLE IF NOT EXISTS auth  (key TEXT PRIMARY KEY, value TEXT NOT NULL);
+CREATE TABLE IF NOT EXISTS meta  (key TEXT PRIMARY KEY, value TEXT NOT NULL);
+"""
+
+def _write_table(conn, key, data):
+    """해당 도메인 테이블을 통째로 교체 (호출측에서 트랜잭션/락 관리)"""
+    if key in _LIST_TABLES:
+        conn.execute(f"DELETE FROM {key}")
+        conn.executemany(
+            f"INSERT INTO {key}(seq, data) VALUES(?, ?)",
+            [(i, json.dumps(item, ensure_ascii=False)) for i, item in enumerate(data)])
+    elif key in _DICT_TABLES:
+        conn.execute(f"DELETE FROM {key}")
+        conn.executemany(
+            f"INSERT INTO {key}(game_id, data) VALUES(?, ?)",
+            [(str(k), json.dumps(v, ensure_ascii=False)) for k, v in data.items()])
+    elif key in _KV_TABLES:
+        conn.execute(f"DELETE FROM {key}")
+        conn.executemany(
+            f"INSERT INTO {key}(key, value) VALUES(?, ?)",
+            [(k, json.dumps(v, ensure_ascii=False)) for k, v in data.items()])
+    else:
+        raise ValueError(f"unknown storage key: {key}")
 
 def _init_db():
     conn = _db_conn()
     try:
+        # v2 documents 테이블(하위 호환·백업용) + v3 정규화 스키마
         conn.execute("CREATE TABLE IF NOT EXISTS documents (key TEXT PRIMARY KEY, data TEXT NOT NULL)")
-        # 최초 1회: 기존 JSON 파일을 DB로 이관 (DB에 없는 키만, 원본 파일은 백업으로 보존)
+        conn.executescript(_SCHEMA)
+        # 1단계: 레거시 JSON 파일 → documents (DB에 없는 키만, 원본 보존)
         for path in (BETS_FILE, CONFIG_FILE, RESULTS_FILE, AUTH_FILE,
                      GAMES_FILE, AI_PREDICTIONS_FILE, FEEDBACK_FILE):
             key = _doc_key(path)
@@ -110,6 +207,16 @@ def _init_db():
                     conn.execute("INSERT INTO documents(key, data) VALUES(?, ?)", (key, raw))
                 except Exception:
                     pass
+        # 2단계: documents → 정규화 테이블 (최초 1회만, meta 플래그로 멱등 보장)
+        if not conn.execute("SELECT 1 FROM meta WHERE key='migrated_v3'").fetchone():
+            for row in conn.execute("SELECT key, data FROM documents").fetchall():
+                key, raw = row
+                if key in _LIST_TABLES + _DICT_TABLES + _KV_TABLES:
+                    try:
+                        _write_table(conn, key, json.loads(raw))
+                    except Exception:
+                        pass
+            conn.execute("INSERT INTO meta(key, value) VALUES('migrated_v3', ?)", (str(int(time.time())),))
         conn.commit()
     finally:
         conn.close()
@@ -118,22 +225,37 @@ def read_json(path, default):
     key = _doc_key(path)
     conn = _db_conn()
     try:
+        if key in _LIST_TABLES:
+            rows = conn.execute(f"SELECT data FROM {key} ORDER BY seq").fetchall()
+            return [json.loads(r[0]) for r in rows] if rows else default
+        if key in _DICT_TABLES:
+            rows = conn.execute(f"SELECT game_id, data FROM {key}").fetchall()
+            return {r[0]: json.loads(r[1]) for r in rows} if rows else default
+        if key in _KV_TABLES:
+            rows = conn.execute(f"SELECT key, value FROM {key}").fetchall()
+            return {r[0]: json.loads(r[1]) for r in rows} if rows else default
         row = conn.execute("SELECT data FROM documents WHERE key=?", (key,)).fetchone()
+        return default if row is None else json.loads(row[0])
     finally:
         conn.close()
-    return default if row is None else json.loads(row[0])
 
 def write_json(path, data):
     key = _doc_key(path)
-    payload = json.dumps(data, ensure_ascii=False)
     with _db_lock:
         conn = _db_conn()
         try:
-            conn.execute(
-                "INSERT INTO documents(key, data) VALUES(?, ?) "
-                "ON CONFLICT(key) DO UPDATE SET data=excluded.data",
-                (key, payload))
+            conn.execute("BEGIN IMMEDIATE")
+            try:
+                _write_table(conn, key, data)
+            except ValueError:
+                conn.execute(
+                    "INSERT INTO documents(key, data) VALUES(?, ?) "
+                    "ON CONFLICT(key) DO UPDATE SET data=excluded.data",
+                    (key, json.dumps(data, ensure_ascii=False)))
             conn.commit()
+        except Exception:
+            conn.rollback()
+            raise
         finally:
             conn.close()
 
@@ -1010,6 +1132,28 @@ def admin_convert_games_to_kst(auth=Depends(admin_required)):
         converted += 1
     write_json(GAMES_FILE, games)
     return {"ok": True, "converted": converted, "total": len(games)}
+
+# ── SQL 콘솔 (읽기 전용, 학습/조회용) ───────────────────────────
+class SqlIn(BaseModel):
+    sql: str = Field(..., min_length=1, max_length=2000)
+
+@app.post("/api/admin/db/query")
+def admin_db_query(body: SqlIn, auth=Depends(admin_required)):
+    """관리자용 읽기 전용 SQL 콘솔. SELECT/WITH/EXPLAIN만 허용 + read-only 연결로 이중 방어."""
+    sql = body.sql.strip().rstrip(";")
+    if not re.match(r"(?is)^(select|with|explain)\b", sql):
+        raise HTTPException(400, "SELECT / WITH / EXPLAIN 문만 실행할 수 있습니다")
+    conn = sqlite3.connect(f"file:{DB_FILE}?mode=ro", uri=True, timeout=5)
+    try:
+        conn.execute("PRAGMA query_only=ON")
+        cur = conn.execute(sql)
+        cols = [d[0] for d in cur.description] if cur.description else []
+        rows = cur.fetchmany(201)
+        return {"columns": cols, "rows": [list(r) for r in rows[:200]], "truncated": len(rows) > 200}
+    except sqlite3.Error as e:
+        raise HTTPException(400, f"SQL 오류: {e}")
+    finally:
+        conn.close()
 
 # ── 토큰 변경 ─────────────────────────────────────────────────
 @app.post("/api/admin/auth/token")

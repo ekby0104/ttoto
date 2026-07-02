@@ -330,6 +330,29 @@ main{max-width:960px;margin:0 auto;padding:16px 12px 60px}
       </div>
     </div>
 
+    <!-- SQL 콘솔 (아코디언) -->
+    <div class="acc-item" id="acc-sql">
+      <div class="acc-row" onclick="toggleAcc('sql')">
+        <span class="acc-label"><span style="font-size:18px">🗄️</span> SQL 콘솔 <span style="font-size:11px;color:var(--muted);font-family:var(--mono)">읽기 전용</span></span>
+        <span class="acc-arrow">›</span>
+      </div>
+      <div class="acc-body">
+        <p class="acard-desc" style="margin-top:0">정규화 테이블을 SQL로 직접 조회합니다. SELECT / WITH / EXPLAIN만 허용 (read-only 연결 이중 방어).<br>
+          테이블: <b>games · bets · results · feedback · ai_predictions · config · auth</b> — 각 행은 <b>data</b>(JSON 원본) + 파생 컬럼(예: bets.name, bets.amount, games.status)</p>
+        <textarea class="form-input" id="sql-input" rows="5" spellcheck="false" style="resize:vertical;font-family:var(--mono);font-size:13px;white-space:pre">SELECT g.home_short || ' vs ' || g.away_short AS match,
+       COUNT(b.seq) AS bets, SUM(b.amount) AS pot
+FROM bets b JOIN games g ON g.id = b.game_id
+GROUP BY b.game_id ORDER BY pot DESC</textarea>
+        <div style="margin-top:8px;display:flex;gap:8px;align-items:center;flex-wrap:wrap">
+          <button class="btn btn-primary btn-sm" onclick="runSql()" id="sql-btn">▶ 실행</button>
+          <button class="btn btn-ghost btn-sm" onclick="document.getElementById('sql-input').value=&quot;SELECT name, COUNT(*) AS n, SUM(amount) AS total,\n       SUM(CASE WHEN paid THEN 0 ELSE amount END) AS unpaid\nFROM bets GROUP BY name ORDER BY total DESC&quot;">예시: 인별 집계</button>
+          <button class="btn btn-ghost btn-sm" onclick="document.getElementById('sql-input').value=&quot;SELECT name FROM sqlite_master WHERE type='table'&quot;">테이블 목록</button>
+          <span id="sql-msg" style="font-size:12px;color:var(--muted);font-family:var(--mono)"></span>
+        </div>
+        <div id="sql-out" style="margin-top:10px;overflow-x:auto"></div>
+      </div>
+    </div>
+
     <!-- 수기 등록 (아코디언) -->
     <div class="acc-item" id="acc-manual">
       <div class="acc-row" onclick="toggleAcc('manual')">
@@ -1298,6 +1321,34 @@ async function enrichBracket() {
   if (!res) { toast('❌ 실패 (외부 API 응답 지연일 수 있어요)', true); return }
   out.textContent = `완료: ${res.updated}개 갱신`;
   toast(`✅ 브래킷 데이터 ${res.updated}개 갱신됐습니다`);
+}
+
+// ── SQL 콘솔 (읽기 전용) ──
+async function runSql() {
+  const btn = document.getElementById('sql-btn');
+  const msg = document.getElementById('sql-msg');
+  const out = document.getElementById('sql-out');
+  const sql = document.getElementById('sql-input').value.trim();
+  if (!sql) return;
+  btn.disabled = true; msg.textContent = '실행 중...';
+  const t0 = performance.now();
+  // apiFetch는 400에서 null을 돌려주므로(오류 detail 소실) SQL 오류 표시를 위해 직접 fetch
+  let res;
+  try {
+    const headers = {'Content-Type':'application/json'};
+    if (sessionToken) headers['X-Admin-Token'] = sessionToken;
+    const r = await fetch(API + '/admin/db/query', {method:'POST', headers, body: JSON.stringify({sql})});
+    if (r.status === 401) { btn.disabled = false; msg.textContent = ''; toast('🔑 관리자 토큰이 필요합니다', true); return; }
+    res = await r.json();
+  } catch(e) { btn.disabled = false; msg.textContent = ''; toast('❌ 요청 실패', true); return; }
+  btn.disabled = false;
+  if (res.detail) { msg.textContent = ''; out.innerHTML = `<div style="color:#e5484d;font-size:13px;font-family:var(--mono);white-space:pre-wrap">${escapeHtml(String(res.detail))}</div>`; return; }
+  const ms = (performance.now() - t0).toFixed(0);
+  msg.textContent = `${res.rows.length}행 · ${ms}ms${res.truncated ? ' · 200행 초과분 생략' : ''}`;
+  if (!res.rows.length) { out.innerHTML = '<div style="color:var(--muted);font-size:13px">결과 없음</div>'; return; }
+  const th = res.columns.map(c => `<th>${escapeHtml(c)}</th>`).join('');
+  const trs = res.rows.map(r => `<tr>${r.map(v => `<td style="font-family:var(--mono);font-size:12px;white-space:nowrap;max-width:300px;overflow:hidden;text-overflow:ellipsis">${v === null ? '<span style="color:#bbb">NULL</span>' : escapeHtml(String(v))}</td>`).join('')}</tr>`).join('');
+  out.innerHTML = `<table class="atable"><thead><tr>${th}</tr></thead><tbody>${trs}</tbody></table>`;
 }
 
 </script>
