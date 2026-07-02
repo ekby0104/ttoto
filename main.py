@@ -1141,8 +1141,9 @@ class SqlIn(BaseModel):
 def admin_db_query(body: SqlIn, auth=Depends(admin_required)):
     """관리자용 읽기 전용 SQL 콘솔. SELECT/WITH/EXPLAIN만 허용 + read-only 연결로 이중 방어."""
     sql = body.sql.strip().rstrip(";")
-    if not re.match(r"(?is)^(select|with|explain)\b", sql):
-        raise HTTPException(400, "SELECT / WITH / EXPLAIN 문만 실행할 수 있습니다")
+    # SELECT/WITH만 허용. EXPLAIN도 대상이 SELECT/WITH일 때만 (EXPLAIN DELETE 같은 형태 차단)
+    if not re.match(r"(?is)^(explain(\s+query\s+plan)?\s+)?(select|with)\b", sql):
+        raise HTTPException(400, "SELECT / WITH (및 그에 대한 EXPLAIN) 문만 실행할 수 있습니다")
     conn = sqlite3.connect(f"file:{DB_FILE}?mode=ro", uri=True, timeout=5)
     try:
         conn.execute("PRAGMA query_only=ON")
