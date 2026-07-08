@@ -802,8 +802,13 @@ function openGroupGames(L){
 // 베팅중인 경기: 베팅 가능(open) + 베팅 완료=마감(closed) 경기
 function openActiveBets(){
   closeFab();
-  const games=GAMES.filter(g=>!g.deleted&&(gState(g)==='open'||gState(g)==='closed'))
-    .sort((a,b)=>startMs(a)-startMs(b));   // 게임일시 순(임박한 경기 먼저)
+  // 진행 영역: 베팅중(open)+마감(closed) 전부 — 임박한 경기 먼저
+  const live=GAMES.filter(g=>!g.deleted&&(gState(g)==='open'||gState(g)==='closed'))
+    .sort((a,b)=>startMs(a)-startMs(b));
+  // 베팅완료 영역: 종료(ended)됐고 베팅이 1건 이상 있었던 경기 — 최근 종료 먼저
+  const done=GAMES.filter(g=>!g.deleted&&gState(g)==='ended'&&gBets(g.id).length>=1)
+    .sort((a,b)=>startMs(b)-startMs(a));
+  const games=[...live,...done];
   document.getElementById('grp-title').textContent='베팅중인 경기';
   const body=document.getElementById('grp-body');
   body.innerHTML=games.length?games.map(gameRowHtml).join(''):`<div class="empty">베팅중인 경기가 없어요</div>`;
