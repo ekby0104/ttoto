@@ -150,7 +150,11 @@ body.bk-snap .bk-card{transition:none!important}   /* 전체뷰→이동 시 카
 .sheet-ov{position:fixed;inset:0;background:transparent;z-index:100;display:flex;align-items:flex-end;justify-content:center;opacity:0;visibility:hidden;pointer-events:none;touch-action:none;transition:opacity .25s,background-color .25s,visibility 0s linear .28s}
 .sheet-ov.show{background:rgba(0,0,0,.6);opacity:1;visibility:visible;pointer-events:auto;transition:opacity .25s,background-color .25s}
 .sheet-ov.top-sheet>.sheet,.sheet-ov.top-sheet>.popup-sheet{outline:1.5px solid rgba(255,255,255,.9);outline-offset:-1.5px}
-.sheet{background:var(--card);width:100%;max-width:560px;border-radius:20px 20px 0 0;max-height:92vh;max-height:92svh;overflow:hidden;display:flex;flex-direction:column;transform:translateY(100%);transition:transform .3s cubic-bezier(.32,.72,0,1)}
+.sheet{position:relative;background:var(--card);width:100%;max-width:560px;border-radius:20px 20px 0 0;max-height:92vh;max-height:92svh;overflow:hidden;display:flex;flex-direction:column;transform:translateY(100%);transition:transform .3s cubic-bezier(.32,.72,0,1)}
+/* 아래 화살표 플로트: 베팅하기 버튼이 스크롤 밖에 있을 때만 표시, 탭하면 버튼으로 스크롤 */
+.scroll-hint{position:absolute;left:50%;bottom:14px;width:34px;height:34px;border-radius:50%;background:rgba(28,28,30,.94);border:1px solid #48484a;color:var(--green);display:flex;align-items:center;justify-content:center;font-size:17px;font-weight:800;cursor:pointer;z-index:5;opacity:0;pointer-events:none;transition:opacity .2s;box-shadow:0 2px 12px rgba(0,0,0,.65);transform:translateX(-50%)}
+.scroll-hint.show{opacity:1;pointer-events:auto;animation:hintBob 1.2s ease-in-out infinite}
+@keyframes hintBob{0%,100%{transform:translateX(-50%) translateY(0)}50%{transform:translateX(-50%) translateY(4px)}}
 .sheet-ov.show .sheet{transform:translateY(0)}
 .sheet-grip{width:38px;height:5px;border-radius:3px;background:#48484a;margin:9px auto 4px;flex-shrink:0}
 .sheet-hd{display:flex;align-items:center;justify-content:space-between;padding:10px 18px 12px;border-bottom:1px solid var(--sep);flex-shrink:0;background:var(--card)}
@@ -299,6 +303,7 @@ body.bk-snap .bk-card{transition:none!important}   /* 전체뷰→이동 시 카
     <div class="sheet-grip"></div>
     <div class="sheet-hd"><span class="sheet-ttl" id="g-title">경기</span><button class="x" onclick="closeSheet('sh-game')">×</button></div>
     <div class="sheet-bd" id="g-body"></div>
+    <button class="scroll-hint" id="g-hint" onclick="scrollToBetBtn()" aria-label="베팅하기로 이동">↓</button>
   </div>
 </div>
 
@@ -907,7 +912,7 @@ function renderGameBody(){
   }
   // CTA
   if(st==='open'){
-    h+=`<button class="btn btn-g" style="margin-top:14px" onclick="openBetForm()">⚽ 이 경기에 베팅하기</button>`;
+    h+=`<button class="btn btn-g" id="g-betbtn" style="margin-top:14px" onclick="openBetForm()">⚽ 이 경기에 베팅하기</button>`;
   }else if(st==='closed'){
     h+=`<div class="empty" style="margin-top:10px">🔒 베팅이 마감됐어요 · 결과를 기다려주세요</div>`;
   }else if(st==='ended'){
@@ -916,7 +921,21 @@ function renderGameBody(){
     h+=`<div class="empty" style="margin-top:10px">⏳ 베팅 준비 중입니다</div>`;
   }
   document.getElementById('g-body').innerHTML=h;
+  requestAnimationFrame(updateGHint);
 }
+// 아래 화살표 플로트: 베팅하기 버튼이 보이면 숨김, 안 보이면 표시
+function updateGHint(){
+  const hint=document.getElementById('g-hint');if(!hint)return;
+  const bd=document.getElementById('g-body');
+  const btn=document.getElementById('g-betbtn');
+  const need=btn&&bd&&btn.getBoundingClientRect().bottom>bd.getBoundingClientRect().bottom+4;
+  hint.classList.toggle('show',!!need);
+}
+function scrollToBetBtn(){
+  const bd=document.getElementById('g-body');
+  if(bd)bd.scrollTo({top:bd.scrollHeight,behavior:'smooth'});
+}
+document.getElementById('g-body').addEventListener('scroll',updateGHint,{passive:true});
 
 // ── 베팅 입력 ──
 function openBetForm(){
