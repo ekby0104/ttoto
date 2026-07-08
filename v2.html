@@ -932,8 +932,10 @@ function updateGHint(){
   hint.classList.toggle('show',!!need);
 }
 function scrollToBetBtn(){
-  const bd=document.getElementById('g-body');
-  if(bd)bd.scrollTo({top:bd.scrollHeight,behavior:'smooth'});
+  const bd=document.getElementById('g-body');if(!bd)return;
+  bd.scrollTo({top:bd.scrollHeight,behavior:'smooth'});
+  // smooth 미동작 환경 폴백: 도착 못했으면 즉시 이동
+  setTimeout(()=>{if(bd.scrollTop+bd.clientHeight<bd.scrollHeight-8)bd.scrollTop=bd.scrollHeight;},450);
 }
 document.getElementById('g-body').addEventListener('scroll',updateGHint,{passive:true});
 
