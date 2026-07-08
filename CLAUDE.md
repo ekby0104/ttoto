@@ -49,7 +49,9 @@
 - 양팀 확정인데 open 아님 → white
 - 그 외 → transparent
 
-**베팅 가능(open) 카드/리스트 행**: 흰 배경 + 초록 반짝 보더(`greenBlink`) — `.bk-card.bettable, .ovvbet, .grp-game.gg-bet`
+**흰 배경 규칙 (스크롤뷰 카드·조별/베팅중 리스트 행)**: **베팅중(open) 또는 베팅 1건 이상**이면 배경 흰색+어두운 글자.
+- open → 초록 반짝 보더(`greenBlink`): `.bk-card.bettable`, `.grp-game.gg-open` (전체뷰는 `.ovvbet`, open만 흰 배경)
+- 비open+베팅≥1 → 흰 배경만(`.bk-card.betbg`, `.grp-game.gg-bet`), 보더는 상태색(gameBorderClr: 골드/블루/핑크) 유지 — 초록 반짝 금지
 
 **선택 표시**: 흰색 반짝 보더(`selBlink`). 선택 id는 `selGid`에 저장해 재렌더에도 유지
 

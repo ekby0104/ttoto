@@ -91,13 +91,14 @@ body{background:var(--bg);color:var(--text);font-family:var(--sys);min-height:10
 .bk-svg{position:absolute;top:0;left:0;pointer-events:none}
 .bk-card{position:absolute;background:var(--card);border:1.5px solid transparent;border-radius:10px;padding:5px 9px;display:flex;flex-direction:column;justify-content:center;gap:3px;cursor:pointer;overflow:hidden;transition:top .45s cubic-bezier(.32,.72,0,1),width .35s ease,left .35s ease;will-change:top,width,left}
 body.bk-snap .bk-card{transition:none!important}   /* 전체뷰→이동 시 카드 top 트랜지션 끔(레이아웃 스래싱 방지 → 페이지 스크롤만 부드럽게) */
-/* 베팅중 카드: 흰 배경 + 초록 반짝이는 보더 (스크롤뷰 .bk-card / 전체뷰 .ovvbet 공통) */
+/* 흰 배경 규칙: 베팅중(open)=bettable(초록 반짝 보더) / 베팅≥1건인 비open=betbg(상태 보더색 유지) */
 @keyframes greenBlink{0%,100%{box-shadow:0 0 0 1.5px var(--green),0 0 14px 2px rgba(48,209,88,.6)}50%{box-shadow:0 0 0 1.5px rgba(48,209,88,.35),0 0 5px 1px rgba(48,209,88,.2)}}
-.bk-card.bettable,.ovvbet,.grp-game.gg-bet{background:#fff!important;border-color:var(--green)!important;animation:greenBlink 1.1s ease-in-out infinite}
-.bk-card.bettable .bk-dt{color:#555}
-.bk-card.bettable .bk-n{color:#111}
-.bk-card.bettable .bk-n.tbd{color:#999}
-.bk-card.bettable .bk-s{color:#111}
+.bk-card.bettable,.ovvbet,.grp-game.gg-open{background:#fff!important;border-color:var(--green)!important;animation:greenBlink 1.1s ease-in-out infinite}
+.bk-card.betbg{background:#fff}
+.bk-card.bettable .bk-dt,.bk-card.betbg .bk-dt{color:#555}
+.bk-card.bettable .bk-n,.bk-card.betbg .bk-n{color:#111}
+.bk-card.bettable .bk-n.tbd,.bk-card.betbg .bk-n.tbd{color:#999}
+.bk-card.bettable .bk-s,.bk-card.betbg .bk-s{color:#111}
 .bk-card.sel{animation:selBlink 1s ease-in-out infinite;z-index:6}
 @keyframes selBlink{0%,100%{box-shadow:0 0 0 2px var(--selclr,#fff),0 0 16px 4px var(--selclr,#fff)}50%{box-shadow:0 0 0 2px var(--selclr,#fff),0 0 4px 1px var(--selclr,#fff)}}
 .bk-card:active{filter:brightness(1.15)}
@@ -602,7 +603,8 @@ function bkCardHtml(g){
   const x=g.stage==='3RD'?colX.F:colX[gStage(g)];
   const top=(BK.yc&&BK.yc[g.id]!=null)?BK.yc[g.id]:BK.PADY;
   const bc=gameBorderClr(g),selc=bc==='transparent'?'#fff':bc;
-  return `<div class="bk-card ${bett?'bettable':''} ${String(g.id)===String(selGid)?'sel':''}" id="bkc-${g.id}" style="left:${x}px;top:${top}px;width:${CARDW}px;height:${CARDH}px;border-color:${bc};--selclr:${selc}" onclick="bkSelect(this);openGame('${g.id}')">
+  const nb=gBets(g.id).length;   // 베팅 있으면(비open) 흰 배경(betbg) — 보더는 상태색 유지
+  return `<div class="bk-card ${bett?'bettable':''}${!bett&&nb>0?' betbg':''} ${String(g.id)===String(selGid)?'sel':''}" id="bkc-${g.id}" style="left:${x}px;top:${top}px;width:${CARDW}px;height:${CARDH}px;border-color:${bc};--selclr:${selc}" onclick="bkSelect(this);openGame('${g.id}')">
     <div class="bk-dt">${dt}${bett?' · ⚽':''}</div>
     <div class="bk-row"><span class="bk-f">${h.flag}</span><span class="bk-n ${h.known?'':'tbd'}">${hn}</span><span class="bk-s">${res?res.h:''}</span></div>
     <div class="bk-row"><span class="bk-f">${a.flag}</span><span class="bk-n ${a.known?'':'tbd'}">${an}</span><span class="bk-s">${res?res.a:''}</span></div>
@@ -784,12 +786,12 @@ function bkSelect(el){
 function gameRowHtml(g){
   const res=RESULTS[String(g.id)],nb=gBets(g.id).length;
   const st=gState(g);
-  const bet=st==='open';                            // 베팅중: 전체/스크롤 뷰와 동일하게 흰 배경+초록 보더
+  const bet=st==='open'||nb>=1;                     // 흰 배경: 베팅중이거나 베팅 1건 이상
   const score=res?`${res.h} : ${res.a}`:'vs';
   const dtStr=g.date?`${g.date}${g.time?' '+g.time:''}`:'미정';
   const dtClr=bet?'#555':(st==='ended'?'#fff':'var(--gold)');   // 흰 배경이면 어두운 글자
   const h=teamSide(g,'home'),a=teamSide(g,'away');
-  return `<div class="grp-game${bet?' gg-bet':''}" style="border-color:${gameBorderClr(g)}" onclick="openGame('${g.id}')">
+  return `<div class="grp-game${bet?' gg-bet':''}${st==='open'?' gg-open':''}" style="border-color:${gameBorderClr(g)}" onclick="openGame('${g.id}')">
       <div class="gg-team" style="flex-direction:column;align-items:flex-start;gap:3px">
         <span style="font-size:12px;font-weight:600;color:${dtClr};font-family:var(--mono);white-space:nowrap">${dtStr}</span>
         <div style="display:flex;align-items:center;gap:7px"><span class="gg-f">${h.flag}</span><span class="gg-n">${esc(h.name)}</span></div>
