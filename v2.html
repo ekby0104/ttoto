@@ -206,7 +206,7 @@ body.bk-snap .bk-card{transition:none!important}   /* 전체뷰→이동 시 카
 .gg-cnt{font-size:10px;color:var(--muted);font-weight:600;margin-top:2px;font-family:var(--mono)}
 .empty{text-align:center;color:#fff;padding:24px;font-size:14px}
 /* 버튼 */
-.btn{display:flex;align-items:center;justify-content:center;gap:8px;width:100%;border:none;border-radius:14px;padding:15px;font-size:16px;font-weight:800;cursor:pointer;font-family:var(--sys)}
+.btn{display:flex;align-items:center;justify-content:center;gap:8px;width:100%;border:none;border-radius:14px;padding:15px;font-size:16px;font-weight:800;cursor:pointer;font-family:var(--sys);text-decoration:none!important}
 .btn-g{background:var(--green);color:#000}
 .btn-k{background:#FEE500;color:#3C1E1E}
 .btn-d{background:var(--card2);color:#fff}
@@ -932,7 +932,7 @@ function openBetForm(){
     <div class="field" style="margin-top:18px"><label>이름</label><input class="input" id="bet-name" maxlength="5" placeholder="이름 (한글/영문/숫자, 5자)"></div>
     <div class="field"><label>베팅 금액</label><input class="input" value="${amt}원" disabled></div>
     ${CONFIG.kp_link
-      ? `<a class="btn btn-k" id="bet-kakao" href="${CONFIG.kp_link}" target="_blank" rel="noopener" onclick="return doBet(true)">💛 베팅하고 카카오페이 송금</a>`
+      ? `<a class="btn btn-k" id="bet-kakao" href="${CONFIG.kp_link}" target="_blank" rel="noopener" onclick="return doBet(true)">베팅하고 카카오페이 송금</a>`
       : `<button class="btn btn-g" onclick="doBet(false)">⚽ 베팅 제출</button>`}
     <button class="btn btn-d" style="margin-top:10px" onclick="renderGameBody()">← 현황으로</button>
   `;
