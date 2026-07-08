@@ -317,6 +317,7 @@ body.bk-snap .bk-card{transition:none!important}   /* 전체뷰→이동 시 카
     <div class="sheet-grip"></div>
     <div class="sheet-hd"><span class="sheet-ttl" id="grp-title">조별 경기</span><button class="x" onclick="closeSheet('sh-group')">×</button></div>
     <div class="sheet-bd" id="grp-body"></div>
+    <button class="scroll-hint" id="grp-hint" onclick="scrollSheetDown('grp-body')" aria-label="아래로"><span>⌄</span><span>⌄</span><span>⌄</span></button>
   </div>
 </div>
 
@@ -807,6 +808,7 @@ function openGroupGames(L){
   const body=document.getElementById('grp-body');
   body.innerHTML=games.length?games.map(gameRowHtml).join(''):`<div class="empty">등록된 경기가 없어요</div>`;
   openSheet('sh-group');
+  requestAnimationFrame(updateGrpHint);
 }
 // 베팅중인 경기: 베팅 가능(open) + 베팅 완료=마감(closed) 경기
 function openActiveBets(){
@@ -822,6 +824,7 @@ function openActiveBets(){
   const body=document.getElementById('grp-body');
   body.innerHTML=games.length?games.map(gameRowHtml).join(''):`<div class="empty">베팅중인 경기가 없어요</div>`;
   openSheet('sh-group');
+  requestAnimationFrame(updateGrpHint);
 }
 // 스코어 매트릭스(홈 스코어×원정 스코어, 칸=예측 인원수)
 function betMatrixHtml(g,mb,res){
@@ -927,21 +930,24 @@ function renderGameBody(){
   document.getElementById('g-body').innerHTML=h;
   requestAnimationFrame(updateGHint);
 }
-// 아래 화살표 플로트: 베팅하기 버튼이 보이면 숨김, 안 보이면 표시
-function updateGHint(){
-  const hint=document.getElementById('g-hint');if(!hint)return;
-  const bd=document.getElementById('g-body');
-  const btn=document.getElementById('g-betbtn');
-  const need=btn&&bd&&btn.getBoundingClientRect().bottom>bd.getBoundingClientRect().bottom+4;
-  hint.classList.toggle('show',!!need);
+// 아래 화살표 플로트: 시트 아래에 안 보이는 내용이 남아 있으면 표시, 맨 아래 도달하면 숨김
+// (게임 상세 sh-game: 리스트/매트릭스·상태 무관 공통 / 리스트 팝업 sh-group: 베팅중·조별 경기)
+function updateSheetHint(bodyId,hintId){
+  const hint=document.getElementById(hintId);if(!hint)return;
+  const bd=document.getElementById(bodyId);if(!bd)return;
+  hint.classList.toggle('show',bd.scrollHeight-(bd.scrollTop+bd.clientHeight)>12);
 }
-function scrollToBetBtn(){
-  const bd=document.getElementById('g-body');if(!bd)return;
+function updateGHint(){updateSheetHint('g-body','g-hint');}
+function updateGrpHint(){updateSheetHint('grp-body','grp-hint');}
+function scrollSheetDown(bodyId){
+  const bd=document.getElementById(bodyId);if(!bd)return;
   bd.scrollTo({top:bd.scrollHeight,behavior:'smooth'});
   // smooth 미동작 환경 폴백: 도착 못했으면 즉시 이동
   setTimeout(()=>{if(bd.scrollTop+bd.clientHeight<bd.scrollHeight-8)bd.scrollTop=bd.scrollHeight;},450);
 }
+function scrollToBetBtn(){scrollSheetDown('g-body');}
 document.getElementById('g-body').addEventListener('scroll',updateGHint,{passive:true});
+document.getElementById('grp-body').addEventListener('scroll',updateGrpHint,{passive:true});
 
 // ── 베팅 입력 ──
 function openBetForm(){
