@@ -151,10 +151,14 @@ body.bk-snap .bk-card{transition:none!important}   /* 전체뷰→이동 시 카
 .sheet-ov.show{background:rgba(0,0,0,.6);opacity:1;visibility:visible;pointer-events:auto;transition:opacity .25s,background-color .25s}
 .sheet-ov.top-sheet>.sheet,.sheet-ov.top-sheet>.popup-sheet{outline:1.5px solid rgba(255,255,255,.9);outline-offset:-1.5px}
 .sheet{position:relative;background:var(--card);width:100%;max-width:560px;border-radius:20px 20px 0 0;max-height:92vh;max-height:92svh;overflow:hidden;display:flex;flex-direction:column;transform:translateY(100%);transition:transform .3s cubic-bezier(.32,.72,0,1)}
-/* 아래 화살표 플로트: 베팅하기 버튼이 스크롤 밖에 있을 때만 표시, 탭하면 버튼으로 스크롤 */
-.scroll-hint{position:absolute;left:50%;bottom:14px;width:34px;height:34px;border-radius:50%;background:rgba(28,28,30,.94);border:1px solid #48484a;color:var(--green);display:flex;align-items:center;justify-content:center;font-size:17px;font-weight:800;cursor:pointer;z-index:5;opacity:0;pointer-events:none;transition:opacity .2s;box-shadow:0 2px 12px rgba(0,0,0,.65);transform:translateX(-50%)}
-.scroll-hint.show{opacity:1;pointer-events:auto;animation:hintBob 1.2s ease-in-out infinite}
-@keyframes hintBob{0%,100%{transform:translateX(-50%) translateY(0)}50%{transform:translateX(-50%) translateY(4px)}}
+/* 아래 화살표 플로트(3개 캐스케이드): 베팅하기 버튼이 스크롤 밖에 있을 때만 표시, 탭하면 버튼으로 스크롤 */
+.scroll-hint{position:absolute;left:50%;bottom:14px;width:34px;height:54px;border-radius:17px;background:rgba(28,28,30,.94);border:1px solid #48484a;color:var(--green);display:flex;flex-direction:column;align-items:center;justify-content:center;cursor:pointer;z-index:5;opacity:0;pointer-events:none;transition:opacity .2s;box-shadow:0 2px 12px rgba(0,0,0,.65);transform:translateX(-50%)}
+.scroll-hint span{font-size:16px;font-weight:800;line-height:11px}
+.scroll-hint.show{opacity:1;pointer-events:auto}
+.scroll-hint.show span{animation:hintSeq 1.1s ease-in-out infinite}
+.scroll-hint.show span:nth-child(2){animation-delay:.15s}
+.scroll-hint.show span:nth-child(3){animation-delay:.3s}
+@keyframes hintSeq{0%,100%{opacity:.25}50%{opacity:1}}
 .sheet-ov.show .sheet{transform:translateY(0)}
 .sheet-grip{width:38px;height:5px;border-radius:3px;background:#48484a;margin:9px auto 4px;flex-shrink:0}
 .sheet-hd{display:flex;align-items:center;justify-content:space-between;padding:10px 18px 12px;border-bottom:1px solid var(--sep);flex-shrink:0;background:var(--card)}
@@ -303,7 +307,7 @@ body.bk-snap .bk-card{transition:none!important}   /* 전체뷰→이동 시 카
     <div class="sheet-grip"></div>
     <div class="sheet-hd"><span class="sheet-ttl" id="g-title">경기</span><button class="x" onclick="closeSheet('sh-game')">×</button></div>
     <div class="sheet-bd" id="g-body"></div>
-    <button class="scroll-hint" id="g-hint" onclick="scrollToBetBtn()" aria-label="베팅하기로 이동">↓</button>
+    <button class="scroll-hint" id="g-hint" onclick="scrollToBetBtn()" aria-label="베팅하기로 이동"><span>⌄</span><span>⌄</span><span>⌄</span></button>
   </div>
 </div>
 
