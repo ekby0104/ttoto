@@ -93,7 +93,7 @@ body{background:var(--bg);color:var(--text);font-family:var(--sys);min-height:10
 body.bk-snap .bk-card{transition:none!important}   /* 전체뷰→이동 시 카드 top 트랜지션 끔(레이아웃 스래싱 방지 → 페이지 스크롤만 부드럽게) */
 /* 베팅중 카드: 흰 배경 + 초록 반짝이는 보더 (스크롤뷰 .bk-card / 전체뷰 .ovvbet 공통) */
 @keyframes greenBlink{0%,100%{box-shadow:0 0 0 1.5px var(--green),0 0 14px 2px rgba(48,209,88,.6)}50%{box-shadow:0 0 0 1.5px rgba(48,209,88,.35),0 0 5px 1px rgba(48,209,88,.2)}}
-.bk-card.bettable,.ovvbet{background:#fff!important;border-color:var(--green)!important;animation:greenBlink 1.1s ease-in-out infinite}
+.bk-card.bettable,.ovvbet,.grp-game.gg-bet{background:#fff!important;border-color:var(--green)!important;animation:greenBlink 1.1s ease-in-out infinite}
 .bk-card.bettable .bk-dt{color:#555}
 .bk-card.bettable .bk-n{color:#111}
 .bk-card.bettable .bk-n.tbd{color:#999}
@@ -774,12 +774,12 @@ function bkSelect(el){
 function gameRowHtml(g){
   const res=RESULTS[String(g.id)],nb=gBets(g.id).length;
   const st=gState(g);
-  const bet=nb>=1;                                  // 1명 이상 베팅
+  const bet=st==='open';                            // 베팅중: 전체/스크롤 뷰와 동일하게 흰 배경+초록 보더
   const score=res?`${res.h} : ${res.a}`:'vs';
   const dtStr=g.date?`${g.date}${g.time?' '+g.time:''}`:'미정';
   const dtClr=bet?'#555':(st==='ended'?'#fff':'var(--gold)');   // 흰 배경이면 어두운 글자
   const h=teamSide(g,'home'),a=teamSide(g,'away');
-  return `<div class="grp-game${bet?' gg-bet':''}"${bet?` style="border-color:${gameBorderClr(g)}"`:''} onclick="openGame('${g.id}')">
+  return `<div class="grp-game${bet?' gg-bet':''}" style="border-color:${gameBorderClr(g)}" onclick="openGame('${g.id}')">
       <div class="gg-team" style="flex-direction:column;align-items:flex-start;gap:3px">
         <span style="font-size:12px;font-weight:600;color:${dtClr};font-family:var(--mono);white-space:nowrap">${dtStr}</span>
         <div style="display:flex;align-items:center;gap:7px"><span class="gg-f">${h.flag}</span><span class="gg-n">${esc(h.name)}</span></div>
@@ -799,10 +799,10 @@ function openGroupGames(L){
   body.innerHTML=games.length?games.map(gameRowHtml).join(''):`<div class="empty">등록된 경기가 없어요</div>`;
   openSheet('sh-group');
 }
-// 베팅중인 경기: 현재 베팅 가능(open) 상태인 경기 전부
+// 베팅중인 경기: 베팅 가능(open) + 베팅 완료=마감(closed) 경기
 function openActiveBets(){
   closeFab();
-  const games=GAMES.filter(g=>!g.deleted&&gState(g)==='open')
+  const games=GAMES.filter(g=>!g.deleted&&(gState(g)==='open'||gState(g)==='closed'))
     .sort((a,b)=>startMs(a)-startMs(b));   // 게임일시 순(임박한 경기 먼저)
   document.getElementById('grp-title').textContent='베팅중인 경기';
   const body=document.getElementById('grp-body');
