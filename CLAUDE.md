@@ -36,6 +36,7 @@
 - window native smooth scroll(`behavior:'smooth'`)은 이 페이지에서 신뢰 불가 — 즉시 스크롤 + 카드 top 트랜지션 조합 사용
 - 32개 절대배치 카드의 `transition:top`이 전환 중 layout thrashing 유발 — 뷰 전환 시 `body.bk-snap`으로 트랜지션 임시 해제
 - 입력 필드 font-size는 16px 유지 (iOS 포커스 확대 방지)
+- **관리자 게임 PATCH는 merge만** (dict 재조립 금지) — `stage`/`home_label`/`away_label`이 날아가면 브래킷 트리 전체가 깨짐 (승무패 변경 사고). enrich 태스크(부팅 20초 후 1회 + 10분마다)가 id 매칭으로 자동 복구하지만, 애초에 날리지 말 것
 - 보안: 출력 시 `esc()`(escapeHtml) 필수, 피드백 입력은 한글/영문/숫자만·길이 제한·이름 필수
 
 ## v2.html 핵심 사양

@@ -16,8 +16,11 @@ app = FastAPI(title="사무실 월드컵 토토 API")
 @app.on_event("startup")
 async def auto_enrich_bracket_task():
     async def _loop():
+        first = True
         while True:
-            await asyncio.sleep(600)  # 10분마다
+            # 부팅 20초 후 1회 즉시 실행(관리자 수정 등으로 깨진 stage/label 조기 복구), 이후 10분마다
+            await asyncio.sleep(20 if first else 600)
+            first = False
             try:
                 parsed = await _fetch_and_parse_games(False)
                 games = get_games()
@@ -702,12 +705,13 @@ def admin_add_game(body: GameIn, auth=Depends(admin_required)):
 
 @app.patch("/api/admin/games/{game_id}")
 def admin_update_game(game_id: int, body: GameIn, auth=Depends(admin_required)):
+    # merge 방식: 지정된 필드만 갱신하고 나머지(stage/home_label/away_label/ended_at/deleted 등)는 보존.
+    # 재조립(dict 새로 생성)하면 브래킷 트리 필수 필드가 날아가 전체 브래킷이 깨진다.
     games = get_games()
-    for i, g in enumerate(games):
+    for g in games:
         if str(g["id"]) == str(game_id):
-            games[i] = {
-                "id":    game_id,
-                "group": body.group or g["group"],
+            g.update({
+                "group": body.group or g.get("group", ""),
                 "home":  {"name": body.home_name or g["home"]["name"],
                           "short": body.home_short or g["home"]["short"],
                           "flag":  body.home_flag  or g["home"]["flag"]},
@@ -716,12 +720,12 @@ def admin_update_game(game_id: int, body: GameIn, auth=Depends(admin_required)):
                           "flag":  body.away_flag  or g["away"]["flag"]},
                 "date":   body.date   or g["date"],
                 "time":   body.time   or g["time"],
-                "venue":  body.venue  or g["venue"],
+                "venue":  body.venue  or g.get("venue", ""),
                 "status":   body.status   or g["status"],
                 "bet_type": body.bet_type or g.get("bet_type", "exact"),
-            }
+            })
             write_json(GAMES_FILE, games)
-            return games[i]
+            return g
     raise HTTPException(404, "게임을 찾을 수 없습니다")
 
 @app.patch("/api/admin/games/{game_id}/datetime")
