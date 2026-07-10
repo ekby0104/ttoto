@@ -1240,6 +1240,17 @@ STATIC_DIR = os.path.dirname(__file__)
 
 _NO_CACHE = {"Cache-Control": "no-cache, no-store, must-revalidate", "Pragma": "no-cache", "Expires": "0"}
 
+@app.get("/health")
+def health():
+    """Railway 헬스체크: DB 접근까지 확인해야 트래픽을 받을 준비가 된 것"""
+    try:
+        conn = _db_conn()
+        conn.execute("SELECT 1")
+        conn.close()
+        return {"ok": True}
+    except Exception:
+        raise HTTPException(503, "db not ready")
+
 @app.get("/")
 def serve_index():
     # 메인: v2(애플 스포츠 스타일). 기존 페이지는 /v2 에 백업
