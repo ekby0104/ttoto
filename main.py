@@ -391,6 +391,20 @@ if DATABASE_URL:
         one-shot 플래그 대신 매 부팅마다 'PG 테이블이 비어 있고 SQLite에 데이터가 있으면 채움'.
         → 볼륨 미마운트 등으로 빈 이관이 발생해도 다음 부팅에서 자동 복구되고,
           데이터가 있는 PG 테이블은 절대 건드리지 않음. (볼륨 제거 후에는 자연히 no-op)"""
+        # Railway 프라이빗 네트워크는 부팅 직후 몇 초간 준비되지 않을 수 있음 → 최대 60초 재시도
+        deadline, last_err = time.time() + 60, None
+        while time.time() < deadline:
+            try:
+                with _pg_pool.connection() as conn:
+                    conn.execute("SELECT 1")
+                last_err = None
+                break
+            except Exception as e:
+                last_err = e
+                print(f"[storage] Postgres 연결 대기 중... ({e})", flush=True)
+                time.sleep(2)
+        if last_err is not None:
+            raise RuntimeError(f"Postgres 연결 실패(60초 초과): {last_err}")
         with _pg_pool.connection() as conn:
             conn.execute(_PG_SCHEMA)
             migrated = []
@@ -408,9 +422,12 @@ if DATABASE_URL:
                     "INSERT INTO meta(key, value) VALUES('migrated_from_sqlite', %s) "
                     "ON CONFLICT (key) DO UPDATE SET value=EXCLUDED.value",
                     (json.dumps({"at": int(time.time()), "tables": migrated}),))
+            print(f"[storage] backend=postgres 준비 완료, 이관: {migrated or '없음(이미 데이터 있음/원본 없음)'}", flush=True)
 
+    print("[storage] DATABASE_URL 감지 → Postgres 모드로 부팅", flush=True)
     _init_pg()
 else:
+    print("[storage] DATABASE_URL 없음 → SQLite 모드로 부팅", flush=True)
     read_json  = _sqlite_read_json
     write_json = _sqlite_write_json
 
