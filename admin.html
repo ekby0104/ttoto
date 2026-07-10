@@ -205,6 +205,11 @@ main{max-width:960px;margin:0 auto;padding:16px 12px 60px}
             <label class="form-label">경기당 베팅 금액 (원)</label>
             <input class="form-input" id="cfg-amount" type="number" min="0" placeholder="3000">
           </div>
+          <div class="form-group">
+            <label class="form-label">이월 판돈 (원)</label>
+            <input class="form-input" id="cfg-carry" type="number" min="0" placeholder="0">
+            <div class="form-hint">결과 등록 시 자동 정산됩니다 (무당첨 → 누적, 대상 경기 당첨 → 0). 여기서는 수동 보정만 하세요.</div>
+          </div>
           <button class="btn btn-primary" onclick="saveConfig()">저장</button>
         </div>
       </div>
@@ -754,6 +759,7 @@ function renderSettings() {
   document.getElementById('cfg-title').value  = config.site_title || '';
   document.getElementById('cfg-link').value   = config.kp_link    || '';
   document.getElementById('cfg-amount').value = config.bet_amount || '';
+  document.getElementById('cfg-carry').value  = config.carryover ?? 0;
   document.getElementById('pop-enabled').checked = !!config.popup_enabled;
   document.getElementById('pop-message').value   = config.popup_message || '';
   document.getElementById('pop-publish').value    = config.popup_publish_at || '';
@@ -773,9 +779,11 @@ async function saveConfig() {
   const title = document.getElementById('cfg-title').value.trim();
   const link  = document.getElementById('cfg-link').value.trim();
   const amt   = parseInt(document.getElementById('cfg-amount').value) || 0;
+  const carryRaw = document.getElementById('cfg-carry').value.trim();
   if (link && !link.startsWith('http')) { toast('❌ 올바른 URL을 입력해주세요', true); return }
   const body = {kp_link: link, bet_amount: amt};
   if (title) body.site_title = title;
+  if (carryRaw !== '') body.carryover = parseInt(carryRaw) || 0;
   const res = await apiFetch('/admin/config', {method:'PATCH', body:JSON.stringify(body)});
   if (!res) { toast('❌ 저장 실패', true); return }
   config = res;
