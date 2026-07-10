@@ -396,6 +396,15 @@ function ovClose(e,id){if(e.target===e.currentTarget)closeSheet(id);}
 
 function startMs(g){const v=Date.parse(`${(g.date||'').replace(/\./g,'-')}T${g.time||'00:00'}:00+09:00`);return isNaN(v)?0:v;}
 function gBets(id){return BETS.filter(b=>String(b.game_id)===String(id));}
+// 이월 판돈이 적용되는 "다음 게임" = 아직 종료되지 않은 경기 중 시작시각이 가장 빠른 경기
+function carryTargetId(){
+  const co=Number(CONFIG.carryover||0);if(!(co>0))return null;
+  const cand=GAMES.filter(g=>!g.deleted&&gState(g)!=='ended');
+  if(!cand.length)return null;
+  cand.sort((a,b)=>(startMs(a)||9e15)-(startMs(b)||9e15));
+  return String(cand[0].id);
+}
+function carryAmt(g){return String(g.id)===carryTargetId()?Number(CONFIG.carryover||0):0;}
 function todayStr(){const d=new Date();return `${d.getFullYear()}.${String(d.getMonth()+1).padStart(2,'0')}.${String(d.getDate()).padStart(2,'0')}`;}
 function tsToDateStr(ts){const d=new Date(ts*1000);return `${d.getFullYear()}.${String(d.getMonth()+1).padStart(2,'0')}.${String(d.getDate()).padStart(2,'0')}`;}
 function endedDateStr(g){const res=RESULTS[String(g.id)];const ts=res?res.registered_at:g.ended_at;return ts?tsToDateStr(ts):null;}
@@ -736,11 +745,12 @@ function cardHtml(g,bettable){
   const homeSc=res?`<div class="sc">${res.h}</div>`:'';
   const awaySc=res?`<div class="sc">${res.a}</div>`:'';
   let foot='';
+  const co=carryAmt(g);
+  const pot=mb.reduce((s,b)=>s+(b.amount||0),0);
   if(bettable){
-    foot=`<div class="card-cta">⚽ 베팅하기 ›</div>`;
+    foot=(co>0?`<div class="card-info"><span style="color:var(--gold);font-weight:700">💰 이월 판돈 ${co.toLocaleString()}원</span><span>판돈 ${(pot+co).toLocaleString()}원</span></div>`:'')+`<div class="card-cta">⚽ 베팅하기 ›</div>`;
   }else{
-    const pot=mb.reduce((s,b)=>s+(b.amount||0),0);
-    foot=`<div class="card-info"><span>👥 ${mb.length}명 베팅</span><span>판돈 ${pot.toLocaleString()}원</span></div>`;
+    foot=`<div class="card-info"><span>👥 ${mb.length}명 베팅</span><span>판돈 ${(pot+co).toLocaleString()}원${co>0?` <span style="color:var(--gold)">(이월 포함)</span>`:''}</span></div>`;
   }
   return `<div class="card ${bettable?'bettable':''} ${within24h?'glow':''}" onclick="openGame('${g.id}')">
     <div class="card-top"><span>📅 ${g.date||''} ${g.time||''}</span>${pill}</div>
@@ -883,11 +893,16 @@ function renderGameBody(){
     <div style="text-align:center">${res?`<div class="sb-score">${res.h} : ${res.a}</div>`:`<div class="sb-mid" style="color:#fff;font-size:16px">${g.date||''}<br>${g.time||''}</div>`}</div>
     <div class="sb-team"><div class="flag">${g.away.flag}</div><div class="nm">${g.away.short}</div></div>
   </div>`;
+  const co=carryAmt(g);
   h+=`<div class="stat-grid">
     <div class="stat"><div class="v">${mb.length}</div><div class="l">베팅</div></div>
-    <div class="stat"><div class="v">${pot.toLocaleString()}</div><div class="l">판돈(원)</div></div>
+    <div class="stat"><div class="v">${(pot+co).toLocaleString()}</div><div class="l">판돈(원)</div></div>
     <div class="stat"><div class="v" style="color:var(--green)">${paid}</div><div class="l">입금확인</div></div>
   </div>`;
+  // 이월 판돈 적용 대상 게임: 판돈 구성 안내
+  if(co>0){
+    h+=`<div style="background:rgba(255,214,10,.1);border:1px solid rgba(255,214,10,.4);border-radius:12px;padding:10px 12px;margin:-2px 0 14px;text-align:center;font-size:13px;font-weight:700;color:var(--gold)">💰 이월 판돈 ${co.toLocaleString()}원 포함 (베팅 ${pot.toLocaleString()}원 + 이월 ${co.toLocaleString()}원)</div>`;
+  }
   // 베팅 방식별 당첨 판정 (exact=정확 스코어, wdl=승무패 방향)
   const btype=(g.bet_type||'exact');
   const hitRes=(bh,ba)=>!!res&&(btype==='wdl'
