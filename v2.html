@@ -750,7 +750,8 @@ function cardHtml(g,bettable){
   const homeSc=res?`<div class="sc">${res.h}</div>`:'';
   const awaySc=res?`<div class="sc">${res.a}</div>`:'';
   let foot='';
-  const co=carryAmt(g);
+  // 이월 포함 판돈: 진행중=현재 이월(대상 경기만) / 종료=정산 시 소진된 이월(res.carryover_used)
+  const co=st==='ended'?(res?Number(res.carryover_used)||0:0):carryAmt(g);
   const pot=mb.reduce((s,b)=>s+(b.amount||0),0);
   if(bettable){
     foot=(co>0?`<div class="card-info"><span style="color:var(--gold);font-weight:700">💰 이월 판돈 ${co.toLocaleString()}원</span><span>판돈 ${(pot+co).toLocaleString()}원</span></div>`:'')+`<div class="card-cta">⚽ 베팅하기 ›</div>`;
@@ -898,7 +899,8 @@ function renderGameBody(){
     <div style="text-align:center">${res?`<div class="sb-score">${res.h} : ${res.a}</div>`:`<div class="sb-mid" style="color:#fff;font-size:16px">${g.date||''}<br>${g.time||''}</div>`}</div>
     <div class="sb-team"><div class="flag">${g.away.flag}</div><div class="nm">${g.away.short}</div></div>
   </div>`;
-  const co=carryAmt(g);
+  // 이월 포함 판돈: 진행중=현재 이월(대상 경기만) / 종료=정산 시 소진된 이월(res.carryover_used)
+  const co=st==='ended'?(res?Number(res.carryover_used)||0:0):carryAmt(g);
   h+=`<div class="stat-grid">
     <div class="stat"><div class="v">${mb.length}</div><div class="l">베팅</div></div>
     <div class="stat"><div class="v">${(pot+co).toLocaleString()}</div><div class="l">판돈(원)</div></div>
