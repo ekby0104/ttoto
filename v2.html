@@ -901,7 +901,7 @@ function renderGameBody(){
   </div>`;
   // 이월 판돈 적용 대상 게임: 판돈 구성 안내
   if(co>0){
-    h+=`<div style="background:rgba(255,214,10,.1);border:1px solid rgba(255,214,10,.4);border-radius:12px;padding:10px 12px;margin:-2px 0 14px;text-align:center;font-size:13px;font-weight:700;color:var(--gold)">💰 이월 판돈 ${co.toLocaleString()}원 포함 (베팅 ${pot.toLocaleString()}원 + 이월 ${co.toLocaleString()}원)</div>`;
+    h+=`<div style="background:rgba(255,214,10,.1);border:1px solid rgba(255,214,10,.4);border-radius:12px;padding:10px 12px;margin:-2px 0 14px;text-align:center;font-size:13px;font-weight:700;color:var(--gold)">💰 이월 판돈 ${co.toLocaleString()}원 포함<br>(베팅 ${pot.toLocaleString()}원 + 이월 ${co.toLocaleString()}원)</div>`;
   }
   // 베팅 방식별 당첨 판정 (exact=정확 스코어, wdl=승무패 방향)
   const btype=(g.bet_type||'exact');
