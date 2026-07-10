@@ -387,22 +387,27 @@ if DATABASE_URL:
                         (key, Jsonb(data)))
 
     def _init_pg():
+        """스키마 생성 + SQLite → PG 자가 치유 이관.
+        one-shot 플래그 대신 매 부팅마다 'PG 테이블이 비어 있고 SQLite에 데이터가 있으면 채움'.
+        → 볼륨 미마운트 등으로 빈 이관이 발생해도 다음 부팅에서 자동 복구되고,
+          데이터가 있는 PG 테이블은 절대 건드리지 않음. (볼륨 제거 후에는 자연히 no-op)"""
         with _pg_pool.connection() as conn:
             conn.execute(_PG_SCHEMA)
-            # 최초 1회: 볼륨의 SQLite 데이터 → Postgres 이관 (meta 플래그로 멱등 보장)
-            if conn.execute("SELECT 1 FROM meta WHERE key='migrated_from_sqlite'").fetchone():
-                return
+            migrated = []
             for path in (BETS_FILE, CONFIG_FILE, RESULTS_FILE, AUTH_FILE,
                          GAMES_FILE, AI_PREDICTIONS_FILE, FEEDBACK_FILE):
                 key = _doc_key(path)
-                # 안전장치: PG 테이블에 이미 데이터가 있으면 건드리지 않음
                 if conn.execute(f"SELECT 1 FROM {key} LIMIT 1").fetchone():
-                    continue
+                    continue   # PG에 데이터 있음 → 보호
                 data = _sqlite_read_json(path, None)
-                if data is not None:
+                if data:       # SQLite에 실데이터가 있을 때만 복사
                     _pg_write_table(conn, key, data)
-            conn.execute("INSERT INTO meta(key, value) VALUES('migrated_from_sqlite', %s)",
-                         (str(int(time.time())),))
+                    migrated.append(key)
+            if migrated:
+                conn.execute(
+                    "INSERT INTO meta(key, value) VALUES('migrated_from_sqlite', %s) "
+                    "ON CONFLICT (key) DO UPDATE SET value=EXCLUDED.value",
+                    (json.dumps({"at": int(time.time()), "tables": migrated}),))
 
     _init_pg()
 else:
@@ -1343,6 +1348,36 @@ def admin_convert_games_to_kst(auth=Depends(admin_required)):
         converted += 1
     write_json(GAMES_FILE, games)
     return {"ok": True, "converted": converted, "total": len(games)}
+
+@app.get("/api/admin/db/info")
+def admin_db_info(auth=Depends(admin_required)):
+    """진단: 활성 백엔드·테이블 건수·SQLite 원본 상태"""
+    tables = _LIST_TABLES + _DICT_TABLES + _KV_TABLES
+    info = {"backend": "postgres" if DATABASE_URL else "sqlite",
+            "data_dir": DATA_DIR, "sqlite_file_exists": os.path.exists(DB_FILE)}
+    counts = {}
+    if DATABASE_URL:
+        with _pg_pool.connection() as conn:
+            for t in tables:
+                counts[t] = conn.execute(f"SELECT COUNT(*) FROM {t}").fetchone()[0]
+            row = conn.execute("SELECT value FROM meta WHERE key='migrated_from_sqlite'").fetchone()
+            info["migration_flag"] = row[0] if row else None
+    info["counts"] = counts
+    # 이관 원본(SQLite) 건수 — 볼륨/DATA_DIR 문제 진단용
+    sqlite_counts = {}
+    if os.path.exists(DB_FILE):
+        try:
+            conn = _db_conn()
+            for t in tables:
+                try:
+                    sqlite_counts[t] = conn.execute(f"SELECT COUNT(*) FROM {t}").fetchone()[0]
+                except Exception:
+                    sqlite_counts[t] = None
+            conn.close()
+        except Exception:
+            pass
+    info["sqlite_counts"] = sqlite_counts
+    return info
 
 # ── SQL 콘솔 (읽기 전용, 학습/조회용) ───────────────────────────
 class SqlIn(BaseModel):
