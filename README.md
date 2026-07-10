@@ -2,6 +2,17 @@
 
 2026 FIFA 월드컵 스코어 예측(토토) 웹 서비스. FastAPI + PostgreSQL, Railway 배포 (무중단 · 2 replicas).
 
+## 기술 스택
+
+| 영역 | 기술 |
+|------|------|
+| **백엔드** | Python 3.11 · FastAPI · Uvicorn · Pydantic v2 |
+| **데이터베이스** | PostgreSQL (JSONB + `GENERATED ALWAYS AS ... STORED` 파생 컬럼) · psycopg 3 + 커넥션 풀 · SQLite 폴백(로컬 개발) |
+| **프론트엔드** | 순수 HTML/CSS/JS 단일 파일 (프레임워크·빌드 없음) — `v2.html`(메인) · `admin.html`(관리자) |
+| **AI** | Anthropic Claude API (스코어 예측) |
+| **HTTP 클라이언트** | httpx (외부 경기일정 임포트) |
+| **인프라** | Railway — GitHub push 자동 배포 · NIXPACKS 빌드 · `/health` 헬스체크 무중단 배포 · 앱 2 replicas 로드밸런싱 · Postgres private 네트워크 연결 |
+
 ## 페이지
 
 | 경로 | 파일 | 설명 |
