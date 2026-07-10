@@ -29,10 +29,13 @@ async def auto_enrich_bracket_task():
                 if results_patch:
                     results = get_results()
                     now = int(time.time())
+                    new_gids = []
                     for gid, res in results_patch.items():
                         if gid not in results:
                             results[gid] = {**res, "registered_at": now}
+                            new_gids.append(gid)
                     write_json(RESULTS_FILE, results)
+                    _settle_carryover(new_gids)
             except Exception:
                 pass
     asyncio.create_task(_loop())
@@ -275,6 +278,62 @@ def get_feedback():       return read_json(FEEDBACK_FILE,        [])
 def active_game_ids():
     """삭제되지 않은 경기 id 집합 (문자열)"""
     return {str(g["id"]) for g in get_games() if not g.get("deleted")}
+
+# ── 이월 판돈 자동 정산 ──────────────────────────────────────────
+def _game_start_key(g):
+    try:
+        return datetime.strptime(f"{g.get('date','')} {g.get('time','')}", "%Y.%m.%d %H:%M")
+    except Exception:
+        return datetime.max
+
+def _bet_hits(bet_type, bh, ba, rh, ra):
+    """프론트(v2.html hitRes)와 동일한 당첨 판정. exact=정확 스코어, wdl=승무패 방향"""
+    try:
+        bh, ba, rh, ra = int(bh), int(ba), int(rh), int(ra)
+    except (TypeError, ValueError):
+        return False
+    if bet_type == "wdl":
+        sign = lambda x: (x > 0) - (x < 0)
+        return sign(bh - ba) == sign(rh - ra)
+    return bh == rh and ba == ra
+
+def _settle_carryover(new_gids):
+    """새로 등록된 결과에 대해 이월 판돈 자동 누적/소진.
+    - 베팅이 있는 경기가 당첨자 없이 종료 → 그 경기 판돈을 carryover에 누적
+    - 이월 대상 경기(결과 미등록 경기 중 시작시각 최빠름 = 프론트 carryTargetId와 동일 기준)가
+      당첨자와 함께 종료 → carryover 소진(0)
+    ※ 최초 결과 등록 시에만 호출할 것 (결과 정정 시 중복 정산 방지)
+    """
+    new_gids = [str(g) for g in new_gids]
+    if not new_gids:
+        return
+    games   = [g for g in get_games() if not g.get("deleted")]
+    results = get_results()
+    bets    = get_bets()
+    cfg     = get_config()
+    co0 = co = int(cfg.get("carryover") or 0)
+    by_id   = {str(g["id"]): g for g in games}
+    decided = set(results.keys()) - set(new_gids)   # 이번 배치 이전에 이미 결정된 경기
+    for g in sorted((by_id[gid] for gid in new_gids if gid in by_id), key=_game_start_key):
+        gid = str(g["id"])
+        res = results.get(gid)
+        if not res:
+            decided.add(gid)
+            continue
+        gbets = [b for b in bets if str(b.get("game_id")) == gid]
+        undecided = [x for x in games if str(x["id"]) not in decided]
+        target = min(undecided, key=_game_start_key) if undecided else None
+        is_target = target is not None and str(target["id"]) == gid
+        winner = any(_bet_hits(g.get("bet_type", "exact"), b.get("h"), b.get("a"),
+                               res.get("h"), res.get("a")) for b in gbets)
+        if gbets and not winner:
+            co += sum(int(b.get("amount") or 0) for b in gbets)
+        elif winner and is_target:
+            co = 0
+        decided.add(gid)
+    if co != co0:
+        cfg["carryover"] = co
+        write_json(CONFIG_FILE, cfg)
 
 # 2026 FIFA 월드컵 경기장 → UTC 오프셋 (6월 기준, DST 적용)
 _VENUE_UTC_MAP = [
@@ -603,8 +662,11 @@ def admin_delete_bet(bet_id: int, auth=Depends(admin_required)):
 @app.put("/api/admin/results/{game_id}")
 def admin_set_result(game_id: int, body: ResultIn, auth=Depends(admin_required)):
     results = get_results()
+    is_new = str(game_id) not in results   # 정정(재등록)은 이월 정산 제외
     results[str(game_id)] = {"h": body.h, "a": body.a, "registered_at": int(time.time())}
     write_json(RESULTS_FILE, results)
+    if is_new:
+        _settle_carryover([game_id])
     return results[str(game_id)]
 
 @app.post("/api/admin/ai-predict")
@@ -1115,10 +1177,13 @@ async def admin_enrich_bracket(auth=Depends(admin_required)):
     if results_patch:
         results = get_results()
         now = int(time.time())
+        new_gids = []
         for gid, res in results_patch.items():
             if gid not in results:
                 results[gid] = {**res, "registered_at": now}
+                new_gids.append(gid)
         write_json(RESULTS_FILE, results)
+        _settle_carryover(new_gids)
     return {"ok": True, "updated": updated, "total": len(games)}
 
 @app.post("/api/admin/games/to-kst")
