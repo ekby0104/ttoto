@@ -227,7 +227,7 @@ def _init_db():
     finally:
         conn.close()
 
-def read_json(path, default):
+def _sqlite_read_json(path, default):
     key = _doc_key(path)
     conn = _db_conn()
     try:
@@ -245,7 +245,7 @@ def read_json(path, default):
     finally:
         conn.close()
 
-def write_json(path, data):
+def _sqlite_write_json(path, data):
     key = _doc_key(path)
     with _db_lock:
         conn = _db_conn()
@@ -266,6 +266,148 @@ def write_json(path, data):
             conn.close()
 
 _init_db()
+
+# ── Postgres 어댑터 ──────────────────────────────────────────────
+# DATABASE_URL이 있으면 Postgres 사용(무중단 배포·replicas 가능), 없으면 SQLite 폴백(로컬 개발).
+# 스키마는 SQLite와 동일 설계: data(JSONB)가 원본, 조회 컬럼은 GENERATED ALWAYS AS ... STORED.
+DATABASE_URL = os.environ.get("DATABASE_URL", "")
+
+_PG_SCHEMA = """
+CREATE TABLE IF NOT EXISTS games(
+  seq        INTEGER PRIMARY KEY,
+  data       JSONB NOT NULL,
+  id         TEXT    GENERATED ALWAYS AS (data->>'id')                 STORED,
+  stage      TEXT    GENERATED ALWAYS AS (data->>'stage')              STORED,
+  grp        TEXT    GENERATED ALWAYS AS (data->>'group')              STORED,
+  date       TEXT    GENERATED ALWAYS AS (data->>'date')               STORED,
+  time       TEXT    GENERATED ALWAYS AS (data->>'time')               STORED,
+  venue      TEXT    GENERATED ALWAYS AS (data->>'venue')              STORED,
+  status     TEXT    GENERATED ALWAYS AS (data->>'status')             STORED,
+  home_name  TEXT    GENERATED ALWAYS AS (data->'home'->>'name')       STORED,
+  home_short TEXT    GENERATED ALWAYS AS (data->'home'->>'short')      STORED,
+  away_name  TEXT    GENERATED ALWAYS AS (data->'away'->>'name')       STORED,
+  away_short TEXT    GENERATED ALWAYS AS (data->'away'->>'short')      STORED,
+  ended_at   BIGINT  GENERATED ALWAYS AS ((data->>'ended_at')::bigint) STORED,
+  deleted    BOOLEAN GENERATED ALWAYS AS (coalesce((data->>'deleted')::boolean, false)) STORED
+);
+CREATE INDEX IF NOT EXISTS idx_games_id     ON games(id);
+CREATE INDEX IF NOT EXISTS idx_games_status ON games(status);
+CREATE INDEX IF NOT EXISTS idx_games_stage  ON games(stage);
+
+CREATE TABLE IF NOT EXISTS bets(
+  seq        INTEGER PRIMARY KEY,
+  data       JSONB NOT NULL,
+  id         TEXT    GENERATED ALWAYS AS (data->>'id')                   STORED,
+  game_id    TEXT    GENERATED ALWAYS AS (data->>'game_id')              STORED,
+  name       TEXT    GENERATED ALWAYS AS (data->>'name')                 STORED,
+  h          INTEGER GENERATED ALWAYS AS ((data->>'h')::int)             STORED,
+  a          INTEGER GENERATED ALWAYS AS ((data->>'a')::int)             STORED,
+  amount     INTEGER GENERATED ALWAYS AS ((data->>'amount')::int)        STORED,
+  paid       BOOLEAN GENERATED ALWAYS AS ((data->>'paid')::boolean)      STORED,
+  paid_out   BOOLEAN GENERATED ALWAYS AS ((data->>'paid_out')::boolean)  STORED,
+  created_at BIGINT  GENERATED ALWAYS AS ((data->>'created_at')::bigint) STORED
+);
+CREATE INDEX IF NOT EXISTS idx_bets_game_id ON bets(game_id);
+CREATE INDEX IF NOT EXISTS idx_bets_name    ON bets(name);
+
+CREATE TABLE IF NOT EXISTS feedback(
+  seq        INTEGER PRIMARY KEY,
+  data       JSONB NOT NULL,
+  id         TEXT   GENERATED ALWAYS AS (data->>'id')                   STORED,
+  name       TEXT   GENERATED ALWAYS AS (data->>'name')                 STORED,
+  message    TEXT   GENERATED ALWAYS AS (data->>'message')              STORED,
+  created_at BIGINT GENERATED ALWAYS AS ((data->>'created_at')::bigint) STORED
+);
+CREATE INDEX IF NOT EXISTS idx_feedback_created ON feedback(created_at);
+
+CREATE TABLE IF NOT EXISTS results(
+  game_id       TEXT PRIMARY KEY,
+  data          JSONB NOT NULL,
+  h             INTEGER GENERATED ALWAYS AS ((data->>'h')::int)             STORED,
+  a             INTEGER GENERATED ALWAYS AS ((data->>'a')::int)             STORED,
+  registered_at BIGINT  GENERATED ALWAYS AS ((data->>'registered_at')::bigint) STORED
+);
+
+CREATE TABLE IF NOT EXISTS ai_predictions(game_id TEXT PRIMARY KEY, data JSONB NOT NULL);
+CREATE TABLE IF NOT EXISTS documents(key TEXT PRIMARY KEY, data JSONB NOT NULL);
+CREATE TABLE IF NOT EXISTS config(key TEXT PRIMARY KEY, value JSONB NOT NULL);
+CREATE TABLE IF NOT EXISTS auth  (key TEXT PRIMARY KEY, value JSONB NOT NULL);
+CREATE TABLE IF NOT EXISTS meta  (key TEXT PRIMARY KEY, value TEXT NOT NULL);
+"""
+
+if DATABASE_URL:
+    import psycopg
+    from psycopg.types.json import Jsonb
+    from psycopg_pool import ConnectionPool
+    _pg_pool = ConnectionPool(DATABASE_URL, min_size=1, max_size=5, open=True)
+
+    def _pg_write_table(conn, key, data):
+        cur = conn.cursor()
+        if key in _LIST_TABLES:
+            cur.execute(f"DELETE FROM {key}")
+            cur.executemany(f"INSERT INTO {key}(seq, data) VALUES(%s, %s)",
+                            [(i, Jsonb(item)) for i, item in enumerate(data)])
+        elif key in _DICT_TABLES:
+            cur.execute(f"DELETE FROM {key}")
+            cur.executemany(f"INSERT INTO {key}(game_id, data) VALUES(%s, %s)",
+                            [(str(k), Jsonb(v)) for k, v in data.items()])
+        elif key in _KV_TABLES:
+            cur.execute(f"DELETE FROM {key}")
+            cur.executemany(f"INSERT INTO {key}(key, value) VALUES(%s, %s)",
+                            [(k, Jsonb(v)) for k, v in data.items()])
+        else:
+            raise ValueError(f"unknown storage key: {key}")
+
+    def read_json(path, default):
+        key = _doc_key(path)
+        with _pg_pool.connection() as conn:
+            cur = conn.cursor()
+            if key in _LIST_TABLES:
+                rows = cur.execute(f"SELECT data FROM {key} ORDER BY seq").fetchall()
+                return [r[0] for r in rows] if rows else default
+            if key in _DICT_TABLES:
+                rows = cur.execute(f"SELECT game_id, data FROM {key}").fetchall()
+                return {r[0]: r[1] for r in rows} if rows else default
+            if key in _KV_TABLES:
+                rows = cur.execute(f"SELECT key, value FROM {key}").fetchall()
+                return {r[0]: r[1] for r in rows} if rows else default
+            row = cur.execute("SELECT data FROM documents WHERE key=%s", (key,)).fetchone()
+            return default if row is None else row[0]
+
+    def write_json(path, data):
+        key = _doc_key(path)
+        with _db_lock:
+            with _pg_pool.connection() as conn:   # 컨텍스트 종료 시 commit, 예외 시 rollback
+                try:
+                    _pg_write_table(conn, key, data)
+                except ValueError:
+                    conn.execute(
+                        "INSERT INTO documents(key, data) VALUES(%s, %s) "
+                        "ON CONFLICT (key) DO UPDATE SET data=EXCLUDED.data",
+                        (key, Jsonb(data)))
+
+    def _init_pg():
+        with _pg_pool.connection() as conn:
+            conn.execute(_PG_SCHEMA)
+            # 최초 1회: 볼륨의 SQLite 데이터 → Postgres 이관 (meta 플래그로 멱등 보장)
+            if conn.execute("SELECT 1 FROM meta WHERE key='migrated_from_sqlite'").fetchone():
+                return
+            for path in (BETS_FILE, CONFIG_FILE, RESULTS_FILE, AUTH_FILE,
+                         GAMES_FILE, AI_PREDICTIONS_FILE, FEEDBACK_FILE):
+                key = _doc_key(path)
+                # 안전장치: PG 테이블에 이미 데이터가 있으면 건드리지 않음
+                if conn.execute(f"SELECT 1 FROM {key} LIMIT 1").fetchone():
+                    continue
+                data = _sqlite_read_json(path, None)
+                if data is not None:
+                    _pg_write_table(conn, key, data)
+            conn.execute("INSERT INTO meta(key, value) VALUES('migrated_from_sqlite', %s)",
+                         (str(int(time.time())),))
+
+    _init_pg()
+else:
+    read_json  = _sqlite_read_json
+    write_json = _sqlite_write_json
 
 def get_bets():           return read_json(BETS_FILE,           [])
 def get_config():         return read_json(CONFIG_FILE,         {"bet_amount": 3000, "kp_link": "", "site_title": "토토", "carryover": 0})
@@ -1213,6 +1355,16 @@ def admin_db_query(body: SqlIn, auth=Depends(admin_required)):
     # SELECT/WITH만 허용. EXPLAIN도 대상이 SELECT/WITH일 때만 (EXPLAIN DELETE 같은 형태 차단)
     if not re.match(r"(?is)^(explain(\s+query\s+plan)?\s+)?(select|with)\b", sql):
         raise HTTPException(400, "SELECT / WITH (및 그에 대한 EXPLAIN) 문만 실행할 수 있습니다")
+    if DATABASE_URL:
+        try:
+            with psycopg.connect(DATABASE_URL, autocommit=False,
+                                 options="-c default_transaction_read_only=on -c statement_timeout=5000") as conn:
+                cur = conn.execute(sql)
+                cols = [d.name for d in cur.description] if cur.description else []
+                rows = cur.fetchmany(201)
+                return {"columns": cols, "rows": [list(r) for r in rows[:200]], "truncated": len(rows) > 200}
+        except psycopg.Error as e:
+            raise HTTPException(400, f"SQL 오류: {str(e).strip()}")
     conn = sqlite3.connect(f"file:{DB_FILE}?mode=ro", uri=True, timeout=5)
     try:
         conn.execute("PRAGMA query_only=ON")
@@ -1244,9 +1396,13 @@ _NO_CACHE = {"Cache-Control": "no-cache, no-store, must-revalidate", "Pragma": "
 def health():
     """Railway 헬스체크: DB 접근까지 확인해야 트래픽을 받을 준비가 된 것"""
     try:
-        conn = _db_conn()
-        conn.execute("SELECT 1")
-        conn.close()
+        if DATABASE_URL:
+            with _pg_pool.connection() as conn:
+                conn.execute("SELECT 1")
+        else:
+            conn = _db_conn()
+            conn.execute("SELECT 1")
+            conn.close()
         return {"ok": True}
     except Exception:
         raise HTTPException(503, "db not ready")
