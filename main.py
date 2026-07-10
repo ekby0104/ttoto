@@ -478,6 +478,7 @@ def _settle_carryover(new_gids):
     co0 = co = int(cfg.get("carryover") or 0)
     by_id   = {str(g["id"]): g for g in games}
     decided = set(results.keys()) - set(new_gids)   # 이번 배치 이전에 이미 결정된 경기
+    results_dirty = False
     for g in sorted((by_id[gid] for gid in new_gids if gid in by_id), key=_game_start_key):
         gid = str(g["id"])
         res = results.get(gid)
@@ -493,8 +494,13 @@ def _settle_carryover(new_gids):
         if gbets and not winner:
             co += sum(int(b.get("amount") or 0) for b in gbets)
         elif winner and is_target:
+            if co > 0:
+                res["carryover_used"] = co   # 종료 후에도 당첨금 표시에 이월 포함할 수 있도록 기록
+                results_dirty = True
             co = 0
         decided.add(gid)
+    if results_dirty:
+        write_json(RESULTS_FILE, results)
     if co != co0:
         cfg["carryover"] = co
         write_json(CONFIG_FILE, cfg)

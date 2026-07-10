@@ -931,8 +931,10 @@ function renderGameBody(){
     h+=betMatrixHtml(g,mb,res);
   }else{
     // 종료: 실제 당첨금(당첨 스코어에만, 전체 당첨자 기준 분배) / 진행: 스코어별 예상 수령액
+    // 분배 판돈 = 입금확인 판돈 + 이월 (진행중: 현재 이월(co) / 종료: 정산 시 기록된 res.carryover_used)
     const winPaidCnt=st==='ended'&&res?mb.filter(b=>b.paid&&hitRes(b.h,b.a)).length:0;
-    const winPayout=winPaidCnt>0&&paidPot>0?Math.floor(paidPot/winPaidCnt):null;
+    const coUsed=res?Number(res.carryover_used)||0:0;
+    const winPayout=winPaidCnt>0&&(paidPot+coUsed)>0?Math.floor((paidPot+coUsed)/winPaidCnt):null;
     sorted.forEach(([sc,arr])=>{
       const[hh,aa]=sc.split('-');
       const names=arr.map(b=>`<span style="color:${b.paid?'var(--gold)':'var(--muted2)'}">${esc(b.name)}</span>`).join(' ');
@@ -942,7 +944,7 @@ function renderGameBody(){
         rightHtml=`<span style="font-size:13px;font-weight:700"><span style="color:#fff">총 ${arr.length}명</span>${w?`<span style="color:var(--muted)"> · </span><span style="color:var(--gold)">🏆 당첨${winPayout!=null?` 인당 ${winPayout.toLocaleString()}원`:''}</span>`:''}</span>`;
       }else{
         const paidWinners=arr.filter(b=>b.paid).length;
-        const payout=paidWinners>0&&paidPot>0?Math.floor(paidPot/paidWinners):null;
+        const payout=paidWinners>0&&(paidPot+co)>0?Math.floor((paidPot+co)/paidWinners):null;
         rightHtml=`<span style="font-size:13px;font-weight:700"><span style="color:#fff">총 ${arr.length}명</span>${payout!=null?`<span style="color:var(--muted)"> : </span><span style="color:var(--red)">예상 인당 ${payout.toLocaleString()}원</span>`:''}</span>`;
       }
       h+=`<div class="dist-item" id="dist-${hh}-${aa}">
