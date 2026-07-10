@@ -352,6 +352,7 @@ GROUP BY b.game_id, g.home_short, g.away_short ORDER BY pot DESC</textarea>
           <button class="btn btn-primary btn-sm" onclick="runSql()" id="sql-btn">▶ 실행</button>
           <button class="btn btn-ghost btn-sm" onclick="document.getElementById('sql-input').value=&quot;SELECT name, COUNT(*) AS n, SUM(amount) AS total,\n       SUM(CASE WHEN paid THEN 0 ELSE amount END) AS unpaid\nFROM bets GROUP BY name ORDER BY total DESC&quot;">예시: 인별 집계</button>
           <button class="btn btn-ghost btn-sm" onclick="document.getElementById('sql-input').value=&quot;SELECT tablename FROM pg_tables WHERE schemaname='public' ORDER BY tablename&quot;">테이블 목록</button>
+          <button class="btn btn-ghost btn-sm" onclick="downloadBackup()" id="backup-btn">📦 전체 백업(JSON)</button>
           <span id="sql-msg" style="font-size:12px;color:var(--muted);font-family:var(--mono)"></span>
         </div>
         <div id="sql-out" style="margin-top:10px;overflow-x:auto"></div>
@@ -1329,6 +1330,24 @@ async function enrichBracket() {
   if (!res) { toast('❌ 실패 (외부 API 응답 지연일 수 있어요)', true); return }
   out.textContent = `완료: ${res.updated}개 갱신`;
   toast(`✅ 브래킷 데이터 ${res.updated}개 갱신됐습니다`);
+}
+
+// ── 전체 데이터 백업 다운로드 ──
+async function downloadBackup() {
+  const btn = document.getElementById('backup-btn');
+  btn.disabled = true;
+  const res = await apiFetch('/admin/db/export');
+  btn.disabled = false;
+  if (!res) { toast('❌ 백업 실패', true); return; }
+  const d = new Date();
+  const stamp = `${d.getFullYear()}${String(d.getMonth()+1).padStart(2,'0')}${String(d.getDate()).padStart(2,'0')}-${String(d.getHours()).padStart(2,'0')}${String(d.getMinutes()).padStart(2,'0')}`;
+  const blob = new Blob([JSON.stringify(res, null, 2)], {type:'application/json'});
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = `ttoto-backup-${stamp}.json`;
+  a.click();
+  URL.revokeObjectURL(a.href);
+  toast('✅ 백업 파일이 다운로드됐습니다');
 }
 
 // ── SQL 콘솔 (읽기 전용) ──

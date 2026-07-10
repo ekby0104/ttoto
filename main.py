@@ -1366,6 +1366,22 @@ def admin_convert_games_to_kst(auth=Depends(admin_required)):
     write_json(GAMES_FILE, games)
     return {"ok": True, "converted": converted, "total": len(games)}
 
+@app.get("/api/admin/db/export")
+def admin_db_export(auth=Depends(admin_required)):
+    """전체 데이터 JSON 백업 (auth 토큰 제외). 볼륨/DB와 무관하게 항상 동작하는 백업 수단."""
+    return {
+        "exported_at": int(time.time()),
+        "backend": "postgres" if DATABASE_URL else "sqlite",
+        "data": {
+            "games":          get_games(),
+            "bets":           get_bets(),
+            "results":        get_results(),
+            "config":         get_config(),
+            "feedback":       get_feedback(),
+            "ai_predictions": get_ai_predictions(),
+        },
+    }
+
 @app.get("/api/admin/db/info")
 def admin_db_info(auth=Depends(admin_required)):
     """진단: 활성 백엔드·테이블 건수·SQLite 원본 상태"""
