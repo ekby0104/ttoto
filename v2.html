@@ -1115,10 +1115,11 @@ function renderMiniOverview(visible){
     const top=yc[g.id]!=null?yc[g.id]:PADY;
     const bdr=gameBorderClr(g)||'#38383a';
     const bett=st==='open';
+    const wbg=bett||gBets(g.id).length>0;   // 흰 배경 규칙: open 또는 베팅≥1 (스크롤뷰와 동일)
     const hn=_isDesk?h.full:h.name, an=_isDesk?a.full:a.name;
-    cards+=`<div class="${bett?'ovvbet':''}" style="position:absolute;left:${x+KO_LEFT}px;top:${top}px;width:${KO_CARDW}px;height:${CARDH}px;background:${bett?'#fff':'#1c1c1e'};border:1px solid ${bdr};border-radius:4px;overflow:hidden;box-sizing:border-box;cursor:pointer" onclick="exitOvvAndGo('${r==='3RD'?'F':r}','${g.id}')">
-      ${miniRow(h.flag,hn,h.known,res!=null?res.h:null,ROW,bett)}
-      ${miniRow(a.flag,an,a.known,res!=null?res.a:null,ROW,bett)}
+    cards+=`<div class="${bett?'ovvbet':''}" style="position:absolute;left:${x+KO_LEFT}px;top:${top}px;width:${KO_CARDW}px;height:${CARDH}px;background:${wbg?'#fff':'#1c1c1e'};border:1px solid ${bdr};border-radius:4px;overflow:hidden;box-sizing:border-box;cursor:pointer" onclick="exitOvvAndGo('${r==='3RD'?'F':r}','${g.id}')">
+      ${miniRow(h.flag,hn,h.known,res!=null?res.h:null,ROW,wbg)}
+      ${miniRow(a.flag,an,a.known,res!=null?res.a:null,ROW,wbg)}
     </div>`;
   });
   if(third&&finalG){
@@ -1126,10 +1127,12 @@ function renderMiniOverview(visible){
     const h=teamSide(third,'home'),a=teamSide(third,'away');
     const top3=yc[third.id]!=null?yc[third.id]:PADY;
     const bdr3=gameBorderClr(third)||'#38383a';
+    const bett3=gState(third)==='open';
+    const wbg3=bett3||gBets(third.id).length>0;
     const hn3=_isDesk?h.full:h.name, an3=_isDesk?a.full:a.name;
-    cards+=`<div style="position:absolute;left:${colX.F+KO_LEFT}px;top:${top3}px;width:${KO_CARDW}px;height:${CARDH}px;background:#1c1c1e;border:1px solid ${bdr3};border-radius:4px;overflow:hidden;box-sizing:border-box;cursor:pointer" onclick="exitOvvAndGo('F','${third.id}')">
-      ${miniRow(h.flag,hn3,h.known,res!=null?res.h:null,ROW)}
-      ${miniRow(a.flag,an3,a.known,res!=null?res.a:null,ROW)}
+    cards+=`<div class="${bett3?'ovvbet':''}" style="position:absolute;left:${colX.F+KO_LEFT}px;top:${top3}px;width:${KO_CARDW}px;height:${CARDH}px;background:${wbg3?'#fff':'#1c1c1e'};border:1px solid ${bdr3};border-radius:4px;overflow:hidden;box-sizing:border-box;cursor:pointer" onclick="exitOvvAndGo('F','${third.id}')">
+      ${miniRow(h.flag,hn3,h.known,res!=null?res.h:null,ROW,wbg3)}
+      ${miniRow(a.flag,an3,a.known,res!=null?res.a:null,ROW,wbg3)}
     </div>`;
   }
   // GS 조별 카드 — 순위·득점 제거, KO 카드와 동일 포맷/크기
