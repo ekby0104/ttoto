@@ -25,6 +25,8 @@ body{background:var(--bg);color:var(--text);font-family:var(--sys);min-height:10
 .hd-row{display:flex;align-items:baseline;justify-content:space-between;gap:10px}
 .hd-title{font-size:30px;font-weight:800;letter-spacing:-.5px}
 .hd-sub{font-size:13px;color:var(--muted);font-weight:600}
+.hd-sub.live{color:var(--green);font-weight:800;animation:subPulse 1.5s ease-in-out infinite}
+@keyframes subPulse{0%,100%{opacity:1;text-shadow:0 0 10px rgba(48,209,88,.9),0 0 20px rgba(48,209,88,.45)}50%{opacity:.5;text-shadow:0 0 2px rgba(48,209,88,.15)}}
 /* 공지 마퀴 */
 .notice{overflow:hidden;white-space:nowrap;padding:7px 0;background:linear-gradient(90deg,#ff004c,#ff8a00,#ffe600,#00d26a,#00b3ff,#7a5cff,#ff004c);background-size:200% auto;animation:rainbow 4s linear infinite;margin:0 0 4px}
 @keyframes rainbow{0%{background-position:0 50%}100%{background-position:200% 50%}}
@@ -438,7 +440,10 @@ let SECTION_X={};   // 각 단계의 가로 스크롤 위치
 function render(){
   renderStageBar();
   const visible=GAMES.filter(g=>!g.deleted);
-  document.getElementById('hd-sub').textContent=`${visible.filter(g=>gState(g)==='open').length}경기 베팅중`;
+  const nOpen=visible.filter(g=>gState(g)==='open').length;
+  const hdSub=document.getElementById('hd-sub');
+  hdSub.textContent=`${nOpen>0?'● ':''}${nOpen}경기 베팅중`;
+  hdSub.classList.toggle('live',nOpen>0);   // 베팅 가능 경기 있을 때만 초록 펄스
   if(ovvMode){
     document.getElementById('wrap').innerHTML=renderMiniOverview(visible);
     ['bk-next','bk-prev'].forEach(id=>{const b=document.getElementById(id);if(b)b.classList.remove('show');});
