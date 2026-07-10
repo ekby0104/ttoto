@@ -1,14 +1,19 @@
 # Ttoto (사무실 월드컵 토토) — 프로젝트 규칙
 
-2026 FIFA 월드컵 스코어 토토. FastAPI + SQLite(단일 파일 `main.py`), 프론트는 순수 HTML/JS 단일 파일들. Railway 배포.
+2026 FIFA 월드컵 스코어 토토. FastAPI + PostgreSQL(단일 파일 `main.py`), 프론트는 순수 HTML/JS 단일 파일들. Railway 배포.
 
 ## 배포 규칙 (중요)
 
-- **코드 수정 후**: 로컬 `git commit` → 즉시 `railway up --service Ttoto` 자동 실행 (별도 요청 불필요)
-- **GitHub push는 사용자가 명시적으로 요청할 때만** ("push 해줘"). 그 전엔 로컬 커밋만.
+- **배포 = `git push origin main`** → Railway가 GitHub 연동으로 자동 빌드·배포 (무중단: `/health` 헬스체크 통과 후 트래픽 전환)
 - push 전 반드시 `git fetch` 후 원격 선행 커밋 확인 — 다른 세션/도구(Codex 등)가 커밋했을 수 있음. 충돌 시 양쪽 의도 보존해 병합.
 - 배포 반영 확인: `until curl -s https://ttoto-production.up.railway.app/ | grep -q "<이번 변경의 고유 문자열>"; do sleep 8; done`
 - 커밋 메시지: 한국어, `fix:`/`feat:`/`docs:` 접두사, 한 줄 요약
+
+## 인프라 (Railway)
+
+- **Ttoto 앱**: 무상태, **replicas 2** (로드밸런싱). 볼륨 없음 → 무중단 배포 가능
+- **Postgres**: 1대 (stateful). 앱은 `DATABASE_URL` 참조변수로 접속 (private 네트워크)
+- Railway private 네트워크는 부팅 직후 수 초간 미준비 → PG 첫 연결은 60초 재시도 로직 있음 (제거 금지)
 
 ## 페이지 구조
 
@@ -18,15 +23,34 @@
 | `/v2` | ttoto.html | 구버전 백업 (특별 요청 없으면 건드리지 않음) |
 | `/admin` | admin.html | 관리자 |
 
-- 저장소: SQLite (`$DATA_DIR/ttoto.db`, Railway 볼륨 `/data`). 각 행의 `data`(JSON)가 원본, 조회 컬럼은 GENERATED 가상 컬럼. 기존 `read_json`/`get_*` API 유지됨.
-- 외부: worldcup26.ir 경기 임포트(느림, 타임아웃 40s), Anthropic API(AI 예측, `ANTHROPIC_API_KEY`)
+## 저장소
+
+- **Postgres가 주 저장소** (`DATABASE_URL` 있으면), 없으면 SQLite 폴백(`$DATA_DIR/ttoto.db`, 로컬 개발용). 두 백엔드 동일 설계.
+- 테이블: `games` `bets` `feedback`(리스트형, seq PK) · `results` `ai_predictions`(game_id PK) · `config` `auth`(key-value) · `meta` · `documents`(레거시 백업)
+- **각 행의 `data`(JSONB)가 원본**, 조회 컬럼(bets.name, games.status 등)은 `GENERATED ALWAYS AS ... STORED`로 DB가 자동 파생 — 컬럼·JSON 불일치가 구조적으로 불가능
+- 애플리케이션 API는 `read_json`/`write_json`/`get_*` 유지 — **비즈니스 로직에서 DB 직접 접근 금지**, 이 계층만 사용
+- 이관은 자가 치유식: 부팅마다 "PG 테이블 비어있음 + SQLite 원본 있음 → 채움". 데이터 있는 PG 테이블은 절대 안 덮음
+- 백업: 관리자 SQL 콘솔의 **📦 전체 백업(JSON)** 버튼 (`GET /api/admin/db/export`)
+- 진단: `GET /api/admin/db/info` (백엔드·테이블 건수), 읽기 전용 SQL 콘솔 `POST /api/admin/db/query` (SELECT/WITH만, read-only 연결 이중 방어 — 완화 금지)
+
+## 이월 판돈 (carryover)
+
+- `config.carryover`가 원본. **결과 최초 등록 시 서버가 자동 정산** (`_settle_carryover`): 베팅 있는 경기가 무당첨 종료 → 판돈 누적 / 이월 대상 경기가 당첨 종료 → 0으로 소진. 정정(재등록)은 정산 제외.
+- **이월 대상 = 결과 미등록 경기 중 시작시각 최빠른 경기.** 서버(`_settle_carryover`)와 프론트(`carryTargetId`)가 같은 기준을 써야 함 — 한쪽만 바꾸지 말 것
+- 당첨 판정도 서버(`_bet_hits`)·프론트(`hitRes`) 동일: exact=정확 스코어, wdl=승무패 방향
+- 관리자 설정의 "이월 판돈" 필드는 수동 보정용
 
 ## 검증 절차 (수정 후 필수)
 
 1. JS: `node -e "const f=require('fs').readFileSync('v2.html','utf8');const m=f.match(/<script>([\s\S]*)<\/script>/);new Function(m[1]);console.log('JS OK');"`
 2. Python: `python3 -c "import ast;ast.parse(open('main.py').read());print('PY OK')"`
-3. 배포 → curl 마커 확인 → 가능하면 Chrome MCP로 라이브 동작 검증
-4. **iOS 사파리 이슈는 데스크탑 크롬에서 재현 안 됨** — 최종 확인은 사용자가 아이폰으로. 추측 수정 금지, 원인 측정 후 수정.
+3. 저장 계층 수정 시: 임베디드 PG(`pip install pgserver`)로 PG 경로까지 테스트 (이 레포는 SQLite·PG 둘 다 지원해야 함)
+4. 배포 → curl 마커 확인 → 가능하면 Chrome MCP로 라이브 동작 검증
+5. **iOS 사파리 이슈는 데스크탑 크롬에서 재현 안 됨** — 최종 확인은 사용자가 아이폰으로. 추측 수정 금지, 원인 측정 후 수정.
+
+## 외부 연동
+
+- worldcup26.ir 경기 임포트(느림, 타임아웃 40s), Anthropic API(AI 예측, `ANTHROPIC_API_KEY`)
 
 ## 절대 규칙 / 과거 삽질 교훈
 
@@ -54,7 +78,13 @@
 - open → 초록 반짝 보더(`greenBlink`): `.bk-card.bettable`, `.grp-game.gg-open`, 전체뷰 `.ovvbet`
 - 비open+베팅≥1 → 흰 배경만(`.bk-card.betbg`, `.grp-game.gg-bet`, 전체뷰는 인라인 `wbg`), 보더는 상태색(gameBorderClr) 유지 — 초록 반짝 금지
 
-**선택 표시**: 흰색 반짝 보더(`selBlink`). 선택 id는 `selGid`에 저장해 재렌더에도 유지
+**선택 표시**: 반짝 보더(`selBlink`) — 색은 카드별 `--selclr` 변수로 **상태 보더색과 동일** (transparent/회색이면 흰색 폴백). 기존 보더색을 덮지 않음. 선택 id는 `selGid`에 저장해 재렌더에도 유지
+
+**KO 카드 팀명**: 모바일·데스크탑 모두 국가명(full) 표기, 23자 초과 시 22자+".." truncation (`bkCardHtml`의 `trunc`)
+
+**전체뷰 GS 카드 강조**: 32강에 실제 배정된 팀(`r32Adv` set)만 — 1·2위 초록, 3위 진출 흰색, 그 외 dim(#555)
+
+**이월 판돈 표시**: 대상 경기(= `carryTargetId()`, 결과 미등록 중 시작 최빠름)에만 — 카드(베팅가능: CTA 위 골드 라인 / 그 외: "판돈 n원 (이월 포함)")와 상세 시트(합산 스탯 + 골드 배너 2줄: 포함 금액 / 줄바꿈 / 베팅+이월 내역)
 
 **베팅중 탭(플로팅 + 메뉴)**: ① open+closed 전부(임박순) ② ended 중 베팅≥1건(최근 종료순). 행 색상은 위 공통 기준.
 
