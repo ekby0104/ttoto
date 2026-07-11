@@ -436,6 +436,25 @@ async function loadAll(){
   document.getElementById('site-title').textContent=CONFIG.site_title||'또또';
 }
 
+// 백그라운드 새로고침: 서버 데이터 다시 조회 → 변경됐을 때만 재렌더 (팝업 열기/탭 전환 시 호출)
+let _refreshing=false;
+async function refreshData(onChanged){
+  if(_refreshing)return;
+  _refreshing=true;
+  try{
+    const before=JSON.stringify([GAMES,BETS,RESULTS,CONFIG]);
+    const sc=document.getElementById('bk-scroll');
+    const savedScroll=sc?sc.scrollLeft:-1;
+    await loadAll();
+    if(JSON.stringify([GAMES,BETS,RESULTS,CONFIG])!==before){
+      render();
+      if(savedScroll>=0)setTimeout(()=>{const s=document.getElementById('bk-scroll');if(s)s.scrollLeft=savedScroll;},60);
+      if(onChanged)onChanged();
+    }
+  }catch(e){}
+  _refreshing=false;
+}
+
 let SECTION_X={};   // 각 단계의 가로 스크롤 위치
 function render(){
   renderStageBar();
@@ -770,6 +789,13 @@ function cardHtml(g,bettable){
 
 // 브래킷 스크롤 → 현재 보는 라운드에 맞춰 상단 칩/헤더 강조
 // ── 경기 상세 시트 ──
+// 열려 있는 게임 시트를 최신 데이터로 다시 그림 (refreshData의 onChanged 콜백)
+function _refreshGameSheet(){
+  if(!curGame||!document.getElementById('sh-game').classList.contains('show'))return;
+  curGame=GAMES.find(x=>String(x.id)===String(curGame.id))||curGame;
+  document.getElementById('sh-game').classList.toggle('has-bets',gBets(curGame.id).length>0);
+  renderGameBody();
+}
 function openGame(id){
   const g=GAMES.find(x=>String(x.id)===String(id));
   if(!g)return;
@@ -779,8 +805,9 @@ function openGame(id){
   document.getElementById('g-title').textContent=`${g.home.short} vs ${g.away.short}`;
   renderGameBody();
   openSheet('sh-game');
+  refreshData(_refreshGameSheet);   // 캐시로 즉시 표시 후 백그라운드 최신화
 }
-function setBetView(v){betView=v;renderGameBody();}
+function setBetView(v){betView=v;renderGameBody();refreshData(_refreshGameSheet);}
 function jumpToScore(hh,aa){
   betView='list';
   renderGameBody();
@@ -829,8 +856,7 @@ function openGroupGames(L){
   requestAnimationFrame(updateGrpHint);
 }
 // 베팅중인 경기: 베팅 가능(open) + 베팅 완료=마감(closed) 경기
-function openActiveBets(){
-  closeFab();
+function _renderActiveBetsBody(){
   // 진행 영역: 베팅중(open)+마감(closed) 전부 — 임박한 경기 먼저
   const live=GAMES.filter(g=>!g.deleted&&(gState(g)==='open'||gState(g)==='closed'))
     .sort((a,b)=>startMs(a)-startMs(b));
@@ -838,11 +864,20 @@ function openActiveBets(){
   const done=GAMES.filter(g=>!g.deleted&&gState(g)==='ended'&&gBets(g.id).length>=1)
     .sort((a,b)=>startMs(b)-startMs(a));
   const games=[...live,...done];
+  document.getElementById('grp-body').innerHTML=games.length?games.map(gameRowHtml).join(''):`<div class="empty">베팅중인 경기가 없어요</div>`;
+}
+function openActiveBets(){
+  closeFab();
+  _renderActiveBetsBody();
   document.getElementById('grp-title').textContent='베팅중인 경기';
-  const body=document.getElementById('grp-body');
-  body.innerHTML=games.length?games.map(gameRowHtml).join(''):`<div class="empty">베팅중인 경기가 없어요</div>`;
   openSheet('sh-group');
   requestAnimationFrame(updateGrpHint);
+  refreshData(()=>{   // 캐시로 즉시 표시 후 백그라운드 최신화
+    if(document.getElementById('sh-group').classList.contains('show')
+       &&document.getElementById('grp-title').textContent==='베팅중인 경기'){
+      _renderActiveBetsBody();requestAnimationFrame(updateGrpHint);
+    }
+  });
 }
 // 스코어 매트릭스(홈 스코어×원정 스코어, 칸=예측 인원수)
 function betMatrixHtml(g,mb,res){
