@@ -51,6 +51,7 @@
 ## 외부 연동
 
 - worldcup26.ir 경기 임포트(느림, 타임아웃 40s), Anthropic API(AI 예측, `ANTHROPIC_API_KEY`)
+- **경기 일시 KST 자동 변환**: 경기 응답엔 `stadium_id`만 있음(경기장 이름 없음) → `/get/stadiums` 맵(24h 캐시)으로 경기장 확정 → `local_to_kst`가 경기장 시간대 기준 현지→KST 변환(`kst_v2` 마킹). **enrich가 kst_v2 성공 소스의 date/time/venue를 기존 경기에 자동 동기화**(부팅 20초 후+10분마다) — 수동 fix-kst 버튼은 폴백용. 멕시코 3개 도시는 DST 폐지로 연중 UTC-6.
 
 ## 절대 규칙 / 과거 삽질 교훈
 
