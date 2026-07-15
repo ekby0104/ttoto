@@ -527,11 +527,32 @@ _VENUE_UTC_MAP = [
     ("Levi", -7), ("Santa Clara", -7), ("San Francisco", -7),
     ("Lumen", -7), ("Seattle", -7),
     ("BC Place", -7), ("Vancouver", -7),
-    # 멕시코 (DST 미적용, 도시별 상이)
+    # 멕시코 (2022년 DST 폐지 — 연중 표준시, 세 도시 모두 UTC-6)
     ("Azteca", -6), ("Mexico City", -6), ("Ciudad de Mexico", -6),
     ("BBVA", -6), ("Monterrey", -6),
-    ("Akron", -7), ("Guadalajara", -7),
+    ("Akron", -6), ("Guadalajara", -6),
 ]
+
+# worldcup26.ir 스타디움 목록 (id → "이름 도시") — 경기 응답에 경기장 이름이 없고 stadium_id만 있어
+# 이 맵으로 경기장(=시간대)을 찾는다. 24시간 캐시, 실패 시 기존 캐시 유지.
+_STADIUM_CACHE = {"map": {}, "ts": 0.0}
+
+async def _fetch_stadium_map(client) -> dict:
+    if _STADIUM_CACHE["map"] and time.time() - _STADIUM_CACHE["ts"] < 86400:
+        return _STADIUM_CACHE["map"]
+    try:
+        r = await client.get("https://worldcup26.ir/get/stadiums")
+        r.raise_for_status()
+        data = r.json()
+        arr = data.get("stadiums", data if isinstance(data, list) else [])
+        smap = {str(s.get("id", "")): f"{s.get('name_en', '')} {s.get('city_en', '')}".strip()
+                for s in arr if s.get("id")}
+        if smap:
+            _STADIUM_CACHE["map"] = smap
+            _STADIUM_CACHE["ts"] = time.time()
+    except Exception:
+        pass
+    return _STADIUM_CACHE["map"]
 
 def _venue_utc_offset(venue: str):
     """경기장 이름으로 UTC 오프셋 반환. 알 수 없으면 None."""
@@ -1181,6 +1202,7 @@ async def _fetch_and_parse_games(korea_only: bool):
             r = await client.get("https://worldcup26.ir/get/games")
             r.raise_for_status()
             data = r.json()
+            stadium_map = await _fetch_stadium_map(client)   # stadium_id → 경기장(시간대 판별용)
     except Exception as e:
         raise HTTPException(502, f"외부 API 오류: {e}")
 
@@ -1230,7 +1252,9 @@ async def _fetch_and_parse_games(korea_only: bool):
             time_str = ""
 
         venue_raw = str(m.get("stadium") or m.get("venue") or m.get("ground") or "")
-        date_str, time_str, converted = local_to_kst(date_str, time_str, venue_raw)
+        if not venue_raw:   # worldcup26은 stadium_id만 제공 → 스타디움 맵으로 경기장 결정
+            venue_raw = stadium_map.get(str(m.get("stadium_id") or ""), "")
+        date_str, time_str, converted = local_to_kst(date_str, time_str, venue_raw)   # 현지 → KST 자동 변환
 
         group_raw = str(m.get("group", "") or "")
         group_str = f"{group_raw}조" if group_raw and not group_raw.endswith("조") else group_raw
@@ -1329,6 +1353,12 @@ def _apply_enrich(games: list, parsed: list) -> tuple[int, dict]:
             g["home"] = src["home"]
         if src.get("away") and src["away"].get("name"):
             g["away"] = src["away"]
+        # 경기 일시 KST 자동 동기화: 소스가 경기장 시간대 변환에 성공한 경우에만 반영
+        if src.get("kst_v2"):
+            if src.get("date"): g["date"] = src["date"]
+            if src.get("time"): g["time"] = src["time"]
+            if src.get("venue"): g["venue"] = src["venue"]
+            g["kst_v2"] = True
         # 종료된 경기 스코어 패치 + 상태 자동 종료 처리
         gid = str(g["id"])
         if gid in by_id_result:
