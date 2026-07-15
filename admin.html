@@ -490,6 +490,13 @@ GROUP BY b.game_id, g.home_short, g.away_short ORDER BY pot DESC</textarea>
         <select class="form-input" id="payout-filter-game" onchange="renderPayouts()" style="max-width:220px">
           <option value="">전체 경기</option>
         </select>
+        <select class="form-input" id="payout-filter-status" onchange="renderPayouts()" style="max-width:160px">
+          <option value="">배당 상태 전체</option>
+          <option value="pending">⏳ 배당 대기</option>
+          <option value="done">✅ 배당 완료</option>
+          <option value="lost">낙첨</option>
+          <option value="tbd">미정</option>
+        </select>
         <button class="btn btn-ghost btn-sm" onclick="loadAll()">새로고침</button>
       </div>
       <div style="overflow-x:auto;-webkit-overflow-scrolling:touch">
@@ -961,6 +968,7 @@ async function deleteResult(id) {
 // ── ④ 배당 처리 ──────────────────────────────────────────
 function renderPayouts() {
   const gFilter = document.getElementById('payout-filter-game').value;
+  const sFilter = document.getElementById('payout-filter-status').value;
   const matches = gFilter ? activeGames().filter(m => String(m.id) === String(gFilter)) : activeGames();
   const rows = [];
   matches.forEach(m => {
@@ -978,6 +986,9 @@ function renderPayouts() {
     const winIds   = new Set(winners.map(w => w.id));
     mb.forEach(b => {
       const isW = winIds.has(b.id);
+      // 배당 상태 필터: pending=당첨·미지급 / done=당첨·지급완료 / lost=낙첨 / tbd=결과 미정
+      const status = isW ? (b.paid_out ? 'done' : 'pending') : (res ? 'lost' : 'tbd');
+      if (sFilter && status !== sFilter) return;
       const ret = isW ? (b.amount||0)+prize : 0;
       rows.push(`<tr>
         <td class="pay-name"><strong>${b.name}</strong></td>
@@ -1001,7 +1012,7 @@ function renderPayouts() {
   const tbody = document.getElementById('payouts-body');
   tbody.innerHTML = rows.length
     ? rows.join('')
-    : '<tr><td colspan="7" style="text-align:center;color:#aaa;padding:20px">베팅 내역이 없습니다</td></tr>';
+    : `<tr><td colspan="7" style="text-align:center;color:#aaa;padding:20px">${(sFilter||gFilter)?'조건에 맞는 내역이 없습니다':'베팅 내역이 없습니다'}</td></tr>`;
 }
 async function togglePayout(id, paidOut) {
   const res = await apiFetch(`/admin/bets/${id}/payout`, {method:'PATCH', body:JSON.stringify({paid_out:paidOut})});
