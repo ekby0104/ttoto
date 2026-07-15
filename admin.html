@@ -209,6 +209,10 @@ main{max-width:960px;margin:0 auto;padding:16px 12px 60px}
             <label class="form-label">이월 판돈 (원)</label>
             <input class="form-input" id="cfg-carry" type="number" min="0" placeholder="0">
             <div class="form-hint">결과 등록 시 자동 정산됩니다 (무당첨 → 누적, 대상 경기 당첨 → 0). 여기서는 수동 보정만 하세요.</div>
+            <div style="margin-top:6px">
+              <button class="btn btn-ghost btn-sm" onclick="rebuildCarryover()" id="carry-rebuild-btn">🔁 과거 경기 이월 기록 재계산</button>
+              <div class="form-hint" style="margin-top:4px">결과 등록순으로 처음부터 재시뮬레이션해 과거 경기의 이월 표시(carryover_in/used)를 소급 기록합니다. 스코어는 건드리지 않습니다.</div>
+            </div>
           </div>
           <button class="btn btn-primary" onclick="saveConfig()">저장</button>
         </div>
@@ -1330,6 +1334,27 @@ async function enrichBracket() {
   if (!res) { toast('❌ 실패 (외부 API 응답 지연일 수 있어요)', true); return }
   out.textContent = `완료: ${res.updated}개 갱신`;
   toast(`✅ 브래킷 데이터 ${res.updated}개 갱신됐습니다`);
+}
+
+// ── 이월 기록 소급 재계산 ──
+async function rebuildCarryover() {
+  if (!confirm('과거 경기의 이월 표시 기록을 재계산합니다.\n(스코어·등록시각은 변경되지 않음)\n\n진행할까요?')) return;
+  const btn = document.getElementById('carry-rebuild-btn');
+  btn.disabled = true;
+  const res = await apiFetch('/admin/carryover/rebuild', {method:'POST'});
+  btn.disabled = false;
+  if (!res) { toast('❌ 재계산 실패', true); return; }
+  const sim = Number(res.simulated_carryover), cur = Number(res.config_carryover);
+  if (sim !== cur) {
+    // 시뮬레이션 결과와 현재 설정값이 다르면 관리자가 판단해서 반영
+    if (confirm(`기록 ${res.updated}건 갱신 완료.\n\n재계산된 현재 이월: ${sim.toLocaleString()}원\n설정된 현재 이월: ${cur.toLocaleString()}원\n\n설정값을 재계산 값(${sim.toLocaleString()}원)으로 맞출까요?\n(수동 보정한 적이 있다면 "취소"를 누르세요)`)) {
+      const r2 = await apiFetch('/admin/carryover/rebuild?apply_config=true', {method:'POST'});
+      if (r2) { config.carryover = r2.config_carryover; renderSettings(); toast('✅ 이월 기록 + 설정값 갱신 완료'); return; }
+    }
+    toast(`✅ 기록 ${res.updated}건 갱신 (설정값은 유지)`);
+  } else {
+    toast(`✅ 기록 ${res.updated}건 갱신 — 재계산 값과 설정값 일치 (${sim.toLocaleString()}원)`);
+  }
 }
 
 // ── 전체 데이터 백업 다운로드 ──

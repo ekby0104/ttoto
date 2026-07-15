@@ -1405,6 +1405,51 @@ def admin_convert_games_to_kst(auth=Depends(admin_required)):
     write_json(GAMES_FILE, games)
     return {"ok": True, "converted": converted, "total": len(games)}
 
+@app.post("/api/admin/carryover/rebuild")
+def admin_rebuild_carryover(apply_config: bool = False, auth=Depends(admin_required)):
+    """과거 경기의 이월 표시 기록(carryover_in/used)을 소급 재구성.
+    실제 정산이 일어났던 순서(결과 등록순, 동시면 시작시각순)로 토너먼트 처음부터 재시뮬레이션.
+    h/a/registered_at은 건드리지 않음. apply_config=true면 최종 이월값을 config에도 반영."""
+    games   = [g for g in get_games() if not g.get("deleted")]
+    results = get_results()
+    bets    = get_bets()
+    by_id   = {str(g["id"]): g for g in games}
+    order = sorted(
+        [gid for gid in results if gid in by_id],
+        key=lambda gid: (results[gid].get("registered_at") or 0, _game_start_key(by_id[gid])))
+    co, decided, changed = 0, set(), 0
+    for gid in order:
+        g, res = by_id[gid], results[gid]
+        gbets = [b for b in bets if str(b.get("game_id")) == gid]
+        undecided = [x for x in games if str(x["id"]) not in decided]   # 자신 포함(아직 미결정 시점)
+        target = min(undecided, key=_game_start_key) if undecided else None
+        is_target = target is not None and str(target["id"]) == gid
+        winner = any(_bet_hits(g.get("bet_type", "exact"), b.get("h"), b.get("a"),
+                               res.get("h"), res.get("a")) for b in gbets)
+        old = (res.get("carryover_in"), res.get("carryover_used"))
+        res.pop("carryover_in", None)
+        res.pop("carryover_used", None)
+        if gbets and not winner:
+            if is_target and co > 0:
+                res["carryover_in"] = co
+            co += sum(int(b.get("amount") or 0) for b in gbets)
+        elif winner and is_target:
+            if co > 0:
+                res["carryover_used"] = co
+            co = 0
+        if (res.get("carryover_in"), res.get("carryover_used")) != old:
+            changed += 1
+        decided.add(gid)
+    write_json(RESULTS_FILE, results)
+    cfg = get_config()
+    out = {"ok": True, "updated": changed, "simulated_carryover": co,
+           "config_carryover": int(cfg.get("carryover") or 0)}
+    if apply_config:
+        cfg["carryover"] = co
+        write_json(CONFIG_FILE, cfg)
+        out["config_carryover"] = co
+    return out
+
 @app.get("/api/admin/db/export")
 def admin_db_export(auth=Depends(admin_required)):
     """전체 데이터 JSON 백업 (auth 토큰 제외). 볼륨/DB와 무관하게 항상 동작하는 백업 수단."""
