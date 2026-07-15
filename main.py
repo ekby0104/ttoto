@@ -492,6 +492,9 @@ def _settle_carryover(new_gids):
         winner = any(_bet_hits(g.get("bet_type", "exact"), b.get("h"), b.get("a"),
                                res.get("h"), res.get("a")) for b in gbets)
         if gbets and not winner:
+            if is_target and co > 0:
+                res["carryover_in"] = co     # 이 경기에 걸려 있던 이월 (무당첨 재이월 표시용)
+                results_dirty = True
             co += sum(int(b.get("amount") or 0) for b in gbets)
         elif winner and is_target:
             if co > 0:
