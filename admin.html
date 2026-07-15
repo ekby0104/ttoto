@@ -911,31 +911,17 @@ function renderResults() {
   }).join('');
 }
 function calcWinners(id, res) {
+  // 서버 _bet_hits와 동일 판정: exact=정확 스코어, wdl=승무패 방향 (입금 여부 무관 = 무당첨/이월 판정 기준)
+  const m = allGames.find(g => String(g.id) === String(id));
+  const bt = (m && m.bet_type) || 'exact';
   const mb = allBets.filter(b => String(b.game_id) === String(id));
-  return res ? mb.filter(b => b.h === res.h && b.a === res.a) : [];
+  return res ? mb.filter(b => bt === 'wdl'
+    ? Math.sign(b.h-b.a) === Math.sign(res.h-res.a)
+    : b.h === res.h && b.a === res.a) : [];
 }
 function gameTotalPot(id) {
   return allBets.filter(b => String(b.game_id) === String(id)).reduce((s,b) => s+(b.amount||0), 0);
 }
-function computeCarryover() {
-  const sorted = activeGames()
-    .filter(g => allResults[String(g.id)])
-    .sort((a,b) => a.date.localeCompare(b.date));
-  let lastPaidIdx = -1;
-  sorted.forEach((g,i) => {
-    const res = allResults[String(g.id)];
-    const winners = calcWinners(g.id, res);
-    if (winners.length > 0 && winners.every(w => w.paid_out)) lastPaidIdx = i;
-  });
-  let carry = 0;
-  sorted.slice(lastPaidIdx + 1).forEach(g => {
-    const res = allResults[String(g.id)];
-    const winners = calcWinners(g.id, res);
-    if (winners.length === 0) carry += gameTotalPot(g.id);
-  });
-  return carry;
-}
-
 async function saveResult(id) {
   const h = parseInt(document.getElementById('rh-'+id).value);
   const a = parseInt(document.getElementById('ra-'+id).value);
@@ -975,21 +961,22 @@ function renderPayouts() {
     const res      = allResults[String(m.id)];
     const mb       = allBets.filter(b => String(b.game_id) === String(m.id));
     if (!mb.length) return;
-    const totalPot = mb.reduce((s,b) => s+(b.amount||0), 0);
+    // v2/서버와 동일 기준: 인당 수령 = (입금확인 판돈 + 정산 기록된 이월 carryover_used) ÷ 입금확인 당첨자
+    const paidPot  = mb.filter(b => b.paid).reduce((s,b) => s+(b.amount||0), 0);
     const betType  = m.bet_type || 'exact';
     const winners  = res ? mb.filter(b => b.paid && (betType==='wdl'
       ? Math.sign(b.h-b.a)===Math.sign(res.h-res.a)
       : b.h===res.h && b.a===res.a)) : [];
-    const loserPot = totalPot - winners.reduce((s,b) => s+(b.amount||0), 0);
-    const carryover = winners.length ? computeCarryover() : 0;
-    const prize    = winners.length ? Math.floor((loserPot + carryover) / winners.length) : 0;
+    const carryover = res ? (Number(res.carryover_used)||0) : 0;
+    const share    = winners.length ? Math.floor((paidPot + carryover) / winners.length) : 0;  // 인당 수령(원금 포함)
     const winIds   = new Set(winners.map(w => w.id));
     mb.forEach(b => {
       const isW = winIds.has(b.id);
       // 배당 상태 필터: pending=당첨·미지급 / done=당첨·지급완료 / lost=낙첨 / tbd=결과 미정
       const status = isW ? (b.paid_out ? 'done' : 'pending') : (res ? 'lost' : 'tbd');
       if (sFilter && status !== sFilter) return;
-      const ret = isW ? (b.amount||0)+prize : 0;
+      const ret   = isW ? share : 0;                       // 실제 송금할 금액
+      const prize = isW ? share - (b.amount||0) : 0;       // 순수익 (수령 - 본인 베팅액)
       rows.push(`<tr>
         <td class="pay-name"><strong>${b.name}</strong></td>
         <td style="font-size:12px">${matchLabel(b.game_id)}</td>
