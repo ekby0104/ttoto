@@ -1260,10 +1260,22 @@ async def _fetch_and_parse_games(korea_only: bool):
         group_str = f"{group_raw}조" if group_raw and not group_raw.endswith("조") else group_raw
 
         # 단계(라운드) + 대진 연결 라벨 (브래킷용)
-        type_raw = str(m.get("type", "") or "").lower()
+        type_raw = str(m.get("type", "") or "").lower().strip()
         STAGE_MAP = {"r32": "R32", "r16": "R16", "qf": "QF", "sf": "SF",
-                     "final": "F", "third": "3RD", "3rd": "3RD", "third_place": "3RD"}
-        stage = STAGE_MAP.get(type_raw, "GS")
+                     "final": "F", "f": "F",
+                     "third": "3RD", "3rd": "3RD", "third_place": "3RD",
+                     "third-place": "3RD", "third place": "3RD", "3rd place": "3RD",
+                     "3rd_place": "3RD", "play-off": "3RD", "playoff": "3RD"}
+        stage = STAGE_MAP.get(type_raw)
+        if stage is None:
+            # 폴백: FIFA 2026 매치 번호로 단계 확정 (GS 1–72 · R32 73–88 · R16 89–96 · QF 97–100 · SF 101–102 · 3위전 103 · 결승 104)
+            try:
+                n = int(ext_id)
+                stage = ("GS" if n <= 72 else "R32" if n <= 88 else "R16" if n <= 96
+                         else "QF" if n <= 100 else "SF" if n <= 102
+                         else "3RD" if n == 103 else "F" if n == 104 else "GS")
+            except ValueError:
+                stage = "GS"
         home_label = str(m.get("home_team_label", "") or "")
         away_label = str(m.get("away_team_label", "") or "")
 
