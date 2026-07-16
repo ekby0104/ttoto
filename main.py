@@ -959,6 +959,35 @@ def admin_add_game(body: GameIn, auth=Depends(admin_required)):
     write_json(GAMES_FILE, games)
     return game
 
+@app.post("/api/admin/games/create-finals")
+def admin_create_finals(auth=Depends(admin_required)):
+    """결승(104)·3위전(103) 스텁 생성 — 외부 API가 아직 안 내려줄 때 자리만 먼저 확보.
+    FIFA 매치 번호로 등록해 두므로, API에 데이터가 올라오면 enrich가 팀·일시·라벨을 자동 동기화."""
+    STUBS = [
+        {"id": "103", "stage": "3RD", "date": "2026.07.18",
+         "home_label": "Loser Match 101", "away_label": "Loser Match 102"},
+        {"id": "104", "stage": "F", "date": "2026.07.19",
+         "home_label": "Winner Match 101", "away_label": "Winner Match 102"},
+    ]
+    games = get_games()
+    existing = {str(g["id"]) for g in games}
+    created = []
+    for s in STUBS:
+        if s["id"] in existing:
+            continue
+        games.append({
+            "id": s["id"], "group": "", "stage": s["stage"],
+            "home_label": s["home_label"], "away_label": s["away_label"],
+            "home": {"name": "", "short": "", "flag": ""},
+            "away": {"name": "", "short": "", "flag": ""},
+            "date": s["date"], "time": "", "venue": "",
+            "status": "pending", "bet_type": "exact",
+        })
+        created.append(s["id"])
+    if created:
+        write_json(GAMES_FILE, games)
+    return {"ok": True, "created": created}
+
 @app.patch("/api/admin/games/{game_id}")
 def admin_update_game(game_id: int, body: GameIn, auth=Depends(admin_required)):
     # merge 방식: 지정된 필드만 갱신하고 나머지(stage/home_label/away_label/ended_at/deleted 등)는 보존.
