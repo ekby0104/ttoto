@@ -941,6 +941,7 @@ function openActiveBets(){
 function betMatrixHtml(g,mb,res){
   let maxS=2;
   mb.forEach(b=>{maxS=Math.max(maxS,Number(b.h),Number(b.a));});
+  if(res)maxS=Math.max(maxS,Number(res.h)||0,Number(res.a)||0);   // 실제 결과 셀도 매트릭스 안에 보이도록
   const N=Math.min(maxS,9);
   const cnt={};let cmax=0;
   mb.forEach(b=>{const bh=Number(b.h),ba=Number(b.a);if(bh>N||ba>N)return;const k=bh+'_'+ba;cnt[k]=(cnt[k]||0)+1;cmax=Math.max(cmax,cnt[k]);});
