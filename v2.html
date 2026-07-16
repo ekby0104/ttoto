@@ -885,15 +885,21 @@ function jumpToScore(hh,aa){
   if(bd)bd.scrollTo({top:el.offsetTop-bd.offsetTop-8,behavior:'smooth'});
 }
 // 매트릭스 셀 탭 → 노란 보더(mx-sel) + 말풍선 팝오버(상세/배팅 가로 배치)
-function pickScore(e,hh,aa){
+// cnt=그 셀 베팅 수: 상세는 베팅 있는 셀만, 배팅은 open 경기면 빈 셀도 가능
+function pickScore(e,hh,aa,cnt){
+  const canBet=gState(curGame)==='open';
+  const hasBets=Number(cnt)>0;
+  const btns=[];
+  if(hasBets)btns.push(`<button class="mx-pick-btn" onclick="mxGoDetail(${hh},${aa})">📊 상세</button>`);
+  if(canBet)btns.push(`<button class="mx-pick-btn bet" onclick="mxGoBet(${hh},${aa})">⚽ 배팅</button>`);
+  if(!btns.length)return;
   const cell=e.currentTarget||e.target;
   document.querySelectorAll('.bmx-cell.mx-sel').forEach(x=>x.classList.remove('mx-sel'));
   cell.classList.add('mx-sel');
   const wrap=document.getElementById('mx-wrap');if(!wrap)return;
   let pop=document.getElementById('mx-pick');
   if(!pop){pop=document.createElement('div');pop.id='mx-pick';pop.className='mx-pick';wrap.appendChild(pop);}
-  const canBet=gState(curGame)==='open';   // 배팅 버튼은 베팅중 경기에서만
-  pop.innerHTML=`<button class="mx-pick-btn" onclick="mxGoDetail(${hh},${aa})">📊 상세</button>${canBet?`<button class="mx-pick-btn bet" onclick="mxGoBet(${hh},${aa})">⚽ 배팅</button>`:''}`;
+  pop.innerHTML=btns.join('');
   // 셀 위 중앙(공간 없으면 아래), 꼬리는 셀 중앙을 가리킴
   const wr=wrap.getBoundingClientRect(),cr=cell.getBoundingClientRect();
   const pw=pop.offsetWidth,ph=pop.offsetHeight;
@@ -1016,8 +1022,10 @@ function betMatrixHtml(g,mb,res){
       const bg=c?`rgba(48,209,88,${op})`:'var(--card2)';
       const col=c?(c/denom>0.55?'#000':'#fff'):'transparent';
       const resBg=isRes?`background:var(--gold);color:#000;`:`background:${bg};color:${col};`;
-      const cursor=c?'cursor:pointer;':'';
-      const onclick=c?`onclick="pickScore(event,${hh},${aa})"`:'';
+      // 베팅 있는 셀=상세(+배팅), 빈 셀은 open 경기에서만 배팅용으로 선택 가능
+      const clickable=c>0||gState(g)==='open';
+      const cursor=clickable?'cursor:pointer;':'';
+      const onclick=clickable?`onclick="pickScore(event,${hh},${aa},${c})"`:'';
       rows+=`<td><div class="bmx-cell" ${onclick} style="${cellStyle()}${resBg}${cursor}">${isRes?c:(c||'')}</div></td>`;
     }
     rows+='</tr>';
