@@ -1113,24 +1113,34 @@ function openBetForm(){
   `;
   document.getElementById('bet-name').value=localStorage.getItem('toto_name')||'';
 }
-async function doBet(viaKakao){
+// 검증은 동기 함수로: 실패 시 alert + 해당 입력으로 포커스 이동, false 반환 → <a> 링크 이동 차단
+// (async 함수는 Promise(truthy)를 반환해 onclick="return ..."으로 링크를 막을 수 없음)
+function validateBet(){
+  const hEl=document.getElementById('bet-h'),aEl=document.getElementById('bet-a'),nEl=document.getElementById('bet-name');
+  if(hEl.value.trim()===''||isNaN(parseInt(hEl.value))||parseInt(hEl.value)<0){
+    alert('⚽ 홈팀 스코어를 입력해주세요');hEl.focus();return false;}
+  if(aEl.value.trim()===''||isNaN(parseInt(aEl.value))||parseInt(aEl.value)<0){
+    alert('⚽ 원정팀 스코어를 입력해주세요');aEl.focus();return false;}
+  const name=nEl.value.trim();
+  if(!name){alert('✏️ 이름을 입력해주세요');nEl.focus();return false;}
+  if(!/^[가-힣ㄱ-ㅎㅏ-ㅣa-zA-Z0-9]+$/.test(name)){alert('이름은 한글·영문·숫자만 사용할 수 있어요');nEl.focus();return false;}
+  return true;
+}
+function doBet(viaKakao){
+  if(!validateBet())return false;   // 검증 실패 → 카카오 링크 이동 차단
   const g=curGame;
   const h=parseInt(document.getElementById('bet-h').value);
   const a=parseInt(document.getElementById('bet-a').value);
   const name=document.getElementById('bet-name').value.trim();
-  if(isNaN(h)||isNaN(a)||h<0||a<0){toast('❌ 점수를 입력해주세요',true);return false;}
-  if(!name){toast('❌ 이름을 입력해주세요',true);return false;}
-  if(!/^[가-힣ㄱ-ㅎㅏ-ㅣa-zA-Z0-9]+$/.test(name)){toast('❌ 이름은 한글·영문·숫자만',true);return false;}
   localStorage.setItem('toto_name',name);
   const body={game_id:Number(g.id),name,h,a};
   // 카카오: 링크는 즉시 열고 저장은 백그라운드
-  const p=fetch(API+'/bets',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)})
+  fetch(API+'/bets',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)})
     .then(async r=>{
       if(r.ok){toast('✅ 베팅 완료!');await refresh();renderGameBody();}
       else{const d=await r.json().catch(()=>({}));toast('❌ '+(d.detail||'베팅 실패'),true);}
     }).catch(()=>toast('❌ 서버 연결 실패',true));
-  if(viaKakao)return true;       // 링크 열기 허용
-  await p;return false;
+  return viaKakao;                  // 카카오만 링크 열기 허용
 }
 
 // ── 토너먼트 오버뷰 (인라인 미니 브래킷) ──
