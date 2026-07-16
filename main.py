@@ -495,7 +495,12 @@ def _settle_carryover(new_gids):
             if is_target and co > 0:
                 res["carryover_in"] = co     # 이 경기에 걸려 있던 이월 (무당첨 재이월 표시용)
                 results_dirty = True
-            co += sum(int(b.get("amount") or 0) for b in gbets)
+            if g.get("carry_mode", "carry") == "refund":
+                # 반환 모드: 이 경기 판돈은 이월하지 않고 참가자에게 돌려줌(오프라인 반환). 걸려 있던 이월분은 재이월.
+                res["refunded_pot"] = sum(int(b.get("amount") or 0) for b in gbets)
+                results_dirty = True
+            else:
+                co += sum(int(b.get("amount") or 0) for b in gbets)
         elif winner and is_target:
             if co > 0:
                 res["carryover_used"] = co   # 종료 후에도 당첨금 표시에 이월 포함할 수 있도록 기록
@@ -633,6 +638,7 @@ class GameIn(BaseModel):
     venue:     Optional[str] = ""
     status:    Optional[str] = "pending"  # pending | open | closed
     bet_type:  Optional[str] = "exact"   # exact | wdl
+    carry_mode: Optional[str] = None     # carry(무당첨 시 이월, 기본) | refund(반환)
     deleted:   Optional[bool] = False    # 소프트 삭제 여부
 
 # ══════════════════════════════════════════════════════════════
@@ -954,6 +960,7 @@ def admin_add_game(body: GameIn, auth=Depends(admin_required)):
         "venue": body.venue,
         "status":   body.status   or "pending",
         "bet_type": body.bet_type or "exact",
+        "carry_mode": body.carry_mode or "carry",
     }
     games.append(game)
     write_json(GAMES_FILE, games)
@@ -1008,6 +1015,7 @@ def admin_update_game(game_id: int, body: GameIn, auth=Depends(admin_required)):
                 "venue":  body.venue  or g.get("venue", ""),
                 "status":   body.status   or g["status"],
                 "bet_type": body.bet_type or g.get("bet_type", "exact"),
+                "carry_mode": body.carry_mode or g.get("carry_mode", "carry"),
             })
             write_json(GAMES_FILE, games)
             return g

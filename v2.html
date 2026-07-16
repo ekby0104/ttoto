@@ -1059,9 +1059,14 @@ function renderGameBody(){
   const hitRes=(bh,ba)=>!!res&&(btype==='wdl'
     ?Math.sign(Number(bh)-Number(ba))===Math.sign(Number(res.h)-Number(res.a))
     :Number(bh)===Number(res.h)&&Number(ba)===Number(res.a));
-  // 종료 + 당첨자 없음 → 판돈 이월 안내 (이 경기에 걸려 있던 이월(carryover_in) 포함 재이월)
+  // 종료 + 당첨자 없음 → 경기 설정(carry_mode)에 따라 이월/반환 안내 (걸려 있던 이월(carryover_in)은 항상 재이월)
   if(st==='ended'&&res&&mb.length&&!mb.some(b=>hitRes(b.h,b.a))){
-    h+=`<div style="background:rgba(255,214,10,.1);border:1px solid rgba(255,214,10,.4);border-radius:12px;padding:10px 12px;margin:-2px 0 14px;text-align:center;font-size:13px;font-weight:700;color:var(--gold)">💸 당첨자가 없어 판돈 ${(pot+co).toLocaleString()}원은 다음 경기로 이월됩니다${co>0?`<br><span style="font-size:12px;font-weight:600">(베팅 ${pot.toLocaleString()}원 + 이월 ${co.toLocaleString()}원)</span>`:''}</div>`;
+    const bnr=`background:rgba(255,214,10,.1);border:1px solid rgba(255,214,10,.4);border-radius:12px;padding:10px 12px;margin:-2px 0 14px;text-align:center;font-size:13px;font-weight:700;color:var(--gold)`;
+    if((g.carry_mode||'carry')==='refund'){
+      h+=`<div style="${bnr}">💸 당첨자가 없어 베팅 금액 ${pot.toLocaleString()}원은 돌려드립니다${co>0?`<br><span style="font-size:12px;font-weight:600">(이월 판돈 ${co.toLocaleString()}원은 다음 경기로 재이월)</span>`:''}</div>`;
+    }else{
+      h+=`<div style="${bnr}">💸 당첨자가 없어 판돈 ${(pot+co).toLocaleString()}원은 다음 경기로 이월됩니다${co>0?`<br><span style="font-size:12px;font-weight:600">(베팅 ${pot.toLocaleString()}원 + 이월 ${co.toLocaleString()}원)</span>`:''}</div>`;
+    }
   }
   // 점수 분포
   const paidPot=mb.filter(b=>b.paid).reduce((s,b)=>s+(b.amount||0),0);

@@ -441,7 +441,7 @@ GROUP BY b.game_id, g.home_short, g.away_short ORDER BY pot DESC</textarea>
       <div style="overflow-x:auto;-webkit-overflow-scrolling:touch">
         <table class="atable">
           <thead>
-            <tr><th><input type="checkbox" id="chk-all" onchange="toggleSelectAll(this)" style="cursor:pointer;width:15px;height:15px"></th><th>#</th><th>홈</th><th>원정</th><th>날짜/시간</th><th>베팅 방식</th><th>상태</th><th>삭제 여부</th><th>관리</th></tr>
+            <tr><th><input type="checkbox" id="chk-all" onchange="toggleSelectAll(this)" style="cursor:pointer;width:15px;height:15px"></th><th>#</th><th>홈</th><th>원정</th><th>날짜/시간</th><th>베팅 방식</th><th>이월 여부</th><th>상태</th><th>삭제 여부</th><th>관리</th></tr>
           </thead>
           <tbody id="games-body"></tbody>
         </table>
@@ -1019,7 +1019,7 @@ function renderGames() {
   const tbody = document.getElementById('games-body');
   if (!tbody) return;
   if (!allGames.length) {
-    tbody.innerHTML = '<tr><td colspan="9" style="text-align:center;color:#aaa;padding:20px">등록된 경기가 없습니다</td></tr>';
+    tbody.innerHTML = '<tr><td colspan="10" style="text-align:center;color:#aaa;padding:20px">등록된 경기가 없습니다</td></tr>';
     return;
   }
   const sorted = [...allGames].sort((a, b) => {
@@ -1054,6 +1054,13 @@ function renderGames() {
           onchange="setGameBetType('${g.id}', this.value)">
           <option value="exact" ${(g.bet_type||'exact')==='exact'?'selected':''}>정확 예측</option>
           <option value="wdl"   ${g.bet_type==='wdl'?'selected':''}>승무패</option>
+        </select>
+      </td>
+      <td>
+        <select class="form-input" style="padding:4px 8px;font-size:12px;width:70px"
+          onchange="setGameCarryMode('${g.id}', this.value)">
+          <option value="carry"  ${(g.carry_mode||'carry')==='carry'?'selected':''}>이월</option>
+          <option value="refund" ${g.carry_mode==='refund'?'selected':''}>반환</option>
         </select>
       </td>
       <td>
@@ -1218,6 +1225,22 @@ async function setGameBetType(id, betType) {
   const i = allGames.findIndex(g => String(g.id) === String(id));
   if (i > -1) allGames[i] = res;
   toast(`베팅 방식 변경: ${betType==='wdl'?'승무패':'정확 예측'}`);
+}
+
+async function setGameCarryMode(id, mode) {
+  const g = allGames.find(g => String(g.id) === String(id));
+  if (!g) return;
+  const body = {
+    home_name: g.home.name, home_short: g.home.short, home_flag: g.home.flag,
+    away_name: g.away.name, away_short: g.away.short, away_flag: g.away.flag,
+    date: g.date, time: g.time, venue: g.venue || '', status: g.status,
+    bet_type: g.bet_type || 'exact', carry_mode: mode,
+  };
+  const res = await apiFetch(`/admin/games/${id}`, {method:'PATCH', body:JSON.stringify(body)});
+  if (!res) { toast('❌ 변경 실패', true); return }
+  const i = allGames.findIndex(g => String(g.id) === String(id));
+  if (i > -1) allGames[i] = res;
+  toast(`이월 여부 변경: ${mode==='refund'?'반환 (무당첨 시 돌려줌)':'이월 (무당첨 시 다음 경기로)'}`);
 }
 
 async function deleteAllGames() {
