@@ -339,7 +339,10 @@ if DATABASE_URL:
     import psycopg
     from psycopg.types.json import Jsonb
     from psycopg_pool import ConnectionPool
-    _pg_pool = ConnectionPool(DATABASE_URL, min_size=1, max_size=20, open=True)   # 스파이크 대비 (replica 2 × 20 = 최대 40 커넥션)
+    # max_size 주의: Railway Postgres의 max_connections가 낮아(레거시 ~22) replica 2 × max_size가
+    # 한도를 넘으면 커넥션 획득이 무한 대기 → /health 실패 → 재시작 폭풍 (2026-07-10 2차 장애: 20×2=40으로 초과).
+    # 공개 GET 마이크로캐시 덕에 8이면 충분. timeout으로 대기 상한(무한 행 방지).
+    _pg_pool = ConnectionPool(DATABASE_URL, min_size=1, max_size=8, timeout=10, open=True)
 
     def _pg_write_table(conn, key, data):
         cur = conn.cursor()
