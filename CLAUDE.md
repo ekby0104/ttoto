@@ -14,7 +14,8 @@
 - **Ttoto 앱**: 무상태, **replicas 2** (로드밸런싱). 볼륨 없음 → 무중단 배포 가능
 - **Postgres**: 1대 (stateful). 앱은 `DATABASE_URL` 참조변수로 접속 (private 네트워크)
 - Railway private 네트워크는 부팅 직후 수 초간 미준비 → PG 첫 연결은 60초 재시도 로직 있음 (제거 금지)
-- PG 풀 max 20/replica. **공개 GET 마이크로캐시**(`_pub_cached`, TTL 3s): config/games/bets/results/feedback 기본 변형만, `write_json`이 같은 프로세스 캐시 전체 무효화. 다른 replica는 최대 3초 늦게 보임(허용). 결과 등록 직후 동시 접속 스파이크로 풀 5개가 포화돼 접속 불가였던 사고(2026-07-10)의 대책 — 제거 금지
+- **PG 풀 max 8/replica + 획득 timeout 10s — 절대 늘리지 말 것**: Railway Postgres `max_connections`가 낮아(~22), replica 2 × max_size가 이를 넘으면 커넥션 대기가 무한 행 → /health 실패 → 재시작 폭풍 (2026-07-10 2차 장애: 20×2=40으로 직접 겪음). 캐시 덕에 8이면 충분.
+- **공개 GET 마이크로캐시**(`_pub_cached`, TTL 3s): config/games/bets/results/feedback 기본 변형만, `write_json`이 같은 프로세스 캐시 전체 무효화. 다른 replica는 최대 3초 늦게 보임(허용). 결과 등록 직후 동시 접속 스파이크로 풀이 포화돼 접속 불가였던 1차 장애(2026-07-10)의 대책 — 제거 금지
 
 ## 페이지 구조
 
