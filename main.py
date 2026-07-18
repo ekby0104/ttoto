@@ -688,8 +688,21 @@ def submit_bet(bet: BetIn):
     if not re.match(r'^[가-힣ㄱ-ㅎㅏ-ㅣa-zA-Z0-9]+$', bet.name):
         raise HTTPException(status_code=400, detail="이름은 한글·영문·숫자만 사용 가능합니다")
     games = get_games()
-    if not any(str(g["id"]) == str(bet.game_id) for g in games):
+    game = next((g for g in games if str(g["id"]) == str(bet.game_id) and not g.get("deleted")), None)
+    if not game:
         raise HTTPException(status_code=404, detail="게임을 찾을 수 없습니다")
+    # 서버측 베팅 가능 검증 (화면 숨김만으로는 API 직접 호출을 못 막음)
+    # 베팅중(open)이면서 결과 미등록 + 시작시각 이전인 경기만 허용. 정정(종료 경기 복원)은 관리자 API로.
+    if game.get("status") != "open" or str(bet.game_id) in get_results():
+        raise HTTPException(status_code=403, detail="베팅을 받지 않는 경기입니다 (베팅중인 경기만 가능)")
+    try:
+        _dt = datetime.strptime(f"{game['date']} {game['time']}", "%Y.%m.%d %H:%M")
+        if (datetime.utcnow() + timedelta(hours=9)) >= _dt:
+            raise HTTPException(status_code=403, detail="경기 시작 시각이 지나 베팅할 수 없습니다")
+    except HTTPException:
+        raise
+    except Exception:
+        pass   # 날짜 파싱 실패 시 status 검증만으로 통과
     bets  = get_bets()
     dup = next((b for b in bets
                 if str(b["game_id"]) == str(bet.game_id)
@@ -883,6 +896,29 @@ def admin_delete_bet(bet_id: int, auth=Depends(admin_required)):
     bets = [b for b in get_bets() if b["id"] != bet_id]
     write_json(BETS_FILE, bets)
     return {"ok": True}
+
+@app.post("/api/admin/bets")
+def admin_add_bet(bet: BetIn, auth=Depends(admin_required)):
+    """관리자 수동 베팅 추가 (실수 삭제 복원·정정용). 경기 상태 무관, 관리자 인증 필요."""
+    games = get_games()
+    game = next((g for g in games if str(g["id"]) == str(bet.game_id)), None)
+    if not game:
+        raise HTTPException(status_code=404, detail="게임을 찾을 수 없습니다")
+    bets = get_bets()
+    entry = {
+        "id":         int(time.time() * 1000),
+        "game_id":    bet.game_id,
+        "name":       bet.name,
+        "h":          bet.h,
+        "a":          bet.a,
+        "amount":     get_config().get("bet_amount", 3000),
+        "paid":       True,   # 정정 복원은 대개 입금완료 건 → 기본 입금확인
+        "paid_out":   False,
+        "created_at": int(time.time()),
+    }
+    bets.append(entry)
+    write_json(BETS_FILE, bets)
+    return {"ok": True, "bet_id": entry["id"]}
 
 @app.put("/api/admin/results/{game_id}")
 def admin_set_result(game_id: int, body: ResultIn, auth=Depends(admin_required)):
