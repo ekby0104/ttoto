@@ -339,7 +339,7 @@ if DATABASE_URL:
     import psycopg
     from psycopg.types.json import Jsonb
     from psycopg_pool import ConnectionPool
-    _pg_pool = ConnectionPool(DATABASE_URL, min_size=1, max_size=5, open=True)
+    _pg_pool = ConnectionPool(DATABASE_URL, min_size=1, max_size=20, open=True)   # 스파이크 대비 (replica 2 × 20 = 최대 40 커넥션)
 
     def _pg_write_table(conn, key, data):
         cur = conn.cursor()
@@ -438,6 +438,27 @@ def get_auth():           return read_json(AUTH_FILE,           {"token": ""})
 def get_games():          return read_json(GAMES_FILE,          [])
 def get_ai_predictions(): return read_json(AI_PREDICTIONS_FILE, {})
 def get_feedback():       return read_json(FEEDBACK_FILE,        [])
+
+# ── 공개 GET 마이크로캐시 (트래픽 스파이크 흡수) ──────────────────────────
+# 결과 등록 직후 다수가 동시 접속해도 공개 조회는 키당 5초에 1번만 DB를 읽는다.
+# 쓰기(write_json)는 같은 프로세스의 캐시를 즉시 비움 → 작성자는 바로 최신을 봄.
+# 다른 replica는 최대 5초 늦게 보일 수 있음 — 스코어보드 특성상 허용.
+_PUB_CACHE: dict = {}
+_PUB_TTL = 3.0
+
+def _pub_cached(key, producer):
+    now = time.time()
+    hit = _PUB_CACHE.get(key)
+    if hit and now - hit[0] < _PUB_TTL:
+        return hit[1]
+    val = producer()
+    _PUB_CACHE[key] = (now, val)
+    return val
+
+_write_json_raw = write_json
+def write_json(path, data):
+    _write_json_raw(path, data)
+    _PUB_CACHE.clear()
 
 def active_game_ids():
     """삭제되지 않은 경기 id 집합 (문자열)"""
@@ -647,16 +668,17 @@ class GameIn(BaseModel):
 
 @app.get("/api/config")
 def public_config():
-    cfg = get_config()
-    return {"bet_amount": cfg.get("bet_amount", 3000), "kp_link": cfg.get("kp_link", ""), "site_title": cfg.get("site_title", "토토"), "carryover": cfg.get("carryover", 0),
-            "popup_enabled": cfg.get("popup_enabled", False), "popup_message": cfg.get("popup_message", ""), "popup_publish_at": cfg.get("popup_publish_at", "")}
+    def _make():
+        cfg = get_config()
+        return {"bet_amount": cfg.get("bet_amount", 3000), "kp_link": cfg.get("kp_link", ""), "site_title": cfg.get("site_title", "토토"), "carryover": cfg.get("carryover", 0),
+                "popup_enabled": cfg.get("popup_enabled", False), "popup_message": cfg.get("popup_message", ""), "popup_publish_at": cfg.get("popup_publish_at", "")}
+    return _pub_cached("config", _make)
 
 @app.get("/api/games")
 def list_games(include_deleted: bool = False):
-    games = get_games()
-    if not include_deleted:
-        games = [g for g in games if not g.get("deleted")]
-    return games
+    if include_deleted:                       # 관리자용 변형은 캐시 미적용
+        return get_games()
+    return _pub_cached("games", lambda: [g for g in get_games() if not g.get("deleted")])
 
 @app.post("/api/bets")
 def submit_bet(bet: BetIn):
@@ -690,16 +712,17 @@ def submit_bet(bet: BetIn):
 
 @app.get("/api/bets")
 def list_bets(game_id: Optional[int] = None):
-    bets = get_bets()
-    active = active_game_ids()
-    bets = [b for b in bets if str(b["game_id"]) in active]   # 삭제된 경기의 베팅 숨김(FK)
-    if game_id is not None:
-        bets = [b for b in bets if b["game_id"] == game_id]
-    return bets
+    def _make():
+        bets = get_bets()
+        active = active_game_ids()
+        return [b for b in bets if str(b["game_id"]) in active]   # 삭제된 경기의 베팅 숨김(FK)
+    if game_id is not None:                   # 필터 변형은 캐시 미적용
+        return [b for b in _make() if b["game_id"] == game_id]
+    return _pub_cached("bets", _make)
 
 @app.get("/api/results")
 def list_results():
-    return get_results()
+    return _pub_cached("results", get_results)
 
 @app.get("/api/ai-predictions")
 def list_ai_predictions():
@@ -739,8 +762,7 @@ def submit_feedback(fb: FeedbackIn):
 @app.get("/api/feedback")
 def list_feedback():
     # 공개 목록: 최신순, 최근 200건
-    items = sorted(get_feedback(), key=lambda x: x.get("created_at", 0), reverse=True)
-    return items[:200]
+    return _pub_cached("feedback", lambda: sorted(get_feedback(), key=lambda x: x.get("created_at", 0), reverse=True)[:200])
 
 # ══════════════════════════════════════════════════════════════
 # ADMIN API
