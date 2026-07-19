@@ -199,6 +199,14 @@ body.bk-snap .bk-card{transition:none!important}   /* 전체뷰→이동 시 카
 .bmx-cell{width:32px;height:32px;border-radius:8px;display:flex;align-items:center;justify-content:center;font-size:13px;font-weight:800}
 .bmx-corner{font-size:9px;color:var(--muted);font-family:var(--mono);line-height:1.2}
 .bmx-cap{font-size:12px;color:#fff;text-align:center;margin-top:10px;font-family:var(--mono);line-height:1.5}
+/* 매트릭스 셀 선택(노란 보더) + 상세/배팅 말풍선 팝오버 */
+.bmx-cell.mx-sel{outline:2px solid var(--gold);outline-offset:-2px}
+.mx-pick{position:absolute;z-index:20;display:flex;flex-direction:row;gap:6px;background:#2c2c2e;border:1px solid #48484a;border-radius:14px;padding:6px;box-shadow:0 6px 18px rgba(0,0,0,.6);white-space:nowrap}
+.mx-pick::after{content:'';position:absolute;left:var(--tail-x,50%);bottom:-7px;margin-left:-7px;border:7px solid transparent;border-bottom:0;border-top:7px solid #2c2c2e}
+.mx-pick.below::after{bottom:auto;top:-7px;border-top:0;border-bottom:7px solid #2c2c2e}
+.mx-pick-btn{border:none;border-radius:9px;background:#48484a;color:#fff;font-size:13px;font-weight:700;padding:7px 13px;cursor:pointer;font-family:var(--sys)}
+.mx-pick-btn:active{filter:brightness(1.25)}
+.mx-pick-btn.bet{background:var(--green);color:#000}
 /* 그룹 경기 시트 */
 .grp-game{display:flex;align-items:center;gap:8px;background:var(--card2);border:1.5px solid transparent;border-radius:12px;padding:11px 13px;margin-bottom:8px;cursor:pointer}
 .grp-game:active{filter:brightness(1.12)}
@@ -876,6 +884,45 @@ function jumpToScore(hh,aa){
   const bd=document.querySelector('#sh-game .sheet-bd');
   if(bd)bd.scrollTo({top:el.offsetTop-bd.offsetTop-8,behavior:'smooth'});
 }
+// 매트릭스 셀 탭 → 노란 보더(mx-sel) + 말풍선 팝오버(상세/배팅 가로 배치)
+// cnt=그 셀 베팅 수: 상세는 베팅 있는 셀만, 배팅은 open 경기면 빈 셀도 가능
+function pickScore(e,hh,aa,cnt){
+  const canBet=gState(curGame)==='open';
+  const hasBets=Number(cnt)>0;
+  const btns=[];
+  if(hasBets)btns.push(`<button class="mx-pick-btn" onclick="mxGoDetail(${hh},${aa})">📊 상세</button>`);
+  if(canBet)btns.push(`<button class="mx-pick-btn bet" onclick="mxGoBet(${hh},${aa})">⚽ 배팅</button>`);
+  if(!btns.length)return;
+  const cell=e.currentTarget||e.target;
+  document.querySelectorAll('.bmx-cell.mx-sel').forEach(x=>x.classList.remove('mx-sel'));
+  cell.classList.add('mx-sel');
+  const wrap=document.getElementById('mx-wrap');if(!wrap)return;
+  let pop=document.getElementById('mx-pick');
+  if(!pop){pop=document.createElement('div');pop.id='mx-pick';pop.className='mx-pick';wrap.appendChild(pop);}
+  pop.innerHTML=btns.join('');
+  // 셀 위 중앙(공간 없으면 아래), 꼬리는 셀 중앙을 가리킴
+  const wr=wrap.getBoundingClientRect(),cr=cell.getBoundingClientRect();
+  const pw=pop.offsetWidth,ph=pop.offsetHeight;
+  let left=cr.left-wr.left+cr.width/2-pw/2;
+  left=Math.max(4,Math.min(left,wrap.clientWidth-pw-4));
+  let top=cr.top-wr.top-ph-9,below=false;
+  if(top<2){top=cr.bottom-wr.top+9;below=true;}
+  pop.style.left=left+'px';pop.style.top=top+'px';
+  pop.classList.toggle('below',below);
+  pop.style.setProperty('--tail-x',(cr.left-wr.left+cr.width/2-left)+'px');
+  e.stopPropagation();
+}
+function hideMxPick(){
+  const p=document.getElementById('mx-pick');if(p)p.remove();
+  document.querySelectorAll('.bmx-cell.mx-sel').forEach(x=>x.classList.remove('mx-sel'));
+}
+function mxGoDetail(hh,aa){hideMxPick();jumpToScore(hh,aa);}
+function mxGoBet(hh,aa){hideMxPick();openBetForm(hh,aa);}
+document.addEventListener('click',e=>{
+  if(!document.getElementById('mx-pick'))return;
+  if(e.target.closest('#mx-pick')||e.target.closest('.bmx-cell'))return;
+  hideMxPick();
+});
 // 브래킷 카드 선택 (id 저장 → 재렌더에도 흰색 반짝임 유지)
 let selGid=null;
 function bkSelect(el){
@@ -977,13 +1024,15 @@ function betMatrixHtml(g,mb,res){
       const bg=c?`rgba(48,209,88,${op})`:'var(--card2)';
       const col=c?(c/denom>0.55?'#000':'#fff'):'transparent';
       const resBg=isRes?`background:var(--gold);color:#000;`:`background:${bg};color:${col};`;
-      const cursor=c?'cursor:pointer;':'';
-      const onclick=c?`onclick="jumpToScore(${hh},${aa})"`:'';
+      // 베팅 있는 셀=상세(+배팅), 빈 셀은 open 경기에서만 배팅용으로 선택 가능
+      const clickable=c>0||gState(g)==='open';
+      const cursor=clickable?'cursor:pointer;':'';
+      const onclick=clickable?`onclick="pickScore(event,${hh},${aa},${c})"`:'';
       rows+=`<td><div class="bmx-cell" ${onclick} style="${cellStyle()}${resBg}${cursor}">${isRes?c:(c||'')}</div></td>`;
     }
     rows+='</tr>';
   }
-  return `<div style="padding:2px 0"><table class="bmx">${head}${rows}</table></div>
+  return `<div id="mx-wrap" style="padding:2px 0;position:relative"><table class="bmx">${head}${rows}</table></div>
     <div class="bmx-cap">→ ${esc(g.home.short)} 스코어 · ↓ ${esc(g.away.short)} 스코어 · 칸 = 예측 인원${res?'<br>🟡 실제 결과':''}</div>`;
 }
 function renderGameBody(){
@@ -1012,9 +1061,14 @@ function renderGameBody(){
   const hitRes=(bh,ba)=>!!res&&(btype==='wdl'
     ?Math.sign(Number(bh)-Number(ba))===Math.sign(Number(res.h)-Number(res.a))
     :Number(bh)===Number(res.h)&&Number(ba)===Number(res.a));
-  // 종료 + 당첨자 없음 → 판돈 이월 안내 (이 경기에 걸려 있던 이월(carryover_in) 포함 재이월)
+  // 종료 + 당첨자 없음 → 경기 설정(carry_mode)에 따라 이월/반환 안내 (걸려 있던 이월(carryover_in)은 항상 재이월)
   if(st==='ended'&&res&&mb.length&&!mb.some(b=>hitRes(b.h,b.a))){
-    h+=`<div style="background:rgba(255,214,10,.1);border:1px solid rgba(255,214,10,.4);border-radius:12px;padding:10px 12px;margin:-2px 0 14px;text-align:center;font-size:13px;font-weight:700;color:var(--gold)">💸 당첨자가 없어 판돈 ${(pot+co).toLocaleString()}원은 다음 경기로 이월됩니다${co>0?`<br><span style="font-size:12px;font-weight:600">(베팅 ${pot.toLocaleString()}원 + 이월 ${co.toLocaleString()}원)</span>`:''}</div>`;
+    const bnr=`background:rgba(255,214,10,.1);border:1px solid rgba(255,214,10,.4);border-radius:12px;padding:10px 12px;margin:-2px 0 14px;text-align:center;font-size:13px;font-weight:700;color:var(--gold)`;
+    if((g.carry_mode||'carry')==='refund'){
+      h+=`<div style="${bnr}">💸 당첨자가 없어 베팅 금액 ${pot.toLocaleString()}원은 돌려드립니다${co>0?`<br><span style="font-size:12px;font-weight:600">(이월 판돈 ${co.toLocaleString()}원은 다음 경기로 재이월)</span>`:''}</div>`;
+    }else{
+      h+=`<div style="${bnr}">💸 당첨자가 없어 판돈 ${(pot+co).toLocaleString()}원은 다음 경기로 이월됩니다${co>0?`<br><span style="font-size:12px;font-weight:600">(베팅 ${pot.toLocaleString()}원 + 이월 ${co.toLocaleString()}원)</span>`:''}</div>`;
+    }
   }
   // 점수 분포
   const paidPot=mb.filter(b=>b.paid).reduce((s,b)=>s+(b.amount||0),0);
@@ -1091,7 +1145,7 @@ document.getElementById('g-body').addEventListener('scroll',updateGHint,{passive
 document.getElementById('grp-body').addEventListener('scroll',updateGrpHint,{passive:true});
 
 // ── 베팅 입력 ──
-function openBetForm(){
+function openBetForm(ph,pa){   // ph/pa: 매트릭스에서 선택한 스코어 프리필(선택)
   const g=curGame;
   const amt=CONFIG.bet_amount?Number(CONFIG.bet_amount).toLocaleString():'0';
   document.getElementById('g-body').innerHTML=`
@@ -1114,6 +1168,8 @@ function openBetForm(){
     <button class="btn btn-d" style="margin-top:10px" onclick="renderGameBody()">← 현황으로</button>
   `;
   document.getElementById('bet-name').value=localStorage.getItem('toto_name')||'';
+  if(ph!=null)document.getElementById('bet-h').value=ph;
+  if(pa!=null)document.getElementById('bet-a').value=pa;
 }
 // 검증은 동기 함수로: 실패 시 alert + 해당 입력으로 포커스 이동, false 반환 → <a> 링크 이동 차단
 // (async 함수는 Promise(truthy)를 반환해 onclick="return ..."으로 링크를 막을 수 없음)

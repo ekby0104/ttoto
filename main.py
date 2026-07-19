@@ -339,7 +339,10 @@ if DATABASE_URL:
     import psycopg
     from psycopg.types.json import Jsonb
     from psycopg_pool import ConnectionPool
-    _pg_pool = ConnectionPool(DATABASE_URL, min_size=1, max_size=5, open=True)
+    # max_size 주의: Railway Postgres의 max_connections가 낮아(레거시 ~22) replica 2 × max_size가
+    # 한도를 넘으면 커넥션 획득이 무한 대기 → /health 실패 → 재시작 폭풍 (2026-07-10 2차 장애: 20×2=40으로 초과).
+    # 공개 GET 마이크로캐시 덕에 8이면 충분. timeout으로 대기 상한(무한 행 방지).
+    _pg_pool = ConnectionPool(DATABASE_URL, min_size=1, max_size=8, timeout=10, open=True)
 
     def _pg_write_table(conn, key, data):
         cur = conn.cursor()
@@ -439,6 +442,27 @@ def get_games():          return read_json(GAMES_FILE,          [])
 def get_ai_predictions(): return read_json(AI_PREDICTIONS_FILE, {})
 def get_feedback():       return read_json(FEEDBACK_FILE,        [])
 
+# ── 공개 GET 마이크로캐시 (트래픽 스파이크 흡수) ──────────────────────────
+# 결과 등록 직후 다수가 동시 접속해도 공개 조회는 키당 5초에 1번만 DB를 읽는다.
+# 쓰기(write_json)는 같은 프로세스의 캐시를 즉시 비움 → 작성자는 바로 최신을 봄.
+# 다른 replica는 최대 5초 늦게 보일 수 있음 — 스코어보드 특성상 허용.
+_PUB_CACHE: dict = {}
+_PUB_TTL = 3.0
+
+def _pub_cached(key, producer):
+    now = time.time()
+    hit = _PUB_CACHE.get(key)
+    if hit and now - hit[0] < _PUB_TTL:
+        return hit[1]
+    val = producer()
+    _PUB_CACHE[key] = (now, val)
+    return val
+
+_write_json_raw = write_json
+def write_json(path, data):
+    _write_json_raw(path, data)
+    _PUB_CACHE.clear()
+
 def active_game_ids():
     """삭제되지 않은 경기 id 집합 (문자열)"""
     return {str(g["id"]) for g in get_games() if not g.get("deleted")}
@@ -495,7 +519,12 @@ def _settle_carryover(new_gids):
             if is_target and co > 0:
                 res["carryover_in"] = co     # 이 경기에 걸려 있던 이월 (무당첨 재이월 표시용)
                 results_dirty = True
-            co += sum(int(b.get("amount") or 0) for b in gbets)
+            if g.get("carry_mode", "carry") == "refund":
+                # 반환 모드: 이 경기 판돈은 이월하지 않고 참가자에게 돌려줌(오프라인 반환). 걸려 있던 이월분은 재이월.
+                res["refunded_pot"] = sum(int(b.get("amount") or 0) for b in gbets)
+                results_dirty = True
+            else:
+                co += sum(int(b.get("amount") or 0) for b in gbets)
         elif winner and is_target:
             if co > 0:
                 res["carryover_used"] = co   # 종료 후에도 당첨금 표시에 이월 포함할 수 있도록 기록
@@ -633,6 +662,7 @@ class GameIn(BaseModel):
     venue:     Optional[str] = ""
     status:    Optional[str] = "pending"  # pending | open | closed
     bet_type:  Optional[str] = "exact"   # exact | wdl
+    carry_mode: Optional[str] = None     # carry(무당첨 시 이월, 기본) | refund(반환)
     deleted:   Optional[bool] = False    # 소프트 삭제 여부
 
 # ══════════════════════════════════════════════════════════════
@@ -641,24 +671,38 @@ class GameIn(BaseModel):
 
 @app.get("/api/config")
 def public_config():
-    cfg = get_config()
-    return {"bet_amount": cfg.get("bet_amount", 3000), "kp_link": cfg.get("kp_link", ""), "site_title": cfg.get("site_title", "토토"), "carryover": cfg.get("carryover", 0),
-            "popup_enabled": cfg.get("popup_enabled", False), "popup_message": cfg.get("popup_message", ""), "popup_publish_at": cfg.get("popup_publish_at", "")}
+    def _make():
+        cfg = get_config()
+        return {"bet_amount": cfg.get("bet_amount", 3000), "kp_link": cfg.get("kp_link", ""), "site_title": cfg.get("site_title", "토토"), "carryover": cfg.get("carryover", 0),
+                "popup_enabled": cfg.get("popup_enabled", False), "popup_message": cfg.get("popup_message", ""), "popup_publish_at": cfg.get("popup_publish_at", "")}
+    return _pub_cached("config", _make)
 
 @app.get("/api/games")
 def list_games(include_deleted: bool = False):
-    games = get_games()
-    if not include_deleted:
-        games = [g for g in games if not g.get("deleted")]
-    return games
+    if include_deleted:                       # 관리자용 변형은 캐시 미적용
+        return get_games()
+    return _pub_cached("games", lambda: [g for g in get_games() if not g.get("deleted")])
 
 @app.post("/api/bets")
 def submit_bet(bet: BetIn):
     if not re.match(r'^[가-힣ㄱ-ㅎㅏ-ㅣa-zA-Z0-9]+$', bet.name):
         raise HTTPException(status_code=400, detail="이름은 한글·영문·숫자만 사용 가능합니다")
     games = get_games()
-    if not any(str(g["id"]) == str(bet.game_id) for g in games):
+    game = next((g for g in games if str(g["id"]) == str(bet.game_id) and not g.get("deleted")), None)
+    if not game:
         raise HTTPException(status_code=404, detail="게임을 찾을 수 없습니다")
+    # 서버측 베팅 가능 검증 (화면 숨김만으로는 API 직접 호출을 못 막음)
+    # 베팅중(open)이면서 결과 미등록 + 시작시각 이전인 경기만 허용. 정정(종료 경기 복원)은 관리자 API로.
+    if game.get("status") != "open" or str(bet.game_id) in get_results():
+        raise HTTPException(status_code=403, detail="베팅을 받지 않는 경기입니다 (베팅중인 경기만 가능)")
+    try:
+        _dt = datetime.strptime(f"{game['date']} {game['time']}", "%Y.%m.%d %H:%M")
+        if (datetime.utcnow() + timedelta(hours=9)) >= _dt:
+            raise HTTPException(status_code=403, detail="경기 시작 시각이 지나 베팅할 수 없습니다")
+    except HTTPException:
+        raise
+    except Exception:
+        pass   # 날짜 파싱 실패 시 status 검증만으로 통과
     bets  = get_bets()
     dup = next((b for b in bets
                 if str(b["game_id"]) == str(bet.game_id)
@@ -684,16 +728,17 @@ def submit_bet(bet: BetIn):
 
 @app.get("/api/bets")
 def list_bets(game_id: Optional[int] = None):
-    bets = get_bets()
-    active = active_game_ids()
-    bets = [b for b in bets if str(b["game_id"]) in active]   # 삭제된 경기의 베팅 숨김(FK)
-    if game_id is not None:
-        bets = [b for b in bets if b["game_id"] == game_id]
-    return bets
+    def _make():
+        bets = get_bets()
+        active = active_game_ids()
+        return [b for b in bets if str(b["game_id"]) in active]   # 삭제된 경기의 베팅 숨김(FK)
+    if game_id is not None:                   # 필터 변형은 캐시 미적용
+        return [b for b in _make() if b["game_id"] == game_id]
+    return _pub_cached("bets", _make)
 
 @app.get("/api/results")
 def list_results():
-    return get_results()
+    return _pub_cached("results", get_results)
 
 @app.get("/api/ai-predictions")
 def list_ai_predictions():
@@ -733,8 +778,7 @@ def submit_feedback(fb: FeedbackIn):
 @app.get("/api/feedback")
 def list_feedback():
     # 공개 목록: 최신순, 최근 200건
-    items = sorted(get_feedback(), key=lambda x: x.get("created_at", 0), reverse=True)
-    return items[:200]
+    return _pub_cached("feedback", lambda: sorted(get_feedback(), key=lambda x: x.get("created_at", 0), reverse=True)[:200])
 
 # ══════════════════════════════════════════════════════════════
 # ADMIN API
@@ -853,6 +897,29 @@ def admin_delete_bet(bet_id: int, auth=Depends(admin_required)):
     write_json(BETS_FILE, bets)
     return {"ok": True}
 
+@app.post("/api/admin/bets")
+def admin_add_bet(bet: BetIn, auth=Depends(admin_required)):
+    """관리자 수동 베팅 추가 (실수 삭제 복원·정정용). 경기 상태 무관, 관리자 인증 필요."""
+    games = get_games()
+    game = next((g for g in games if str(g["id"]) == str(bet.game_id)), None)
+    if not game:
+        raise HTTPException(status_code=404, detail="게임을 찾을 수 없습니다")
+    bets = get_bets()
+    entry = {
+        "id":         int(time.time() * 1000),
+        "game_id":    bet.game_id,
+        "name":       bet.name,
+        "h":          bet.h,
+        "a":          bet.a,
+        "amount":     get_config().get("bet_amount", 3000),
+        "paid":       True,   # 정정 복원은 대개 입금완료 건 → 기본 입금확인
+        "paid_out":   False,
+        "created_at": int(time.time()),
+    }
+    bets.append(entry)
+    write_json(BETS_FILE, bets)
+    return {"ok": True, "bet_id": entry["id"]}
+
 @app.put("/api/admin/results/{game_id}")
 def admin_set_result(game_id: int, body: ResultIn, auth=Depends(admin_required)):
     results = get_results()
@@ -954,6 +1021,7 @@ def admin_add_game(body: GameIn, auth=Depends(admin_required)):
         "venue": body.venue,
         "status":   body.status   or "pending",
         "bet_type": body.bet_type or "exact",
+        "carry_mode": body.carry_mode or "carry",
     }
     games.append(game)
     write_json(GAMES_FILE, games)
@@ -1008,6 +1076,7 @@ def admin_update_game(game_id: int, body: GameIn, auth=Depends(admin_required)):
                 "venue":  body.venue  or g.get("venue", ""),
                 "status":   body.status   or g["status"],
                 "bet_type": body.bet_type or g.get("bet_type", "exact"),
+                "carry_mode": body.carry_mode or g.get("carry_mode", "carry"),
             })
             write_json(GAMES_FILE, games)
             return g
