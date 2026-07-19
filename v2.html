@@ -939,12 +939,14 @@ function openActiveBets(){
 }
 // 스코어 매트릭스(홈 스코어×원정 스코어, 칸=예측 인원수)
 function betMatrixHtml(g,mb,res){
-  let maxS=2;
-  mb.forEach(b=>{maxS=Math.max(maxS,Number(b.h),Number(b.a));});
-  if(res)maxS=Math.max(maxS,Number(res.h)||0,Number(res.a)||0);   // 실제 결과 셀도 매트릭스 안에 보이도록
-  const N=Math.min(maxS,9);
+  // 축별 독립 크기: X(홈)=베팅 홈스코어·결과 홈스코어 최대 / Y(원정)=베팅 원정스코어·결과 원정스코어 최대
+  // (정사각형 강제 시 4:6 같은 결과에서 한 축이 불필요하게 길어짐)
+  let maxH=2,maxA=2;
+  mb.forEach(b=>{maxH=Math.max(maxH,Number(b.h));maxA=Math.max(maxA,Number(b.a));});
+  if(res){maxH=Math.max(maxH,Number(res.h)||0);maxA=Math.max(maxA,Number(res.a)||0);}   // 실제 결과 셀도 매트릭스 안에 보이도록
+  const NH=Math.min(maxH,9),NA=Math.min(maxA,9);
   const cnt={};let cmax=0;
-  mb.forEach(b=>{const bh=Number(b.h),ba=Number(b.a);if(bh>N||ba>N)return;const k=bh+'_'+ba;cnt[k]=(cnt[k]||0)+1;cmax=Math.max(cmax,cnt[k]);});
+  mb.forEach(b=>{const bh=Number(b.h),ba=Number(b.a);if(bh>NH||ba>NA)return;const k=bh+'_'+ba;cnt[k]=(cnt[k]||0)+1;cmax=Math.max(cmax,cnt[k]);});
   const denom=cmax||1;
   const avail=Math.floor((Math.min(window.innerWidth,560)-36)*2/3);
   const HDR=35;   // 0행 높이 / 0열 너비
@@ -955,20 +957,20 @@ function betMatrixHtml(g,mb,res){
   // 행 0: (0,0) 배경 없음 + (0,1~n) 홈팀 병합, 높이 HDR
   let head=`<tr style="height:${HDR}px">
     <th style="background:none;width:${HDR}px"></th>
-    <th colspan="${N+2}" style="${thHd};font-size:15px">${g.home.flag} ${esc(g.home.short)}</th>
+    <th colspan="${NH+2}" style="${thHd};font-size:15px">${g.home.flag} ${esc(g.home.short)}</th>
   </tr>`;
-  // 행 1: (1~n,0) 원정팀 rowspan 시작 + (1,1) 빈 교차셀 + (1,2~n) 홈 득점 0~N, 높이 CS
+  // 행 1: (1~n,0) 원정팀 rowspan 시작 + (1,1) 빈 교차셀 + (1,2~n) 홈 득점 0~NH, 높이 CS
   const awayVert=`${g.away.flag}<br>${esc(g.away.short).split('').join('<br>')}`;
   head+=`<tr style="height:${CS}px">
-    <th rowspan="${N+2}" style="${thHd};width:${HDR}px;font-size:15px;line-height:1.5;vertical-align:middle;padding:2px 1px">${awayVert}</th>
+    <th rowspan="${NA+2}" style="${thHd};width:${HDR}px;font-size:15px;line-height:1.5;vertical-align:middle;padding:2px 1px">${awayVert}</th>
     <th style="${thHd};width:${CS}px"></th>`;
-  for(let hh=0;hh<=N;hh++)head+=`<th style="width:${CS}px;${thSc}">${hh}</th>`;
+  for(let hh=0;hh<=NH;hh++)head+=`<th style="width:${CS}px;${thSc}">${hh}</th>`;
   head+='</tr>';
   // 행 2~n: (i,1) 원정 득점 + 데이터 셀
   let rows='';
-  for(let aa=0;aa<=N;aa++){
+  for(let aa=0;aa<=NA;aa++){
     rows+=`<tr style="height:${CS}px"><th style="${thSc};width:${CS}px">${aa}</th>`;
-    for(let hh=0;hh<=N;hh++){
+    for(let hh=0;hh<=NH;hh++){
       const c=cnt[hh+'_'+aa]||0;
       const isRes=res&&Number(res.h)===hh&&Number(res.a)===aa;
       const op=c?(0.16+0.84*(c/denom)).toFixed(2):0;
